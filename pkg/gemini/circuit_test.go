@@ -30,10 +30,8 @@ func TestCircuitBreakerLifeCycle(t *testing.T) {
 		t.Errorf("expected until > 1h in future, got %v", until)
 	}
 
-	// In-memory reset
-	breakerMu.Lock()
-	cachedUntil = time.Time{}
-	breakerMu.Unlock()
+	// Forget what this process cached, so the next check must consult the file.
+	StudioPort().DropCache()
 
 	// Should reload from disk
 	open, _, _ = IsCircuitBreakerOpen()

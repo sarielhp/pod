@@ -1,9 +1,12 @@
 package gemini
 
 import (
+	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
+	"pod/pkg/port"
 	"pod/pkg/types"
 )
 
@@ -55,34 +58,48 @@ func TestGeminiModelChain(t *testing.T) {
 	})
 }
 
-func TestModelSelectorAdvancesOncePerModel(t *testing.T) {
+// The chain walking itself is pkg/port's job and is tested there. What
+// belongs here is the translation: turning one protocol's response into the
+// verdict the port acts on.
+func TestStudioFailureClassification(t *testing.T) {
 	t.Parallel()
-	sel := newModelSelector([]string{"a", "b", "c"})
 
-	if got := sel.current(); got != "a" {
-		t.Fatalf("current = %q, want a", got)
-	}
+	t.Run("a rate limit carries the delay the server asked for", func(t *testing.T) {
+		t.Parallel()
+		body := []byte(`{"error":{"message":"Quota exceeded. Please retry in 58.826548043s."}}`)
+		got := studioFailure("gemini-3.8-flash", http.StatusTooManyRequests, body)
+		if got.Verdict != port.RateLimited {
+			t.Errorf("verdict = %v, want RateLimited", got.Verdict)
+		}
+		if got.RetryAfter < 59*time.Second || got.RetryAfter > 60*time.Second {
+			t.Errorf("retry after = %v, want ~59.8s", got.RetryAfter)
+		}
+		if got.Daily {
+			t.Error("a per-minute limit was reported as a daily one")
+		}
+	})
 
-	// Several chunks failing on the same model must cost one step in total,
-	// otherwise one exhausted model skips the whole chain.
-	next, ok := sel.advancePast("a")
-	if !ok || next != "b" {
-		t.Fatalf("advancePast(a) = %q, %v; want b, true", next, ok)
-	}
-	next, ok = sel.advancePast("a")
-	if !ok || next != "b" {
-		t.Fatalf("stale failure advanced the chain: got %q, %v", next, ok)
-	}
+	t.Run("a retired model is skipped, not retried", func(t *testing.T) {
+		t.Parallel()
+		if got := studioFailure("old", http.StatusNotFound, nil); got.Verdict != port.ModelGone {
+			t.Errorf("verdict = %v, want ModelGone", got.Verdict)
+		}
+	})
 
-	if next, ok = sel.advancePast("b"); !ok || next != "c" {
-		t.Fatalf("advancePast(b) = %q, %v; want c, true", next, ok)
-	}
-	if next, ok = sel.advancePast("c"); ok {
-		t.Fatalf("chain should be exhausted, got %q", next)
-	}
-	if got := sel.current(); got != "" {
-		t.Errorf("current after exhaustion = %q, want empty", got)
-	}
+	t.Run("high demand is transient, not a quota", func(t *testing.T) {
+		t.Parallel()
+		if got := studioFailure("m", http.StatusServiceUnavailable, nil); got.Verdict != port.Overloaded {
+			t.Errorf("verdict = %v, want Overloaded", got.Verdict)
+		}
+	})
+
+	t.Run("a malformed request does not spend the chain", func(t *testing.T) {
+		t.Parallel()
+		// No other model would survive it, so trying them wastes quota.
+		if got := studioFailure("m", http.StatusBadRequest, nil); got.Verdict != port.Fatal {
+			t.Errorf("verdict = %v, want Fatal", got.Verdict)
+		}
+	})
 }
 
 func TestResolvedModelVersion(t *testing.T) {

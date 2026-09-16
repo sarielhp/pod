@@ -1,116 +1,49 @@
 package gemini
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"sync"
 	"time"
 
-	"pod/pkg/config"
-	"pod/pkg/util"
+	"pod/pkg/port"
 )
+
+// PortName identifies Google's own API endpoint as a metered resource.
+//
+// Ports are named for endpoint and credential, not for model family. Gemini
+// reached through OpenRouter draws on OpenRouter's quota and is a different
+// port entirely — measured, not assumed: OpenRouter served gemini-2.5-flash
+// while this port was refusing every request.
+const PortName = "google-ai-studio"
 
 const (
-	DefaultRateLimitCooldown  = 1 * time.Hour
-	DefaultDailyQuotaCooldown = 6 * time.Hour
-	cooldownFileName          = ".gemini_cooldown.json"
+	DefaultRateLimitCooldown  = port.DefaultRateLimitCooldown
+	DefaultDailyQuotaCooldown = port.DefaultDailyCooldown
+	MinRateLimitCooldown      = port.MinCooldown
 )
 
-type CooldownState struct {
-	Until  time.Time `json:"until"`
-	Reason string    `json:"reason"`
-}
+// StudioPort is the meter shared by everything that calls Google's API
+// directly — transcription here, and ad detection in pkg/detect. They speak
+// different protocols to the same quota, so they must share one port or each
+// will spend requests rediscovering a limit the other already hit.
+func StudioPort() *port.Port { return port.Open(PortName) }
 
-var (
-	breakerMu    sync.RWMutex
-	cachedUntil  time.Time
-	cachedReason string
-)
-
-func cooldownFilePath() string {
-	return filepath.Join(config.ConfigDir(), cooldownFileName)
-}
-
-// MinRateLimitCooldown is the shortest lockout worth taking. Below this the
-// breaker costs more in repeated failures than it saves.
-const MinRateLimitCooldown = 90 * time.Second
-
-// RateLimitCooldownFor is how long to stop calling Gemini after a 429.
-//
-// A per-minute quota and a per-day quota both arrive as 429, and they deserve
-// very different responses. When the server says how long to wait — "please
-// retry in 58.8s" — believe it: locking the only good free transcription
-// backend out for an hour over a one-minute quota blip is a far worse outcome
-// than one extra failed request. The default stands when the server says
-// nothing, and a reply asking for longer than the default is not shortened.
+// RateLimitCooldownFor is how long to stop calling after a 429.
 func RateLimitCooldownFor(body []byte) time.Duration {
-	requested := ExtractGeminiRetryDelay(body)
-	if requested <= 0 || requested >= DefaultRateLimitCooldown {
-		return DefaultRateLimitCooldown
-	}
-	// ExtractGeminiRetryDelay already pads past the moment the server named,
-	// so the only adjustment left is the floor.
-	if requested < MinRateLimitCooldown {
-		return MinRateLimitCooldown
-	}
-	return requested
+	return port.CooldownFor(port.ParseRetryAfter(body))
 }
 
+// TripCircuitBreaker closes the port for a while.
 func TripCircuitBreaker(reason string, duration time.Duration) {
-	breakerMu.Lock()
-	defer breakerMu.Unlock()
-
-	until := time.Now().Add(duration)
-	cachedUntil = until
-	cachedReason = reason
-
-	state := CooldownState{
-		Until:  until,
-		Reason: reason,
-	}
-	if data, err := json.Marshal(state); err == nil {
-		_ = util.WriteFileAtomic(cooldownFilePath(), data, 0644)
-	}
+	StudioPort().Trip(reason, duration)
 }
 
+// IsCircuitBreakerOpen reports whether the port is closed, until when, and why.
 func IsCircuitBreakerOpen() (bool, time.Time, string) {
-	breakerMu.RLock()
-	if time.Now().Before(cachedUntil) {
-		until, reason := cachedUntil, cachedReason
-		breakerMu.RUnlock()
-		return true, until, reason
-	}
-	breakerMu.RUnlock()
-
-	path := cooldownFilePath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false, time.Time{}, ""
-	}
-
-	var state CooldownState
-	if err := json.Unmarshal(data, &state); err != nil {
-		_ = os.Remove(path)
-		return false, time.Time{}, ""
-	}
-
-	if time.Now().Before(state.Until) {
-		breakerMu.Lock()
-		cachedUntil = state.Until
-		cachedReason = state.Reason
-		breakerMu.Unlock()
-		return true, state.Until, state.Reason
-	}
-
-	_ = os.Remove(path)
-	return false, time.Time{}, ""
+	return StudioPort().CooldownOpen()
 }
 
-func ResetCircuitBreaker() {
-	breakerMu.Lock()
-	cachedUntil = time.Time{}
-	cachedReason = ""
-	breakerMu.Unlock()
-	_ = os.Remove(cooldownFilePath())
-}
+// ResetCircuitBreaker reopens the port.
+func ResetCircuitBreaker() { StudioPort().Reset() }
+
+// ExtractGeminiRetryDelay reads a "please retry in 58.8s" hint from an error
+// body.
+func ExtractGeminiRetryDelay(body []byte) time.Duration { return port.ParseRetryAfter(body) }

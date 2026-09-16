@@ -37,7 +37,42 @@ were written; they are not in version order.
   tell a cached call from a recomputed one. The total covers the empty-answer
   confirmation re-asks, which can silently triple the cost of a detection.
 
+- **`pkg/port`** — access to a metered upstream now goes through a port that
+  owns retrying, the model chain and the cooldown. Transcription and ad
+  detection speak different protocols to the same Gemini endpoint and draw on
+  one quota, but each kept its own retry loop and neither could see the
+  other: a transcription run would exhaust the per-minute budget and
+  detection would then spend three more requests rediscovering it. Only a
+  verdict crosses the boundary, never a payload, so the two protocols stay
+  separate while their policies cannot drift apart. Ports are keyed by
+  endpoint rather than by model family — Gemini via OpenRouter and Gemini
+  direct are two meters, measured, not assumed.
+
 ### Fixed
+- **Ad detection could not survive a rate limit at all.** `pkg/detect` retried
+  three times over three seconds against an error that asks for 58 seconds,
+  had no model chain, and could not see the circuit breaker. Every protection
+  added for transcription now applies to detection too.
+- **A per-model quota closed the whole endpoint.** Google meters 20 requests
+  per day *per model*, so an exhausted model says nothing about its
+  neighbours; closing the port over one idled every model that still had
+  quota, including models outside the configured chain.
+- **A spent daily quota was read as a per-minute one.** The refusal says
+  "please retry in 23s" even when the day's allowance is gone — that is the
+  rate bucket refilling, not the day turning — so pod retried a model that
+  could not answer again until tomorrow. The structured `quotaId`
+  (`GenerateRequestsPerDayPerProjectPerModel`) is now believed over the prose.
+- **Each chunk rediscovered the same exhausted model.** Model rests are now
+  recorded and persisted, so one chunk's discovery serves the rest; a
+  four-model chain had been quadrupling consumption of the quota it exists to
+  conserve.
+- **The uploaded audio's MIME type was misdeclared.** Chunks are converted to
+  WAV but the request hardcoded `audio/mpeg`, and stricter models refuse with
+  "MIME type audio/mpeg does not match parent MIME type audio/wav".
+- **A model answering in the wrong format aborted the whole chain.** Unusable
+  output is a property of the model, not of the request, so the next model is
+  now tried. Clock-style timestamps (`"start": 01:39`, which is not valid
+  JSON) are also converted to seconds rather than discarded.
 - **A transcript produced by the Whisper fallback was labelled `"Gemini"`.**
   When a Gemini request failed, `runWhisperTranscription` fell back to local
   whisper.cpp but returned before adopting the fallback profile, so the

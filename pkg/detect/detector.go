@@ -2,6 +2,7 @@ package detect
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,8 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"pod/pkg/port"
 	"pod/pkg/types"
 )
+
+// geminiPortName is Google's own endpoint, the one whose free tier meters
+// requests per model. It must match pkg/gemini's name or transcription and
+// detection would keep separate cooldowns for one quota.
+const geminiPortName = "google-ai-studio"
 
 const SystemPrompt = `You are an expert podcast editor assistant.
 Your job is to analyze the timestamped transcript of a podcast episode and identify all advertisement segments, host-read sponsor plugs, promotional breaks, midroll/preroll ads, and sponsor call-outs.
@@ -96,8 +103,139 @@ func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxToke
 
 // CallLLMChatUsage is CallLLMChat, additionally reporting what the call cost.
 func CallLLMChatUsage(profile types.LLMProfile, sysPrompt, userPrompt string, maxTokens int, timeout time.Duration, apiKey string) (string, LLMUsage, error) {
+	client := sharedLLMClient
+	if timeout > 0 && timeout != sharedLLMClient.Timeout {
+		client = &http.Client{Timeout: timeout}
+	}
+
+	// The port owns the retrying, the model chain and the cooldown. Before
+	// it, this loop tried three times over three seconds against a Gemini
+	// error that says "please retry in 58.8s" — and it could not see that
+	// transcription had just exhausted the very same per-minute quota,
+	// because it kept its own state. Both now draw on one meter.
+	var (
+		content string
+		usage   LLMUsage
+	)
+	p := port.ForEndpoint(profile.URL)
+	err := p.Call(context.Background(), ModelChainFor(profile), func(ctx context.Context, model string) port.Attempt {
+		body, err := chatPayload(profile, model, sysPrompt, userPrompt, maxTokens)
+		if err != nil {
+			return port.Fail(err)
+		}
+		got, gotUsage, attempt := postChat(ctx, client, profile, apiKey, body)
+		if attempt.Verdict == port.Success {
+			content, usage = got, gotUsage
+		}
+		return attempt
+	})
+	if err != nil {
+		return "", usage, err
+	}
+	return content, usage, nil
+}
+
+// postChat performs one chat completion request and reports how it went.
+// It parses its own response; only the verdict reaches the port.
+func postChat(ctx context.Context, client *http.Client, profile types.LLMProfile, apiKey string, body []byte) (string, LLMUsage, port.Attempt) {
+	req, err := http.NewRequestWithContext(ctx, "POST", profile.URL, bytes.NewReader(body))
+	if err != nil {
+		return "", LLMUsage{}, port.Fail(fmt.Errorf("failed to create request: %w", err))
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		// A transport failure is worth another go on the same model, which is
+		// what Overloaded asks for.
+		return "", LLMUsage{}, port.Attempt{Verdict: port.Overloaded, Err: err}
+	}
+	respBody, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", LLMUsage{}, chatFailure(resp.StatusCode, respBody)
+	}
+	if readErr != nil {
+		return "", LLMUsage{}, port.Fail(fmt.Errorf("failed to read response: %w", readErr))
+	}
+
+	var llmResp LLMResponse
+	if err := json.Unmarshal(respBody, &llmResp); err != nil {
+		return "", LLMUsage{}, port.Fail(fmt.Errorf("failed to unmarshal response: %w", err))
+	}
+	if len(llmResp.Choices) == 0 {
+		return "", LLMUsage{}, port.Fail(fmt.Errorf("no choices in response"))
+	}
+	return llmResp.Choices[0].Message.Content, llmResp.Usage, port.OK()
+}
+
+// chatFailure classifies a non-OK response.
+//
+// The body is summarised rather than quoted whole: a Gemini quota error runs
+// to 39 lines of JSON, and burying "please retry in 58.8s" inside it helps
+// nobody.
+func chatFailure(statusCode int, body []byte) port.Attempt {
+	err := fmt.Errorf("server returned status code %d: %s", statusCode, summariseErrorBody(body))
+	switch {
+	case statusCode == http.StatusTooManyRequests:
+		_, perModel, _ := port.QuotaDetail(body)
+		return port.Attempt{
+			Verdict:    port.RateLimited,
+			RetryAfter: port.ParseRetryAfter(body),
+			Daily:      isDailyQuota(body),
+			PerModel:   perModel,
+			Err:        err,
+		}
+	case statusCode == http.StatusNotFound:
+		return port.Attempt{Verdict: port.ModelGone, Err: err}
+	case statusCode >= 500:
+		return port.Attempt{Verdict: port.Overloaded, Err: err}
+	default:
+		return port.Fail(err)
+	}
+}
+
+// ModelChainFor is the order of models to try for a profile.
+//
+// Only Google's own endpoint gets a chain: its free tier meters per model, so
+// an exhausted model is spare capacity elsewhere. An OpenRouter profile names
+// a specific vendor model that the user chose deliberately, and quietly
+// answering with a different one would be the substitution this codebase has
+// already been bitten by.
+func ModelChainFor(profile types.LLMProfile) []string {
+	if port.EndpointName(profile.URL) != geminiPortName {
+		return []string{profile.Model}
+	}
+	chain := []string{}
+	seen := map[string]bool{}
+	for _, m := range append([]string{profile.Model}, types.DefaultGeminiModelChain...) {
+		if m == "" || seen[m] || isAliasModel(m) {
+			continue
+		}
+		seen[m] = true
+		chain = append(chain, m)
+	}
+	if len(chain) == 0 {
+		return []string{profile.Model}
+	}
+	return chain
+}
+
+// isAliasModel reports a name that resolves to whatever is newest. An alias
+// leads the chain onto the most rate-limited model and records nothing
+// durable, so the pinned entries replace it.
+func isAliasModel(model string) bool { return strings.HasSuffix(model, "-latest") }
+
+func chatPayload(profile types.LLMProfile, model, sysPrompt, userPrompt string, maxTokens int) ([]byte, error) {
+	if model == "" {
+		model = profile.Model
+	}
 	payload := LLMRequest{
-		Model: profile.Model,
+		Model: model,
 		Messages: []LLMMessage{
 			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: userPrompt},
@@ -105,71 +243,11 @@ func CallLLMChatUsage(profile types.LLMProfile, sysPrompt, userPrompt string, ma
 		Temperature: 0.1,
 		MaxTokens:   maxTokens,
 	}
-
-	body, err := json.Marshal(payload)
+	data, err := json.Marshal(payload)
 	if err != nil {
-		return "", LLMUsage{}, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-
-	client := sharedLLMClient
-	if timeout > 0 && timeout != sharedLLMClient.Timeout {
-		client = &http.Client{Timeout: timeout}
-	}
-
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			if d := retryBackoff(attempt); d > 0 {
-				time.Sleep(d)
-			}
-		}
-		req, err := http.NewRequest("POST", profile.URL, bytes.NewReader(body))
-		if err != nil {
-			return "", LLMUsage{}, fmt.Errorf("failed to create request: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		if apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-			respBody, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			lastErr = fmt.Errorf("server returned status code %d: %s", resp.StatusCode, string(respBody))
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			respBody, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			return "", LLMUsage{}, fmt.Errorf("server returned status code %d: %s", resp.StatusCode, string(respBody))
-		}
-
-		respBody, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			return "", LLMUsage{}, fmt.Errorf("failed to read response: %w", err)
-		}
-
-		var llmResp LLMResponse
-		if err := json.Unmarshal(respBody, &llmResp); err != nil {
-			return "", LLMUsage{}, fmt.Errorf("failed to unmarshal response: %w", err)
-		}
-
-		if len(llmResp.Choices) == 0 {
-			return "", LLMUsage{}, fmt.Errorf("no choices in response")
-		}
-
-		return llmResp.Choices[0].Message.Content, llmResp.Usage, nil
-	}
-	return "", LLMUsage{}, lastErr
+	return data, nil
 }
 
 func DetectAdsLLM(transcriptText string, profile types.LLMProfile, apiKey string) ([]types.AdSegment, error) {

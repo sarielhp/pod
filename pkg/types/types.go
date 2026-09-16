@@ -94,6 +94,30 @@ const (
 // it. See Config.GetGeminiChunkSec for why it is not larger.
 const DefaultGeminiChunkSec = 900.0
 
+// DefaultGeminiModelChain is the order in which Gemini models are tried.
+//
+// The first entry is pinned rather than an alias on purpose.
+// "gemini-flash-latest" silently follows Google's newest flash model, and the
+// newest model carries the smallest free-tier allowance, so the alias drifts
+// onto whatever is most rate-limited without anyone changing a line of code.
+// Pinning also means a saved transcript names a real model.
+//
+// The later entries exist because the free tier meters requests per model.
+// When the first model's quota is spent the second one's is untouched, which
+// turns a hard stop into spare capacity. They also cover the other way a
+// pinned model fails: retirement. Google withdrew gemini-2.5-flash from new
+// users, and a pinned model will eventually answer 404 the same way.
+//
+// The ordering is a quality judgement and cannot be derived from version
+// numbers, which is why it is an explicit list rather than something
+// discovered at runtime. It needs revisiting as models ship.
+var DefaultGeminiModelChain = []string{
+	"gemini-3.8-flash",
+	"gemini-3.7-flash",
+	"gemini-3.6-flash",
+	"gemini-3.5-flash",
+}
+
 type WhisperProfile struct {
 	ID              int           `json:"id"`
 	Name            string        `json:"name"`

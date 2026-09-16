@@ -11,11 +11,10 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
+	"pod/pkg/port"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -123,12 +122,7 @@ func UploadAudioToGeminiStudio(ctx context.Context, apiKey, localAudioPath strin
 	pr, pw := io.Pipe()
 	mpw := multipart.NewWriter(pw)
 
-	mimeType := "audio/mpeg"
-	if strings.HasSuffix(strings.ToLower(localAudioPath), ".wav") {
-		mimeType = "audio/wav"
-	}
-
-	go PipeMultipartAudio(pw, mpw, localAudioPath, mimeType)
+	go PipeMultipartAudio(pw, mpw, localAudioPath, AudioMIMEType(localAudioPath))
 
 	url := "https://generativelanguage.googleapis.com/upload/v1beta/files"
 	req, err := http.NewRequestWithContext(ctx, "POST", url, pr)
@@ -196,87 +190,101 @@ type geminiErrorResponse struct {
 	} `json:"error"`
 }
 
-// CallGeminiStudioProcessor transcribes one uploaded file with one model,
-// waiting out a rate limit rather than giving up on it.
-func CallGeminiStudioProcessor(ctx context.Context, apiKey, modelName, fileURI string) (*types.GeminiResponsePayload, error) {
-	return callGeminiStudioModel(ctx, apiKey, modelName, fileURI, true)
+// CallGeminiStudioProcessor transcribes one uploaded file with one model.
+//
+// It performs exactly one request. Retrying, waiting and moving to another
+// model belong to pkg/port, which is the only component that can see the
+// whole picture: a second retry loop here would spend quota the port was
+// trying to conserve, and the two schedules would drift apart — which is the
+// condition that let transcription and ad detection disagree about how to
+// treat a rate limit in the first place.
+// AudioMIMEType is the type to declare for an audio file.
+//
+// The upload and the generateContent request must agree: the API rejects a
+// request whose declared type differs from the type the file was stored
+// under, with "MIME type audio/mpeg does not match parent MIME type
+// audio/wav". The type was hardcoded on the request side, so every chunk —
+// which pod converts to WAV — was declared as MP3. Models differed in whether
+// they enforced it, which is why this surfaced only on one of them.
+func AudioMIMEType(path string) string {
+	if strings.HasSuffix(strings.ToLower(path), ".wav") {
+		return "audio/wav"
+	}
+	return "audio/mpeg"
 }
 
-// callGeminiStudioModel transcribes one uploaded file with one model.
-//
-// waitOutRateLimit says whether a 429 is worth sitting through. It is only
-// true for the last model in the chain: while another model remains, waiting
-// the minute the server asks for is a minute spent not transcribing, when a
-// model with its own untouched quota would answer immediately.
-func callGeminiStudioModel(ctx context.Context, apiKey, modelName, fileURI string, waitOutRateLimit bool) (*types.GeminiResponsePayload, error) {
-	var err error
-	apiKey, err = validateKey(apiKey)
+func CallGeminiStudioProcessor(ctx context.Context, apiKey, modelName, fileURI, mimeType string) (*types.GeminiResponsePayload, error) {
+	payload, attempt := callGeminiStudioOnce(ctx, apiKey, modelName, fileURI, mimeType)
+	if attempt.Verdict == port.Success {
+		return payload, nil
+	}
+	return nil, attempt.Err
+}
+
+// callGeminiStudioOnce performs one generateContent request and reports both
+// the payload and what the port should make of the outcome.
+func callGeminiStudioOnce(ctx context.Context, apiKey, modelName, fileURI, mimeType string) (*types.GeminiResponsePayload, port.Attempt) {
+	apiKey, err := validateKey(apiKey)
 	if err != nil {
-		return nil, err
+		return nil, port.Fail(err)
 	}
 	if modelName == "" {
 		modelName = defaultGeminiModel
 	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName)
-
-	reqBytes, err := buildStudioGeneratePayload(fileURI)
+	reqBytes, err := buildStudioGeneratePayload(fileURI, mimeType)
 	if err != nil {
-		return nil, err
+		return nil, port.Fail(err)
 	}
 
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName)
 	client := &http.Client{Timeout: 5 * time.Minute}
-	// Rate limiting and capacity are different problems and get different
-	// budgets. A 429 means this key is asking for too much, so retrying
-	// harder makes it worse; a 503 means the model is momentarily
-	// oversubscribed, which no amount of restraint on our side fixes and
-	// which usually clears in well under a minute. Three attempts over six
-	// seconds is not long enough to ride out a demand spike, and the cost of
-	// giving up is a whole transcript silently produced by a weaker engine.
-	const maxAttempts = 3
-	const maxOverloadAttempts = 6
-	var lastErr error
-	overloaded := false
-	budget := func() int {
-		if overloaded {
-			return maxOverloadAttempts
-		}
-		return maxAttempts
-	}
 
-	for attempt := 1; attempt <= budget(); attempt++ {
+	body, statusCode, reqErr := executeStudioRequest(ctx, client, url, apiKey, reqBytes)
+	if reqErr != nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, port.Fail(fmt.Errorf("gemini studio request failed: %w", reqErr))
 		}
-
-		body, statusCode, reqErr := executeStudioRequest(ctx, client, url, apiKey, reqBytes)
-		switch {
-		case reqErr != nil:
-			lastErr = fmt.Errorf("gemini studio request failed: %w", reqErr)
-		case statusCode == http.StatusOK:
-			return ParseGeminiStudioResponse(body)
-		default:
-			lastErr = studioHTTPError(statusCode, body)
-			giveUpOnRateLimit := !waitOutRateLimit || attempt == maxAttempts
-			if unavailable := studioModelUnavailable(modelName, statusCode, body, giveUpOnRateLimit); unavailable != nil {
-				return nil, unavailable
-			}
-			if !studioIsOverload(statusCode) {
-				return nil, lastErr
-			}
-			overloaded = true
-		}
-
-		if attempt >= budget() {
-			continue
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(studioRetryDelay(attempt, overloaded, body)):
-		}
+		// A transport failure is worth another go on the same model.
+		return nil, port.Attempt{Verdict: port.Overloaded, Err: fmt.Errorf("gemini studio request failed: %w", reqErr)}
 	}
+	if statusCode == http.StatusOK {
+		payload, err := ParseGeminiStudioResponse(body)
+		if err != nil {
+			// The model answered with something unusable — a blocked
+			// candidate, or JSON in the wrong shape. Models differ in this:
+			// gemini-3.6-flash writes timestamps as "01:39" where the prompt
+			// asks for seconds, which is not valid JSON at all. That is the
+			// model's behaviour, not the request's, so the next model is
+			// worth trying rather than giving up on the whole chain.
+			return nil, port.Attempt{Verdict: port.Unusable, Err: err}
+		}
+		return payload, port.OK()
+	}
+	return nil, studioFailure(modelName, statusCode, body)
+}
 
-	return nil, lastErr
+// studioFailure classifies a non-OK response.
+func studioFailure(modelName string, statusCode int, body []byte) port.Attempt {
+	err := studioHTTPError(statusCode, body)
+	switch {
+	case statusCode == http.StatusTooManyRequests:
+		_, perModel, _ := port.QuotaDetail(body)
+		return port.Attempt{
+			Verdict:    port.RateLimited,
+			RetryAfter: port.ParseRetryAfter(body),
+			Daily:      IsGeminiDailyQuotaExhausted(body),
+			PerModel:   perModel,
+			Err:        err,
+		}
+	case statusCode == http.StatusNotFound:
+		// Retired models answer 404 ("no longer available to new users"),
+		// which is permanent and pinning a model makes it inevitable.
+		return port.Attempt{Verdict: port.ModelGone, Err: err}
+	case studioIsOverload(statusCode):
+		return port.Attempt{Verdict: port.Overloaded, Err: err}
+	default:
+		return port.Fail(err)
+	}
 }
 
 func studioHTTPError(statusCode int, body []byte) error {
@@ -287,53 +295,17 @@ func studioIsOverload(statusCode int) bool {
 	return statusCode == http.StatusServiceUnavailable || statusCode == http.StatusGatewayTimeout
 }
 
-// studioModelUnavailable reports whether a failed response means this model
-// cannot serve the request at all, as opposed to a transient failure worth
-// retrying. Whether to stop calling Gemini altogether is deliberately not
-// decided here: another model may still have quota, and only the caller knows
-// whether one remains.
-func studioModelUnavailable(modelName string, statusCode int, body []byte, giveUpOnRateLimit bool) *ModelUnavailableError {
-	err := studioHTTPError(statusCode, body)
-	// Retired models answer 404 ("no longer available to new users"), which is
-	// permanent, and pinning a model makes it inevitable eventually.
-	if statusCode == http.StatusNotFound {
-		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Err: err}
+func buildStudioGeneratePayload(fileURI, mimeType string) ([]byte, error) {
+	if mimeType == "" {
+		mimeType = "audio/mpeg"
 	}
-	if statusCode != http.StatusTooManyRequests {
-		return nil
-	}
-	if IsGeminiDailyQuotaExhausted(body) {
-		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Daily: true, Err: err}
-	}
-	if giveUpOnRateLimit {
-		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Err: err}
-	}
-	return nil
-}
-
-// studioRetryDelay is how long to wait before the next attempt. A delay the
-// server asked for beats any guess of ours.
-func studioRetryDelay(attempt int, overloaded bool, body []byte) time.Duration {
-	if requested := ExtractGeminiRetryDelay(body); requested > 0 && requested <= 60*time.Second {
-		return requested
-	}
-	if overloaded {
-		// 2s, 4s, 8s, 16s, 32s: about a minute in total, which is the
-		// timescale Google's own "spikes are usually temporary" message
-		// refers to.
-		return time.Duration(1<<attempt) * time.Second
-	}
-	return time.Duration(attempt*2) * time.Second
-}
-
-func buildStudioGeneratePayload(fileURI string) ([]byte, error) {
 	reqPayload := map[string]any{
 		"contents": []map[string]any{
 			{
 				"parts": []map[string]any{
 					{
 						"file_data": map[string]string{
-							"mime_type": "audio/mpeg",
+							"mime_type": mimeType,
 							"file_uri":  fileURI,
 						},
 					},
@@ -423,28 +395,12 @@ func extractGeminiQuotaDetails(errResp *geminiErrorResponse) string {
 	return ""
 }
 
-var geminiRetryRegex = regexp.MustCompile(`(?i)(?:please retry in|retry in)\s+([0-9.]+)\s*(s(?:ec(?:ond)?)?|m(?:in(?:ute)?)?)?`)
-
-func ExtractGeminiRetryDelay(body []byte) time.Duration {
-	matches := geminiRetryRegex.FindSubmatch(body)
-	if len(matches) < 2 {
-		return 0
-	}
-	val, err := strconv.ParseFloat(string(matches[1]), 64)
-	if err != nil || val <= 0 {
-		return 0
-	}
-	unit := ""
-	if len(matches) >= 3 {
-		unit = strings.ToLower(string(matches[2]))
-	}
-	if strings.HasPrefix(unit, "m") {
-		return time.Duration(val*60*float64(time.Second)) + time.Second
-	}
-	return time.Duration((val + 1.0) * float64(time.Second))
-}
-
 func IsGeminiDailyQuotaExhausted(body []byte) bool {
+	// The quotaId names the quota actually violated; everything below is a
+	// fallback for responses that do not carry one.
+	if daily, known := port.QuotaScope(body); known {
+		return daily
+	}
 	var errResp geminiErrorResponse
 	if err := json.Unmarshal(body, &errResp); err != nil {
 		return false

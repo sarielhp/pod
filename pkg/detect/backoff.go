@@ -3,32 +3,21 @@ package detect
 import (
 	"time"
 
-	"pod/pkg/util"
-)
-
-var (
-	backoffMu       util.Mutex
-	backoffOverride func(attempt int) time.Duration
+	"pod/pkg/port"
 )
 
 // SetRetryBackoff overrides the wait between LLM request attempts. Pass nil to
-// restore the default.
+// restore the real schedule.
 //
-// Tests set a zero backoff. Without this, exercising the retry path meant
-// waiting it out: one test in pkg/detect and another in pkg/adremoval spent
-// over three seconds each asleep, which was a fifth of the whole suite.
+// The waiting now happens inside pkg/port, which owns retrying for every
+// subsystem sharing an upstream, so this forwards there rather than keeping a
+// second schedule that could drift from it.
 func SetRetryBackoff(f func(attempt int) time.Duration) {
-	backoffMu.Lock()
-	defer backoffMu.Unlock()
-	backoffOverride = f
-}
-
-func retryBackoff(attempt int) time.Duration {
-	backoffMu.Lock()
-	f := backoffOverride
-	backoffMu.Unlock()
-	if f != nil {
-		return f(attempt)
+	if f == nil {
+		port.SetDefaultBackoff(nil)
+		return
 	}
-	return time.Duration(1<<attempt) * 500 * time.Millisecond
+	port.SetDefaultBackoff(func(attempt int, _ bool, _ time.Duration) time.Duration {
+		return f(attempt)
+	})
 }

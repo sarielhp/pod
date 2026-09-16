@@ -145,10 +145,10 @@ func PrepareGeminiChunks(audioPath string, chunks []types.GeminiChunkInfo) ([]ty
 }
 
 func ProcessSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg types.Config) (*types.GeminiChunkResult, error) {
-	return processSingleGeminiChunk(ctx, ch, cfg, newModelSelector(GeminiModelChain(&cfg)))
+	return processSingleGeminiChunk(ctx, ch, cfg, GeminiModelChain(&cfg))
 }
 
-func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg types.Config, sel *modelSelector) (*types.GeminiChunkResult, error) {
+func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg types.Config, models []string) (*types.GeminiChunkResult, error) {
 	apiKey := config.ResolveGeminiAPIKey(&cfg)
 	if apiKey != "" {
 		fileURI, fileName, err := UploadAudioToGeminiStudio(ctx, apiKey, ch.FilePath)
@@ -157,7 +157,7 @@ func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg
 		}
 		defer DeleteGeminiStudioFile(ctx, apiKey, fileName)
 
-		payload, err := callStudioAcrossModels(ctx, apiKey, fileURI, sel)
+		payload, err := callStudioAcrossModels(ctx, apiKey, fileURI, AudioMIMEType(ch.FilePath), models)
 		if err != nil {
 			return nil, fmt.Errorf("chunk %d studio processing failed:\n   %w", ch.Index, err)
 		}
@@ -197,9 +197,10 @@ func ProcessGeminiChunksParallel(ctx context.Context, chunks []types.GeminiChunk
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// One selector for the whole file: see modelSelector on why the chunks
-	// must agree on a model rather than each discovering an exhausted one.
-	sel := newModelSelector(GeminiModelChain(&cfg))
+	// One chain for the whole file. The port, shared by every chunk, is what
+	// makes one chunk's discovery that a model is spent apply to the rest
+	// rather than each rediscovering it and burning the quota doing so.
+	models := GeminiModelChain(&cfg)
 
 	results := make([]*types.GeminiChunkResult, len(chunks))
 	var wg util.WaitGroup
@@ -233,7 +234,7 @@ func ProcessGeminiChunksParallel(ctx context.Context, chunks []types.GeminiChunk
 				mu.Unlock()
 				return
 			}
-			res, err := processSingleGeminiChunk(ctx, chunk, cfg, sel)
+			res, err := processSingleGeminiChunk(ctx, chunk, cfg, models)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil && firstErr == nil {

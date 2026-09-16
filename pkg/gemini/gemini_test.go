@@ -326,7 +326,7 @@ func TestGeminiStudioNoKeyInURLError(t *testing.T) {
 		t.Errorf("error leaked apiKey: %v", err)
 	}
 
-	_, err = CallGeminiStudioProcessor(ctx, apiKey, "gemini-1.5-flash", "files/test")
+	_, err = CallGeminiStudioProcessor(ctx, apiKey, "gemini-1.5-flash", "files/test", "audio/wav")
 	if err == nil {
 		t.Fatal("expected error with canceled context, got nil")
 	}

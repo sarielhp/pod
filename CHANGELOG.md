@@ -5,6 +5,16 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Changed
+- `pod rm_ads -n/--limit` is documented rather than hidden. Bounding a run is
+  what makes ad removal safe to schedule: an unbounded sweep over a library
+  with a backlog is many hours of GPU and a real detection bill, and it holds
+  the library lock for all of it. The cap was already enforced, and the
+  dry-run output already referred to `-n`, but the flag did not appear in
+  help.
+
 ## [0.5.1] - 2026-09-16
 
 ### Fixed

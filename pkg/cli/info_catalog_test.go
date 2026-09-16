@@ -3,8 +3,10 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"pod/pkg/config"
 	"pod/pkg/types"
@@ -132,5 +134,42 @@ func TestCatalogKeyKeepsEpisodeNumbers(t *testing.T) {
 	// otherwise identical titles.
 	if catalogKey("p1", "Episode 219") == catalogKey("p1", "Episode 220") {
 		t.Error("episode numbers collapsed")
+	}
+}
+
+func TestCatalogMarksConveyTheTwoFacts(t *testing.T) {
+	t.Parallel()
+	// Each glyph is one fact: headphones for "the audio is here", a tick for
+	// "the advertisements are gone". A row that is merely listed carries
+	// neither and needs no word to say so.
+	listed := catalogEpisode{}
+	if strings.Contains(catalogMarks(listed), downloadedMark) ||
+		strings.Contains(catalogMarks(listed), adFreeMark) {
+		t.Errorf("an unlisted episode was marked: %q", catalogMarks(listed))
+	}
+
+	downloaded := catalogEpisode{Downloaded: true, Item: &lsEpisodeItem{statusStr: "NeedAdR"}}
+	marks := catalogMarks(downloaded)
+	if !strings.Contains(marks, downloadedMark) {
+		t.Errorf("downloaded episode unmarked: %q", marks)
+	}
+	if strings.Contains(marks, adFreeMark) {
+		t.Errorf("an episode still needing ad removal was marked ad-free: %q", marks)
+	}
+
+	clean := catalogEpisode{Downloaded: true, Item: &lsEpisodeItem{statusStr: "Clean"}}
+	if !strings.Contains(catalogMarks(clean), adFreeMark) {
+		t.Errorf("cleaned episode not marked ad-free: %q", catalogMarks(clean))
+	}
+}
+
+func TestCatalogMarksKeepColumnsAligned(t *testing.T) {
+	t.Parallel()
+	// The marks sit in fixed columns so the dates beneath them line up
+	// whether or not a row carries any. The headphones glyph is double
+	// width, so its cell is two columns to a blank cell's two spaces.
+	plain := catalogMarks(catalogEpisode{})
+	if got := utf8.RuneCountInString(plain); got != 4 {
+		t.Errorf("blank marks occupy %d runes, want 4: %q", got, plain)
 	}
 }

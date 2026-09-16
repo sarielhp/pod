@@ -72,8 +72,17 @@ func TestLsLatestCommand(t *testing.T) {
 	if !strings.Contains(out, "ep3") {
 		t.Errorf("expected newest episode ep3 to be listed, got: %s", out)
 	}
-	if !strings.Contains(out, "Clean") {
-		t.Errorf("expected ep3 status Clean, got: %s", out)
+	// The listing shows one glyph per fact rather than naming a state: the
+	// cleaned episode carries the ad-free tick, the one still needing ad
+	// removal does not.
+	if !strings.Contains(out, adFreeMark) {
+		t.Errorf("expected the cleaned episode to be marked ad-free, got: %s", out)
+	}
+	if !strings.Contains(out, downloadedMark) {
+		t.Errorf("expected downloaded episodes to be marked, got: %s", out)
+	}
+	if strings.Contains(out, "Clean") {
+		t.Errorf("status words should no longer appear, got: %s", out)
 	}
 }
 

@@ -246,26 +246,48 @@ func outputCatalogJSON(w io.Writer, episodes []catalogEpisode) error {
 func printCatalogTable(w io.Writer, episodes []catalogEpisode) {
 	fmt.Fprintf(w, "\nLatest %d Episodes Across All Podcasts:\n\n", len(episodes))
 	for _, e := range episodes {
-		mark := "  ·"
-		if e.Downloaded {
-			mark = util.BoldGreen("  ✓")
-		}
-		id := "     "
-		status := ""
-		if e.Item != nil {
-			id = e.Item.episodeShortID
-			status = e.Item.statusStr
-		}
 		fmt.Fprintf(w, "%s %s  %-6s %-22s %s\n",
-			mark,
+			catalogMarks(e),
 			e.PublishedAt.Format("2006-01-02"),
-			id,
+			e.episodeID(),
 			util.TruncateDisplayName(e.PodcastTitle, 22),
 			util.TruncateDisplayName(e.Title, 58),
 		)
-		if status != "" {
-			fmt.Fprintf(w, "        %s\n", status)
-		}
 	}
-	fmt.Fprintf(w, "\n  ✓ downloaded   · not downloaded\n")
+	fmt.Fprintf(w, "\n  %s downloaded   %s ads removed\n", downloadedMark, adFreeMark)
+}
+
+const (
+	// One glyph per fact, so a row says what it has rather than naming a
+	// state: the headphones mean the audio is here, the tick means the
+	// advertisements are gone. An episode that is merely listed shows
+	// neither, and needs no word to say so.
+	downloadedMark = "🎧"
+	adFreeMark     = "✓"
+)
+
+// catalogMarks renders the two facts a row can carry, in fixed columns so the
+// dates below them stay aligned whether or not a mark is present.
+func catalogMarks(e catalogEpisode) string {
+	downloaded := "  "
+	if e.Downloaded {
+		downloaded = downloadedMark
+	}
+	adFree := " "
+	if e.adFree() {
+		adFree = util.BoldGreen(adFreeMark)
+	}
+	return downloaded + " " + adFree
+}
+
+func (e catalogEpisode) episodeID() string {
+	if e.Item == nil {
+		return ""
+	}
+	return e.Item.episodeShortID
+}
+
+// adFree reports that the advertisements have been cut from this episode.
+func (e catalogEpisode) adFree() bool {
+	return e.Item != nil && e.Item.statusStr == "Clean"
 }

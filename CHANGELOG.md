@@ -29,6 +29,10 @@ were written; they are not in version order.
   `pod server disable-hourly` already makes about downloading them, and only
   applies to podcasts whose analysed cadence is `hourly`; a podcast with no
   cadence recorded is never hidden on a guess.
+- `pod info latest` marks each row with one glyph per fact — 🎧 for downloaded,
+  ✓ for advertisements removed — instead of printing a status word on a second
+  line. A row that is merely listed carries neither and needs no word to say
+  so, and the listing is half as tall.
 
 ## [0.4.0] - 2026-09-16
 

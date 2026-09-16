@@ -239,11 +239,16 @@ func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts t
 		return &td, nil
 	}
 
-	transcribe.AnnounceStart(totalDuration, opts.Quiet)
-
+	// The metadata prompt is built first, and only then is transcription
+	// announced. Announcing before it meant the banner claimed transcription
+	// had begun while pod was still waiting on an LLM call — no whisper
+	// process, no GPU activity, and an idle socket, for however long that
+	// call took.
 	if whisperPrompt == "" {
 		whisperPrompt = ExtractMetadataPrompt(sourceAudioFile, id3TagsOut, selectedProfile, opts)
 	}
+
+	transcribe.AnnounceStart(totalDuration, opts.Quiet)
 
 	dockerContainer := cfg.WhisperDockerContainer
 	if dockerContainer == "" {

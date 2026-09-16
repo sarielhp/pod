@@ -103,6 +103,16 @@ func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxToke
 
 // CallLLMChatUsage is CallLLMChat, additionally reporting what the call cost.
 func CallLLMChatUsage(profile types.LLMProfile, sysPrompt, userPrompt string, maxTokens int, timeout time.Duration, apiKey string) (string, LLMUsage, error) {
+	return CallLLMChatContext(context.Background(), profile, sysPrompt, userPrompt, maxTokens, timeout, apiKey)
+}
+
+// CallLLMChatContext bounds the whole call, retries and model chain included.
+//
+// The timeout argument only limits a single HTTP request. Since retrying and
+// walking the model chain moved into pkg/port, a caller that must not block
+// indefinitely needs a deadline over the entire operation: four models with
+// three attempts each is a quarter of an hour of per-request timeouts.
+func CallLLMChatContext(ctx context.Context, profile types.LLMProfile, sysPrompt, userPrompt string, maxTokens int, timeout time.Duration, apiKey string) (string, LLMUsage, error) {
 	client := sharedLLMClient
 	if timeout > 0 && timeout != sharedLLMClient.Timeout {
 		client = &http.Client{Timeout: timeout}
@@ -118,7 +128,7 @@ func CallLLMChatUsage(profile types.LLMProfile, sysPrompt, userPrompt string, ma
 		usage   LLMUsage
 	)
 	p := port.ForEndpoint(profile.URL)
-	err := p.Call(context.Background(), ModelChainFor(profile), func(ctx context.Context, model string) port.Attempt {
+	err := p.Call(ctx, ModelChainFor(profile), func(ctx context.Context, model string) port.Attempt {
 		body, err := chatPayload(profile, model, sysPrompt, userPrompt, maxTokens)
 		if err != nil {
 			return port.Fail(err)
@@ -375,12 +385,24 @@ func ExtractJSONArray(content string) ([]types.AdSegment, error) {
 	return ads, nil
 }
 
+// KeywordExtractionBudget bounds keyword extraction end to end.
+//
+// Keywords only sharpen the whisper prompt; transcription proceeds perfectly
+// well without them. So this must never be the thing that stalls a run — and
+// it was: with the LLM endpoint out of quota, the retries and the model chain
+// left pod sitting on a socket for minutes, after it had already announced
+// that it was transcribing, with no whisper process ever started.
+var KeywordExtractionBudget = 45 * time.Second
+
 func ExtractKeywordsLLM(transcriptText string, profile types.LLMProfile, apiKey string, quiet bool) string {
+	ctx, cancel := context.WithTimeout(context.Background(), KeywordExtractionBudget)
+	defer cancel()
+
 	userPrompt := fmt.Sprintf("Extract keywords from this podcast transcript segment:\n\n%s", transcriptText)
-	content, err := CallLLMChat(profile, KeywordExtractionPrompt, userPrompt, 200, 60*time.Second, apiKey)
+	content, _, err := CallLLMChatContext(ctx, profile, KeywordExtractionPrompt, userPrompt, 200, 20*time.Second, apiKey)
 	if err != nil {
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "\nError during keyword extraction: %v\n\n", err)
+			fmt.Fprintf(os.Stderr, "\n   Keyword extraction skipped (%v); transcribing without a metadata prompt.\n\n", err)
 		}
 		return ""
 	}

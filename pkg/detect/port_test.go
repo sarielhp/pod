@@ -2,6 +2,7 @@ package detect
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -131,5 +132,36 @@ func TestSummariseErrorBody(t *testing.T) {
 	}
 	if got := summariseErrorBody([]byte("plain text failure")); got != "plain text failure" {
 		t.Errorf("non-JSON body = %q", got)
+	}
+}
+
+func TestKeywordExtractionIsBounded(t *testing.T) {
+	t.Parallel()
+	// Keywords only sharpen the whisper prompt, so this must never be what
+	// stalls a run. With the endpoint refusing, the retries and the model
+	// chain previously left pod waiting for minutes with nothing started.
+	if KeywordExtractionBudget > time.Minute {
+		t.Errorf("budget %v is too long for an optional step", KeywordExtractionBudget)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"error":{"message":"service unavailable"}}`, http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	// The backoff is already zeroed for this package in TestMain. Setting it
+	// here and restoring it on return would reset the global out from under
+	// every other parallel test in the package, which cost the suite a minute.
+	start := time.Now()
+	got := ExtractKeywordsLLM("some text", types.LLMProfile{URL: srv.URL, Model: "m"}, "", true)
+	elapsed := time.Since(start)
+
+	if got != "" {
+		t.Errorf("expected no keywords from a failing endpoint, got %q", got)
+	}
+	// The point is that it returns at all, and returns empty rather than
+	// failing the transcription that depends on it.
+	if elapsed > KeywordExtractionBudget+5*time.Second {
+		t.Errorf("took %v, past the %v budget", elapsed, KeywordExtractionBudget)
 	}
 }

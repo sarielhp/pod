@@ -256,6 +256,11 @@ type CLIOptions struct {
 	DetectWriteCuts bool
 	DetectRepeat    int
 
+	// DownloadedOnly restricts `info latest` to episodes on disk. The default
+	// lists everything the feeds have published, which is the useful question
+	// when most podcasts are configured not to download automatically.
+	DownloadedOnly bool
+
 	// Out and Err are where this invocation's output goes. Both nil means the
 	// process streams, which is what a real command line wants. Tests supply
 	// buffers instead, so that checking what a command printed does not mean

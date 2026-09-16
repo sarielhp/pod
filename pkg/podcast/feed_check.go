@@ -221,10 +221,13 @@ func classifyFetchedFeed(res FeedCheckResult, fetched FeedFetchResult, entry *Fe
 		if updated.ImageURL == "" {
 			updated.ImageURL = entry.ImageURL
 		}
-		// The sweep replaces the entry outright, so carry over the publication
-		// history the frequency analysis maintains rather than discarding it.
+		// The sweep replaces the entry outright, so carry the publication
+		// history over rather than discarding it — and fold in what this fetch
+		// just read, which nothing did before, leaving the catalogue frozen at
+		// whenever it was first written.
 		updated.PubDates = entry.PubDates
 	}
+	updated.PubDates = mergePubDates(updated.PubDates, doc.Episodes, FeedCachePubDateLimit)
 	cache.Put(res.FeedURL, updated)
 
 	res.Episodes = doc.Episodes

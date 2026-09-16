@@ -164,12 +164,21 @@ func listLatestEpisodes(podcastsDir string, limit int, cli CLIOptions) error {
 	}
 
 	allMp3s := util.FindMP3Files(podcastsDir)
+	items := collectLatestEpisodeItems(allMp3s, podTitleMap, podIDMap)
+
+	// By default the listing answers "what has been published", merging the
+	// feeds' publication history with what is on disk. --downloaded restores
+	// the older question, "what did I fetch recently", which is the only one
+	// this command could answer when it read the filesystem alone.
+	if !cli.DownloadedOnly {
+		return listCatalogEpisodes(podcastsDir, items, limit, cli)
+	}
+
 	if len(allMp3s) == 0 {
 		fmt.Fprintln(progressFor(cli), "No podcast audio files (.mp3) found.")
 		return nil
 	}
 
-	items := collectLatestEpisodeItems(allMp3s, podTitleMap, podIDMap)
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].modTime.After(items[j].modTime)
 	})

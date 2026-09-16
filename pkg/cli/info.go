@@ -85,6 +85,7 @@ func buildInfoCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.String(&opts.ExportFormat, "--export <format>", "", "Export transcript to format ('srt' or 'txt')"),
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Limit number of episodes to list"),
 			clihelp.Bool(&opts.Latest, "-l, --latest", false, "List latest episodes across library"),
+			clihelp.Bool(&opts.DownloadedOnly, "--downloaded", false, "List only episodes on disk, newest file first"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress formatting/headers"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),
 			clihelp.String(&opts.Output, "-o, --output <path>", "", "Output destination for export"),
@@ -122,7 +123,7 @@ func buildInfoCommand(opts *CLIOptions, action *string) clihelp.Command {
 func buildInfoLatestSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "latest",
-		Description: "List latest added episodes across all podcasts",
+		Description: "List latest published episodes across all podcasts",
 		UsageLine:   "pod info latest [N] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[N]", Description: "Number of episodes to show (default: 10)"},
@@ -130,6 +131,7 @@ func buildInfoLatestSubcommand(opts *CLIOptions, action *string) clihelp.Command
 		Args: clihelp.MaximumNArgs(1),
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 10, "Number of latest episodes to list"),
+			clihelp.Bool(&opts.DownloadedOnly, "--downloaded", false, "Only episodes on disk, newest file first"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Output results in JSON format"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),

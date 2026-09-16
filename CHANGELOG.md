@@ -5,6 +5,24 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Fixed
+- **The feed catalogue never refreshed.** A feed check carried the retained
+  publication history across unchanged and never added the episodes it had
+  just read, so the catalogue froze at whenever it was first written — one
+  feed's newest entry was nine months stale. Fetched episodes are now merged
+  into the history, deduplicated, newest first, capped per feed.
+
+### Changed
+- **`pod info latest` lists what has been published, not what is on disk.** It
+  read MP3 files and sorted them by file modification time, so it answered
+  "what did I fetch recently" and could not mention an episode that was never
+  downloaded. With most podcasts configured not to download automatically,
+  those were exactly the episodes worth seeing. It now merges the feeds'
+  publication history with the library, sorts by publication date, and marks
+  each row downloaded or not. `--downloaded` restores the previous behaviour.
+
 ## [0.4.0] - 2026-09-16
 
 ### Added

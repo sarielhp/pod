@@ -161,8 +161,26 @@ func TestFeedSweepPreservesPublicationHistory(t *testing.T) {
 	CheckFeedsForUpdates(pods, buildEpisodeIndexFromPodcasts(nil, pods), checkOpts(cache))
 
 	entry := cache.Get(srv.URL)
-	if entry == nil || len(entry.PubDates) != 1 {
-		t.Fatalf("publication history lost by the sweep: %+v", entry)
+	if entry == nil {
+		t.Fatal("entry lost by the sweep")
+	}
+	// The retained entry must survive, and the episode this fetch just read
+	// must join it: carrying the history across without adding to it is what
+	// left the catalogue frozen at whenever it was first written.
+	var keptOld, addedNew bool
+	for _, pd := range entry.PubDates {
+		if pd.PublishedAt == 1000 {
+			keptOld = true
+		}
+		if pd.PublishedAt != 1000 && pd.Title == "Ep 1" {
+			addedNew = true
+		}
+	}
+	if !keptOld {
+		t.Errorf("publication history lost by the sweep: %+v", entry.PubDates)
+	}
+	if !addedNew {
+		t.Errorf("the fetched episode was not recorded: %+v", entry.PubDates)
 	}
 	if entry.ETag == "" {
 		t.Error("the sweep should still have recorded the validator")

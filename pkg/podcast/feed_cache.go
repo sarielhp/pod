@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,6 +116,63 @@ func (e *FeedCacheEntry) FeedEpisodes() []backend.FeedEpisode {
 		eps = append(eps, backend.FeedEpisode{Title: pd.Title, PublishedAt: pd.PublishedAt})
 	}
 	return eps
+}
+
+// FeedCachePubDateLimit caps the publication history kept per feed.
+//
+// Only a title and a timestamp are stored per episode, so this is cheap: what
+// made the old whole-episode cache expensive was the descriptions, which no
+// caller reads back. The history has two readers — the frequency analysis,
+// which wants a long run of dates, and the catalogue listing, which wants the
+// most recent titles — and a hundred serves both.
+const FeedCachePubDateLimit = 100
+
+// mergePubDates folds freshly fetched episodes into the retained history.
+//
+// A fetch used to carry the previous history across unchanged, so nothing ever
+// added the episodes it had just read: the catalogue went stale the moment it
+// was first written, and an episode that was never downloaded was known to no
+// part of pod. Newest entries are kept when the limit bites, because that is
+// what a "what is new" listing asks for.
+func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, limit int) []FeedCachePubDate {
+	merged := make([]FeedCachePubDate, 0, len(existing)+len(episodes))
+	// Indexed by publication time rather than by title as well, so that the
+	// same episode recorded once without a title and once with one collapses
+	// into a single entry instead of both surviving.
+	byTime := make(map[int64][]int, len(existing)+len(episodes))
+
+	add := func(pd FeedCachePubDate) {
+		if pd.PublishedAt <= 0 && pd.Title == "" {
+			return
+		}
+		for _, idx := range byTime[pd.PublishedAt] {
+			if merged[idx].Title == pd.Title {
+				return
+			}
+			if merged[idx].Title == "" {
+				merged[idx].Title = pd.Title
+				return
+			}
+			if pd.Title == "" {
+				return
+			}
+		}
+		byTime[pd.PublishedAt] = append(byTime[pd.PublishedAt], len(merged))
+		merged = append(merged, pd)
+	}
+
+	for _, pd := range existing {
+		add(pd)
+	}
+	for _, ep := range episodes {
+		add(FeedCachePubDate{Title: ep.Title, PublishedAt: ep.PublishedAt})
+	}
+
+	sort.Slice(merged, func(i, j int) bool { return merged[i].PublishedAt > merged[j].PublishedAt })
+	if limit > 0 && len(merged) > limit {
+		merged = merged[:limit]
+	}
+	return merged
 }
 
 func pubDatesFromEpisodes(episodes []backend.FeedEpisode) []FeedCachePubDate {

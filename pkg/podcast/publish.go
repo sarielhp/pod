@@ -99,7 +99,7 @@ func appendRemoteEpisodes(local []podsite.Episode, localMeta []LocalEpisodeMeta,
 			Title:       fe.Title,
 			GUID:        guid,
 			PubDate:     time.UnixMilli(pubMs).UTC().Format(time.RFC1123Z),
-			Description: fe.Title,
+			Description: remoteDescription(fe),
 			DurationSec: fe.DurationSeconds,
 			RemoteURL:   url,
 		})
@@ -107,6 +107,19 @@ func appendRemoteEpisodes(local []podsite.Episode, localMeta []LocalEpisodeMeta,
 
 	sort.Slice(out, func(i, j int) bool { return out[i].PubDate > out[j].PubDate })
 	return out
+}
+
+// remoteDescription is the notes to publish for an episode held upstream,
+// falling back to the title when the cache has none — which is the case for
+// records written before descriptions were retained.
+func remoteDescription(fe backend.FeedEpisode) string {
+	if d := strings.TrimSpace(fe.DescriptionPlain); d != "" {
+		return d
+	}
+	if d := strings.TrimSpace(fe.Description); d != "" {
+		return d
+	}
+	return fe.Title
 }
 
 // episodeDatePrefix matches the publication date pod prefixes to a filename.

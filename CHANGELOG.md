@@ -16,10 +16,14 @@ were written; they are not in version order.
   original for any show not fully mirrored. Across this library that took the
   published feeds from 973 items to 6,838: 973 served locally and ad-free,
   5,865 passed through.
-- The feed cache retains each episode's enclosure URL, GUID and duration
-  alongside its title and publication time, which is what makes the
-  passthrough possible. Descriptions are still left out; they were the bulk of
-  the whole-episode cache that was dropped earlier.
+- The feed cache retains each episode's enclosure URL, GUID, duration and show
+  notes alongside its title and publication time, which is what makes the
+  passthrough possible. Notes are stripped of markup and capped at 700
+  characters — whole ones average about a thousand and would add some seven
+  megabytes — so a passthrough item carries real notes rather than repeating
+  its own title. Markup is also stripped when reading, so entries written by
+  an earlier version are cleaned rather than keeping their tags forever, and a
+  truncated description cannot end mid-tag.
 
 ### Fixed
 - **`pod server feed <target>` silently did nothing when the target matched no

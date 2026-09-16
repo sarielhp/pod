@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"io"
 	"math/rand"
 	"net/http"
@@ -101,7 +102,23 @@ type FeedCachePubDate struct {
 	GUID        string  `json:"guid,omitempty"`
 	URL         string  `json:"url,omitempty"`
 	DurationSec float64 `json:"duration_sec,omitempty"`
+
+	// Desc is the episode's show notes, trimmed of markup and truncated.
+	// Whole descriptions were what made the old episode cache expensive —
+	// they run to a thousand characters each and nothing read them back. Now
+	// something does: an episode published from the catalogue rather than
+	// from disk has no other source of notes, and a feed item carrying only
+	// its own title as its description is poor.
+	Desc string `json:"desc,omitempty"`
 }
+
+// FeedCacheDescLimit caps a retained description.
+//
+// Measured against this library, descriptions average about a thousand
+// characters; keeping them whole would add some seven megabytes to a cache
+// read by every command. This keeps the opening of the notes, which is what a
+// podcast client shows in a list, and drops the footer of links and credits.
+const FeedCacheDescLimit = 700
 
 const FeedCacheDefaultTTL = 48 * time.Hour
 
@@ -123,11 +140,13 @@ func (e *FeedCacheEntry) FeedEpisodes() []backend.FeedEpisode {
 	eps := make([]backend.FeedEpisode, 0, len(e.PubDates))
 	for _, pd := range e.PubDates {
 		eps = append(eps, backend.FeedEpisode{
-			Title:           pd.Title,
-			PublishedAt:     pd.PublishedAt,
-			GUID:            pd.GUID,
-			EnclosureURL:    pd.URL,
-			DurationSeconds: pd.DurationSec,
+			Title:            pd.Title,
+			PublishedAt:      pd.PublishedAt,
+			GUID:             pd.GUID,
+			EnclosureURL:     pd.URL,
+			DurationSeconds:  pd.DurationSec,
+			Description:      plainDescription(pd.Desc),
+			DescriptionPlain: plainDescription(pd.Desc),
 		})
 	}
 	return eps
@@ -180,6 +199,7 @@ func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, 
 			GUID:        ep.GUID,
 			URL:         episodeEnclosureURL(ep),
 			DurationSec: ep.DurationSeconds,
+			Desc:        trimDescription(ep),
 		})
 	}
 
@@ -188,6 +208,45 @@ func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, 
 		merged = merged[:limit]
 	}
 	return merged
+}
+
+// trimDescription reduces an episode's notes to plain text within the cache's
+// budget, preferring the feed's own plain-text form when it offers one.
+func trimDescription(ep backend.FeedEpisode) string {
+	text := strings.TrimSpace(ep.DescriptionPlain)
+	if text == "" {
+		text = strings.TrimSpace(ep.Description)
+	}
+	// Both fields arrive carrying markup from some feeds, so strip
+	// unconditionally rather than trusting the name of the field.
+	text = strings.Join(strings.Fields(stripMarkup(text)), " ")
+	if len(text) <= FeedCacheDescLimit {
+		return text
+	}
+	cut := FeedCacheDescLimit
+	// Prefer a word boundary so the notes do not end mid-word.
+	if idx := strings.LastIndexByte(text[:cut], ' '); idx > FeedCacheDescLimit/2 {
+		cut = idx
+	}
+	return strings.TrimSpace(text[:cut]) + "…"
+}
+
+// plainDescription cleans a retained description on the way out.
+//
+// Stripping only on the way in would leave entries written by an earlier
+// version carrying markup for as long as they survive, and a truncated
+// description ending mid-tag is worse than one with no markup at all.
+func plainDescription(s string) string {
+	if !strings.ContainsRune(s, '<') && !strings.ContainsRune(s, '&') {
+		return s
+	}
+	return strings.Join(strings.Fields(stripMarkup(s)), " ")
+}
+
+var markupTag = regexp.MustCompile(`<[^>]*>`)
+
+func stripMarkup(s string) string {
+	return html.UnescapeString(markupTag.ReplaceAllString(s, " "))
 }
 
 // episodeEnclosureURL is where a feed says the audio lives.
@@ -207,6 +266,9 @@ func enrichPubDate(dst *FeedCachePubDate, src FeedCachePubDate) {
 	}
 	if dst.DurationSec <= 0 {
 		dst.DurationSec = src.DurationSec
+	}
+	if dst.Desc == "" {
+		dst.Desc = src.Desc
 	}
 }
 

@@ -34,55 +34,82 @@ func selectNewEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices []
 	if len(sortedCatalog) == 0 {
 		return nil, nil
 	}
-
 	if len(downloadedIndices) == 0 && isDownloaded != nil {
-		for idx, ep := range sortedCatalog {
-			if isDownloaded(ep) {
-				downloadedIndices = append(downloadedIndices, idx)
-			}
-		}
+		downloadedIndices = downloadedCatalogIndices(sortedCatalog, isDownloaded)
 	}
 
+	// With something already downloaded, "new" means everything published
+	// after the newest copy held. With nothing downloaded there is no such
+	// mark, so a favourite falls back to everything since it was favourited
+	// and anything else takes nothing.
+	var candidates []backend.FeedEpisode
 	if len(downloadedIndices) > 0 {
-		maxIdx := -1
-		for _, idx := range downloadedIndices {
-			if idx > maxIdx {
-				maxIdx = idx
-			}
-		}
-		var newEpisodes []backend.FeedEpisode
-		if maxIdx+1 < len(sortedCatalog) {
-			for _, ep := range sortedCatalog[maxIdx+1:] {
-				if hasDownloadableEnclosure(ep) && !isDownloaded(ep) {
-					newEpisodes = append(newEpisodes, ep)
-				}
-			}
-		}
-		if len(newEpisodes) > 0 {
-			for i, j := 0, len(newEpisodes)-1; i < j; i, j = i+1, j-1 {
-				newEpisodes[i], newEpisodes[j] = newEpisodes[j], newEpisodes[i]
-			}
-			return newEpisodes, []string{fmt.Sprintf("%d new episode(s) (policy: new)", len(newEpisodes))}
-		}
-		return nil, nil
+		candidates = fetchableAfter(sortedCatalog, maxIndex(downloadedIndices)+1, isDownloaded)
+	} else if favoriteSince != nil {
+		candidates = fetchableSince(sortedCatalog, favoriteSince.UnixMilli(), isDownloaded)
 	}
 
-	var newEpisodes []backend.FeedEpisode
-	if favoriteSince != nil {
-		cutoffMS := favoriteSince.UnixMilli()
-		for _, ep := range sortedCatalog {
-			if GetPubMS(ep) >= cutoffMS && hasDownloadableEnclosure(ep) && !isDownloaded(ep) {
-				newEpisodes = append(newEpisodes, ep)
-			}
-		}
-	}
-	if len(newEpisodes) == 0 {
+	if len(candidates) == 0 {
 		return nil, nil
 	}
-	for i, j := 0, len(newEpisodes)-1; i < j; i, j = i+1, j-1 {
-		newEpisodes[i], newEpisodes[j] = newEpisodes[j], newEpisodes[i]
+	reverseEpisodes(candidates)
+	return candidates, []string{fmt.Sprintf("%d new episode(s) (policy: new)", len(candidates))}
+}
+
+// downloadedCatalogIndices reports which catalogue positions are held.
+func downloadedCatalogIndices(catalog []backend.FeedEpisode, isDownloaded func(backend.FeedEpisode) bool) []int {
+	var out []int
+	for idx, ep := range catalog {
+		if isDownloaded(ep) {
+			out = append(out, idx)
+		}
 	}
-	return newEpisodes, []string{fmt.Sprintf("%d new episode(s) (policy: new)", len(newEpisodes))}
+	return out
+}
+
+func maxIndex(indices []int) int {
+	max := -1
+	for _, i := range indices {
+		if i > max {
+			max = i
+		}
+	}
+	return max
+}
+
+// fetchableAfter is every downloadable episode from a position onwards that
+// is not already held.
+func fetchableAfter(catalog []backend.FeedEpisode, from int, isDownloaded func(backend.FeedEpisode) bool) []backend.FeedEpisode {
+	if from >= len(catalog) {
+		return nil
+	}
+	var out []backend.FeedEpisode
+	for _, ep := range catalog[from:] {
+		if hasDownloadableEnclosure(ep) && !isDownloaded(ep) {
+			out = append(out, ep)
+		}
+	}
+	return out
+}
+
+// fetchableSince is every downloadable episode published at or after a time
+// that is not already held.
+func fetchableSince(catalog []backend.FeedEpisode, cutoffMS int64, isDownloaded func(backend.FeedEpisode) bool) []backend.FeedEpisode {
+	var out []backend.FeedEpisode
+	for _, ep := range catalog {
+		if GetPubMS(ep) >= cutoffMS && hasDownloadableEnclosure(ep) && !isDownloaded(ep) {
+			out = append(out, ep)
+		}
+	}
+	return out
+}
+
+// reverseEpisodes puts the newest first, which is the order downloads are
+// reported and executed in.
+func reverseEpisodes(eps []backend.FeedEpisode) {
+	for i, j := 0, len(eps)-1; i < j; i, j = i+1, j-1 {
+		eps[i], eps[j] = eps[j], eps[i]
+	}
 }
 
 func hasDownloadableEnclosure(ep backend.FeedEpisode) bool {

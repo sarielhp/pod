@@ -225,36 +225,44 @@ func selectForceNewEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndic
 	return episodesToDownload, reasons
 }
 
+// searchOrder is the catalogue in the order to walk it: newest first unless
+// the caller asked to work up from the oldest.
+func searchOrder(catalog []backend.FeedEpisode, oldest bool) []backend.FeedEpisode {
+	out := make([]backend.FeedEpisode, len(catalog))
+	copy(out, catalog)
+	if !oldest {
+		reverseEpisodes(out)
+	}
+	return out
+}
+
+// missingAfter is every episode from a position onwards that is not held.
+// Unlike fetchableAfter it does not require an enclosure, because the gap
+// filler reports what is missing rather than only what it could fetch.
+func missingAfter(catalog []backend.FeedEpisode, from int, isDownloaded func(backend.FeedEpisode) bool) []backend.FeedEpisode {
+	if from >= len(catalog) {
+		return nil
+	}
+	var out []backend.FeedEpisode
+	for _, ep := range catalog[from:] {
+		if !isDownloaded(ep) {
+			out = append(out, ep)
+		}
+	}
+	return out
+}
+
 func selectFillEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, checkNew, oldest bool, rep progress.Reporter, podcastTitle string) ([]backend.FeedEpisode, []string) {
 	var episodesToDownload []backend.FeedEpisode
 	var reasons []string
 
-	searchCatalog := make([]backend.FeedEpisode, len(sortedCatalog))
-	copy(searchCatalog, sortedCatalog)
-	if !oldest {
-		for i, j := 0, len(searchCatalog)-1; i < j; i, j = i+1, j-1 {
-			searchCatalog[i], searchCatalog[j] = searchCatalog[j], searchCatalog[i]
-		}
-	}
+	searchCatalog := searchOrder(sortedCatalog, oldest)
 
 	if checkNew && len(downloadedIndices) > 0 {
-		maxIdx := -1
-		for _, idx := range downloadedIndices {
-			if idx > maxIdx {
-				maxIdx = idx
-			}
-		}
-		if maxIdx+1 < len(sortedCatalog) {
-			var newEpisodes []backend.FeedEpisode
-			for _, ep := range sortedCatalog[maxIdx+1:] {
-				if !isDownloaded(ep) {
-					newEpisodes = append(newEpisodes, ep)
-				}
-			}
-			if len(newEpisodes) > 0 {
-				reasons = append(reasons, fmt.Sprintf("%d new episode(s)", len(newEpisodes)))
-				episodesToDownload = append(episodesToDownload, newEpisodes...)
-			}
+		newEpisodes := missingAfter(sortedCatalog, maxIndex(downloadedIndices)+1, isDownloaded)
+		if len(newEpisodes) > 0 {
+			reasons = append(reasons, fmt.Sprintf("%d new episode(s)", len(newEpisodes)))
+			episodesToDownload = append(episodesToDownload, newEpisodes...)
 		}
 	}
 
@@ -295,58 +303,49 @@ func selectFillEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices [
 	return episodesToDownload, reasons
 }
 
+// trimToCount keeps at most count episodes, taking them from the end the
+// caller cares about: working up from the oldest keeps the first, otherwise
+// the newest are the ones worth having.
+func trimToCount(eps []backend.FeedEpisode, count int, oldest bool) []backend.FeedEpisode {
+	if len(eps) <= count {
+		return eps
+	}
+	if oldest {
+		return eps[:count]
+	}
+	return eps[len(eps)-count:]
+}
+
 func selectDefaultUndownloadedEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, count int, countGiven, checkNew, oldest bool) ([]backend.FeedEpisode, []string) {
 	var episodesToDownload []backend.FeedEpisode
 	var reasons []string
 
 	if checkNew && len(downloadedIndices) > 0 {
-		maxIdx := -1
-		for _, idx := range downloadedIndices {
-			if idx > maxIdx {
-				maxIdx = idx
-			}
-		}
-		if maxIdx+1 < len(sortedCatalog) {
-			var newEpisodes []backend.FeedEpisode
-			for _, ep := range sortedCatalog[maxIdx+1:] {
-				if !isDownloaded(ep) {
-					newEpisodes = append(newEpisodes, ep)
-				}
-			}
-			if len(newEpisodes) > 0 {
-				reasons = append(reasons, fmt.Sprintf("%d new episode(s)", len(newEpisodes)))
-				episodesToDownload = append(episodesToDownload, newEpisodes...)
-			}
+		newEpisodes := missingAfter(sortedCatalog, maxIndex(downloadedIndices)+1, isDownloaded)
+		if len(newEpisodes) > 0 {
+			reasons = append(reasons, fmt.Sprintf("%d new episode(s)", len(newEpisodes)))
+			episodesToDownload = append(episodesToDownload, newEpisodes...)
 		}
 	}
 
-	if len(episodesToDownload) == 0 {
-		var undownloaded []backend.FeedEpisode
-		for _, ep := range sortedCatalog {
-			if !isDownloaded(ep) {
-				undownloaded = append(undownloaded, ep)
-			}
+	if len(episodesToDownload) > 0 {
+		if countGiven && len(episodesToDownload) > count {
+			episodesToDownload = trimToCount(episodesToDownload, count, oldest)
 		}
-		if len(undownloaded) > 0 {
-			if !oldest {
-				for i, j := 0, len(undownloaded)-1; i < j; i, j = i+1, j-1 {
-					undownloaded[i], undownloaded[j] = undownloaded[j], undownloaded[i]
-				}
-			}
-			if len(undownloaded) > count {
-				undownloaded = undownloaded[:count]
-			}
-			episodesToDownload = undownloaded
-			reasons = append(reasons, fmt.Sprintf("%d undownloaded episode(s)", len(episodesToDownload)))
-		}
-	} else if countGiven && len(episodesToDownload) > count {
-		if oldest {
-			episodesToDownload = episodesToDownload[:count]
-		} else {
-			episodesToDownload = episodesToDownload[len(episodesToDownload)-count:]
-		}
+		return episodesToDownload, reasons
 	}
-	return episodesToDownload, reasons
+
+	undownloaded := missingAfter(sortedCatalog, 0, isDownloaded)
+	if len(undownloaded) == 0 {
+		return nil, reasons
+	}
+	if !oldest {
+		reverseEpisodes(undownloaded)
+	}
+	if len(undownloaded) > count {
+		undownloaded = undownloaded[:count]
+	}
+	return undownloaded, append(reasons, fmt.Sprintf("%d undownloaded episode(s)", len(undownloaded)))
 }
 
 func ExecuteEpisodeDownloads(client backend.Backend, item backend.Podcast, episodesToDownload []backend.FeedEpisode, reasons []string, opts DownloadOptions) (int, error) {

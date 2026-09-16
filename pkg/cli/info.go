@@ -176,6 +176,7 @@ func buildInfoCheckSubcommand(opts *CLIOptions, action *string) clihelp.Command 
 			clihelp.Bool(&opts.TestWhisper, "--test-whisper", false, "Test whisper server connection"),
 			clihelp.Bool(&opts.TestKitty, "--test-kitty", false, "Test Kitty cover image display"),
 			clihelp.Bool(&opts.TestGemini, "--test-gemini", false, "Test Gemini API key and quota status"),
+			clihelp.Bool(&opts.TestModels, "--models", false, "Compare the Gemini model chain with what the key can reach"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "info"

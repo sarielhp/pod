@@ -238,6 +238,7 @@ type CLIOptions struct {
 	TestWhisper       bool
 	TestKitty         bool
 	TestGemini        bool
+	TestModels        bool
 	ResetCache        bool
 	AddWhisper        string
 	RemoveWhisper     int

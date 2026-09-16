@@ -143,18 +143,17 @@ pod info e12345 --export srt # Export transcript to SRT
 pod info status             # Show library summary and worker status
 pod info check              # Test external services (Whisper, ABS, Kitty)
 
-# Podcast sync & server operations (absorbs fetch, server, policy)
-pod sync                    # Scan library for podcasts and new episodes
-pod sync feeds              # Fetch latest RSS feeds
+# Feed sync & server operations (all under `server`)
+pod server feeds            # Check upstream RSS feeds for new episodes
 pod server download         # Download pending episodes according to podcast policy
 pod server download p0001 -k 3 # Download up to 3 missing episodes for a podcast
 pod server flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts
 pod server flush p0001       # Remove MP3/precut audio and disable automatic downloads
 pod server publication-sync --dry-run # Preview correcting local publication metadata from the source catalog
 pod server publication-sync # Correct cached/status dates; unknown source dates stay unknown
-pod sync prune              # Prune old episodes per retention policy
-pod sync policy p0001       # View or update download/AdR policy
-pod sync timeline           # Display online availability timestamps table
+pod server prune            # Prune old episodes per retention policy
+pod server policy p0001     # View or update download/AdR policy
+pod server timeline         # Display online availability timestamps table
 
 # Manage AdR queue
 pod queue list

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -210,6 +211,18 @@ func printDetectStability(w io.Writer, s *DetectStabilityResult) {
 		fmt.Fprintf(w, "  reproducible: every pair of runs agreed exactly\n")
 		return
 	}
-	fmt.Fprintf(w, "  NOT reproducible: %d/%d runs matched the first; agreement min %.0f%%, mean %.0f%%\n",
-		s.Identical, s.Runs, s.MinAgreement*100, s.MeanAgreement*100)
+	fmt.Fprintf(w, "  NOT reproducible: %d/%d runs matched the first; agreement min %s, mean %s\n",
+		s.Identical, s.Runs, agreementPct(s.MinAgreement), agreementPct(s.MeanAgreement))
+}
+
+// agreementPct renders an agreement figure without rounding it up to a
+// certainty it has not earned. Printing "100%" beside "NOT reproducible" — as
+// 0.9952 did at zero decimals — reads as a bug in the measurement rather than
+// as a near miss.
+func agreementPct(v float64) string {
+	pct := math.Floor(v*1000) / 10
+	if v >= 1 {
+		return "100%"
+	}
+	return fmt.Sprintf("%.1f%%", pct)
 }

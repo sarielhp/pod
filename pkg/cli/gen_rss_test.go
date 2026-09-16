@@ -104,3 +104,21 @@ func TestGenRSSRequestShapes(t *testing.T) {
 		}
 	}
 }
+
+func TestAgreementPctNeverRoundsUpToCertainty(t *testing.T) {
+	t.Parallel()
+	// "agreement min 100%" printed beside "NOT reproducible" reads as a bug in
+	// the measurement. Only exact agreement may print 100%.
+	if got := agreementPct(0.995184); got != "99.5%" {
+		t.Errorf("got %q, want 99.5%%", got)
+	}
+	if got := agreementPct(0.99999); got == "100%" {
+		t.Errorf("rounded a near miss up to certainty: %q", got)
+	}
+	if got := agreementPct(1); got != "100%" {
+		t.Errorf("exact agreement printed as %q", got)
+	}
+	if got := agreementPct(0.5); got != "50.0%" {
+		t.Errorf("got %q", got)
+	}
+}

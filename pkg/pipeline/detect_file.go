@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"pod/pkg/config"
@@ -42,6 +43,10 @@ type DetectRequest struct {
 	// WriteCuts saves a .cuts.json beside the transcript, as a pipeline run
 	// would. Off by default: reading should not rewrite the library.
 	WriteCuts bool
+
+	// Temperature overrides the profile's sampling temperature for this run.
+	// Empty keeps the profile's setting.
+	Temperature string
 }
 
 // DetectResult reports what a detection run found.
@@ -80,6 +85,13 @@ func DetectFile(req DetectRequest, cfg types.Config, opts types.ProcOptions, rep
 	profile, err := config.SelectLLMProfile(&cfg, req.Profile)
 	if err != nil {
 		return res, err
+	}
+	if req.Temperature != "" {
+		t, err := strconv.ParseFloat(strings.TrimSpace(req.Temperature), 64)
+		if err != nil || t < 0 {
+			return res, fmt.Errorf("invalid temperature %q", req.Temperature)
+		}
+		profile.Temperature = &t
 	}
 	res.Profile = profile
 	apiKey := config.ResolveLLMAPIKey(profile, &cfg)

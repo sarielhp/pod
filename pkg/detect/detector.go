@@ -250,7 +250,7 @@ func chatPayload(profile types.LLMProfile, model, sysPrompt, userPrompt string, 
 			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature: 0.1,
+		Temperature: profile.SamplingTemperature(),
 		MaxTokens:   maxTokens,
 	}
 	data, err := json.Marshal(payload)

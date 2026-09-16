@@ -79,6 +79,28 @@ type LLMProfile struct {
 	URL    string `json:"url"`
 	Model  string `json:"model"`
 	APIKey string `json:"api_key"`
+
+	// Temperature is the sampling temperature for this profile. A pointer so
+	// that zero — the value that asks a model to be as deterministic as it
+	// can — is distinguishable from "not configured".
+	Temperature *float64 `json:"temperature,omitempty"`
+}
+
+// DefaultAdDetectionTemperature is the sampling temperature used when a
+// profile sets none.
+//
+// Ad detection is an extraction task, not a creative one: there is a right
+// answer in the transcript and no value in varying it. A non-zero temperature
+// bought nothing and cost reproducibility — the same episode returned
+// different cut boundaries between runs.
+const DefaultAdDetectionTemperature = 0.0
+
+// SamplingTemperature is the temperature to send for this profile.
+func (p LLMProfile) SamplingTemperature() float64 {
+	if p.Temperature != nil {
+		return *p.Temperature
+	}
+	return DefaultAdDetectionTemperature
 }
 
 type WhisperEngine string
@@ -260,6 +282,11 @@ type CLIOptions struct {
 	// lists everything the feeds have published, which is the useful question
 	// when most podcasts are configured not to download automatically.
 	DownloadedOnly bool
+
+	// Temperature overrides the sampling temperature for one run, so that the
+	// effect of changing it can be measured with `pod detect --repeat`
+	// rather than argued about.
+	Temperature string
 
 	// IncludeHourly keeps hourly news bulletins in `info latest`. They are
 	// hidden by default because one of them can publish more episodes in a

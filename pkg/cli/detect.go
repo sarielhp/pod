@@ -27,6 +27,7 @@ func buildDetectCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.Bool(&opts.DetectRaw, "--raw", false, "Report segments as the model returned them, unmerged"),
 			clihelp.Bool(&opts.DetectWriteCuts, "--write-cuts", false, "Save a .cuts.json beside the transcript"),
 			clihelp.Int(&opts.DetectRepeat, "-n, --repeat <count>", 1, "Detect this many times and report how much the runs agree"),
+			clihelp.String(&opts.Temperature, "--temperature <value>", "", "Sampling temperature for this run (default: the profile's, else 0)"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Emit the segments as JSON"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress output"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
@@ -106,10 +107,11 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 
 	for _, path := range uniquePaths(cli.Args) {
 		req := pipeline.DetectRequest{
-			Path:      path,
-			Profile:   cli.UseLLM,
-			NoMerge:   cli.DetectRaw,
-			WriteCuts: cli.DetectWriteCuts,
+			Path:        path,
+			Profile:     cli.UseLLM,
+			Temperature: cli.Temperature,
+			NoMerge:     cli.DetectRaw,
+			WriteCuts:   cli.DetectWriteCuts,
 		}
 		runs, stability, err := pipeline.DetectFileRepeated(req, cli.DetectRepeat, cfg, opts, reporter(cli))
 		if err != nil {

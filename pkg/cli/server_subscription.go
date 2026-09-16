@@ -54,19 +54,28 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	}
 }
 
-func buildServerFeedSubcommand(opts *CLIOptions, action *string) clihelp.Command {
+// buildServerRSSGenSubcommand publishes the static site.
+//
+// It is named rss_gen rather than feed because `feed` and `feeds` differ by
+// one letter and do opposite things: this one writes local output, the other
+// reads remote feeds. Typing the wrong one is easy and the mistake is quiet.
+func buildServerRSSGenSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
-		Name:        "feed",
-		Description: "Regenerate feed.xml for local podcast(s)",
-		UsageLine:   "pod server feed [id-or-title]",
+		Name:        "rss_gen",
+		Description: "Generate the RSS feed and web pages for local podcast(s)",
+		UsageLine:   "pod server rss_gen [id-or-title]",
 		Parameters: []clihelp.Param{
 			{Name: "[id-or-title]", Description: "Optional podcast ID or title to regenerate"},
 		},
 		Args: clihelp.RangeArgs(0, 1),
+		Examples: []clihelp.Example{
+			{Line: "pod server rss_gen", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
+			{Line: "pod server rss_gen p0001", Description: "Regenerate one show"},
+		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "server"
-			opts.ServerSubcmd = "feed"
-			opts.SyncSubcmd = "feed"
+			opts.ServerSubcmd = "rss_gen"
+			opts.SyncSubcmd = "rss_gen"
 			opts.Args = ctx.Args
 			return nil
 		},

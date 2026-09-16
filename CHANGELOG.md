@@ -25,8 +25,15 @@ were written; they are not in version order.
   an earlier version are cleaned rather than keeping their tags forever, and a
   truncated description cannot end mid-tag.
 
+### Changed
+- **`pod server feed` is now `pod server rss_gen`.** `feed` and `feeds`
+  differed by one letter and did opposite things — one writes the local site,
+  the other reads remote feeds — so reaching for the wrong one was easy and
+  the mistake was silent. There is no alias; keeping `feed` would preserve the
+  confusion the rename exists to remove.
+
 ### Fixed
-- **`pod server feed <target>` silently did nothing when the target matched no
+- **`pod server rss_gen <target>` silently did nothing when the target matched no
   subscription** — no output, exit zero, the stale feed left in place. It now
   reports the mismatch and exits non-zero.
 - **Ad removal by file path or directory never republished the feed.** Only

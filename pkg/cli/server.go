@@ -69,7 +69,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerListSubcommand(opts, action),
 		buildServerAddSubcommand(opts, action),
 		buildServerRemoveSubcommand(opts, action),
-		buildServerFeedSubcommand(opts, action),
+		buildServerRSSGenSubcommand(opts, action),
 		buildServerImportSubcommand(opts, action),
 		buildServerGetInfoSubcommand(opts, action),
 		buildServerRescanSubcommand(opts, action),
@@ -100,7 +100,7 @@ func handleServerCommand(config Config, cli CLIOptions) error {
 		return handleServerAdd(config, cli)
 	case "remove":
 		return handleServerRemove(config, cli)
-	case "feed":
+	case "rss_gen":
 		return handleServerFeed(config, cli)
 	case "import":
 		return handleServerImport(config, cli)

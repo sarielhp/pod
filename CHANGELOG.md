@@ -30,7 +30,9 @@ were written; they are not in version order.
   differed by one letter and did opposite things — one writes the local site,
   the other reads remote feeds — so reaching for the wrong one was easy and
   the mistake was silent. There is no alias; keeping `feed` would preserve the
-  confusion the rename exists to remove.
+  confusion the rename exists to remove. The old name is kept only to reject
+  it: removed outright it would prefix-match `feeds` and quietly run the
+  upstream check instead, which is the opposite action.
 
 ### Fixed
 - **`pod server rss_gen <target>` silently did nothing when the target matched no

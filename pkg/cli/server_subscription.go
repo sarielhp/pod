@@ -54,6 +54,26 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	}
 }
 
+// buildServerFeedRetiredSubcommand refuses the old name.
+//
+// Without it `pod server feed` prefix-matches `feeds` and quietly runs the
+// upstream check instead — the opposite action, with no sign anything is
+// wrong. A rename meant to stop a silent mistake must not create a worse one,
+// so the retired name is kept only to reject it.
+func buildServerFeedRetiredSubcommand() clihelp.Command {
+	return clihelp.Command{
+		Name:        "feed",
+		Description: "Renamed to rss_gen",
+		UsageLine:   "pod server rss_gen [id-or-title]",
+		Hidden:      true,
+		Args:        clihelp.RangeArgs(0, 1),
+		Run: func(*clihelp.Context) error {
+			return fmt.Errorf("`pod server feed` is now `pod server rss_gen` " +
+				"(`feeds`, which reads upstream RSS, is a different command)")
+		},
+	}
+}
+
 // buildServerRSSGenSubcommand publishes the static site.
 //
 // It is named rss_gen rather than feed because `feed` and `feeds` differ by

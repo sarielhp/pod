@@ -70,6 +70,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerAddSubcommand(opts, action),
 		buildServerRemoveSubcommand(opts, action),
 		buildServerRSSGenSubcommand(opts, action),
+		buildServerFeedRetiredSubcommand(),
 		buildServerImportSubcommand(opts, action),
 		buildServerGetInfoSubcommand(opts, action),
 		buildServerRescanSubcommand(opts, action),

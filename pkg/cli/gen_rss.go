@@ -11,17 +11,31 @@ import (
 	"pod/pkg/util"
 )
 
-// genRSSCount reads a count argument. `pod gen_rss 10` asks for the ten newest
-// episodes; anything else is a podcast to regenerate.
-func genRSSCount(args []string) (int, bool) {
-	if len(args) != 1 {
-		return 0, false
+// genRSSRequest reads the arguments of `pod gen_rss`.
+//
+// Four shapes, distinguished by whether an argument is a bare number: no
+// arguments republishes everything, a number takes the newest N across the
+// library, a name republishes one show, and a name with a number takes the
+// newest N of that show. A podcast is never named by a bare integer, so the
+// two cannot be confused.
+func genRSSRequest(args []string) (podcast string, count int, ok bool) {
+	switch len(args) {
+	case 0:
+		return "", 0, true
+	case 1:
+		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+			return "", n, true
+		}
+		return args[0], 0, true
+	case 2:
+		n, err := strconv.Atoi(args[1])
+		if err != nil || n <= 0 {
+			return "", 0, false
+		}
+		return args[0], n, true
+	default:
+		return "", 0, false
 	}
-	n, err := strconv.Atoi(args[0])
-	if err != nil || n <= 0 {
-		return 0, false
-	}
-	return n, true
 }
 
 // handleGenRSSLatest fetches, cleans and publishes the newest episodes.
@@ -30,7 +44,7 @@ func genRSSCount(args []string) (int, bool) {
 // recently published episodes available, ad-free, on the site. Doing it by
 // hand meant `server download`, then `rm_ads` per episode, then `gen_rss`, and
 // forgetting the last one left the site describing audio that had changed.
-func handleGenRSSLatest(cfg Config, cli CLIOptions, count int) error {
+func handleGenRSSLatest(cfg Config, cli CLIOptions, target string, count int) error {
 	lib := library(cfg, cli, nil)
 	store, err := podcast.NewSubscriptionStore(config.SubscriptionsFilePath(&cfg))
 	if err != nil {
@@ -39,6 +53,12 @@ func handleGenRSSLatest(cfg Config, cli CLIOptions, count int) error {
 	subs := store.List()
 	if len(subs) == 0 {
 		return fmt.Errorf("no subscriptions found in %s", store.FilePath())
+	}
+	if target != "" {
+		subs = podcast.SubscriptionTargets(subs, target)
+		if len(subs) == 0 {
+			return fmt.Errorf("no subscription matches %q; `pod info` lists them", target)
+		}
 	}
 
 	out := outFor(cli)
@@ -51,13 +71,17 @@ func handleGenRSSLatest(cfg Config, cli CLIOptions, count int) error {
 		fmt.Fprintln(out, "No recently published episodes found. Run `pod server feeds` first.")
 		return nil
 	}
+	scope := "across the library"
+	if target != "" {
+		scope = subs[0].Title
+	}
 
 	pending := 0
 	for _, p := range sel.Plans {
 		pending += len(p.ToDownload)
 	}
-	fmt.Fprintf(out, "Latest %d episode(s): %d to download, %d already here.\n",
-		len(targets), pending, len(sel.Existing))
+	fmt.Fprintf(out, "Latest %d episode(s) %s: %d to download, %d already here.\n",
+		len(targets), scope, pending, len(sel.Existing))
 
 	if pending > 0 {
 		res := lib.ExecuteSubscriptionDownloads(sel.Plans, store, subscriptionDownloadOptions(cfg, cli))

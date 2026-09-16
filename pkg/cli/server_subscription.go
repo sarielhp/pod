@@ -64,12 +64,12 @@ func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "gen_rss",
 		Description: "Generate the RSS feed and web pages for local podcasts",
-		UsageLine:   "pod gen_rss [N | id-or-title]",
+		UsageLine:   "pod gen_rss [podcast] [N]",
 		Parameters: []clihelp.Param{
-			{Name: "[N]", Description: "Fetch, clean and publish the N newest episodes across the library"},
-			{Name: "[id-or-title]", Description: "Regenerate one podcast instead of all"},
+			{Name: "[podcast]", Description: "Podcast id, folder or part of its title; omit for the whole library"},
+			{Name: "[N]", Description: "Fetch, clean and publish the N newest episodes; omit to only republish"},
 		},
-		Args: clihelp.RangeArgs(0, 1),
+		Args: clihelp.RangeArgs(0, 2),
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
@@ -78,7 +78,8 @@ func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Examples: []clihelp.Example{
 			{Line: "pod gen_rss", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
 			{Line: "pod gen_rss 10", Description: "Download, ad-strip and publish the 10 newest episodes"},
-			{Line: "pod gen_rss p0001", Description: "Regenerate one show"},
+			{Line: "pod gen_rss \"daily blast\"", Description: "Regenerate one show, matched by part of its title"},
+			{Line: "pod gen_rss \"daily blast\" 10", Description: "Fetch, ad-strip and publish that show's 10 newest episodes"},
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "gen_rss"
@@ -183,10 +184,19 @@ func handleServerRemove(cfg Config, cli CLIOptions) error {
 // handleGenRSS publishes the site, or with a count first fetches and cleans
 // that many of the newest episodes.
 func handleGenRSS(cfg Config, cli CLIOptions) error {
-	if count, ok := genRSSCount(cli.Args); ok {
-		return handleGenRSSLatest(cfg, cli, count)
+	target, count, ok := genRSSRequest(cli.Args)
+	if !ok {
+		return fmt.Errorf("usage: pod gen_rss [podcast] [N]")
 	}
-	return handleServerFeed(cfg, cli)
+	if count > 0 {
+		return handleGenRSSLatest(cfg, cli, target, count)
+	}
+	republish := cli
+	republish.Args = nil
+	if target != "" {
+		republish.Args = []string{target}
+	}
+	return handleServerFeed(cfg, republish)
 }
 
 func handleServerFeed(cfg Config, cli CLIOptions) error {

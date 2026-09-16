@@ -78,26 +78,29 @@ func TestEveryTopLevelCommandHasAUniqueInitial(t *testing.T) {
 	}
 }
 
-func TestGenRSSCountDistinguishesACountFromAPodcast(t *testing.T) {
+func TestGenRSSRequestShapes(t *testing.T) {
 	t.Parallel()
-	// `gen_rss 10` asks for the ten newest episodes; `gen_rss p0001` asks to
-	// regenerate one show. Podcast ids are not bare integers, so a number is
-	// unambiguous.
-	for _, arg := range []string{"10", "1", "250"} {
-		if n, ok := genRSSCount([]string{arg}); !ok || n <= 0 {
-			t.Errorf("%q not read as a count", arg)
+	cases := []struct {
+		args    []string
+		podcast string
+		count   int
+		ok      bool
+		what    string
+	}{
+		{nil, "", 0, true, "no arguments republishes everything"},
+		{[]string{"10"}, "", 10, true, "a bare number is a count across the library"},
+		{[]string{"daily blast"}, "daily blast", 0, true, "a name republishes one show"},
+		{[]string{"daily blast", "10"}, "daily blast", 10, true, "a name and a number scope the count to that show"},
+		{[]string{"tdbwg", "3"}, "tdbwg", 3, true, "the short id works as the name"},
+		{[]string{"daily blast", "0"}, "", 0, false, "a non-positive count is refused"},
+		{[]string{"daily blast", "soon"}, "", 0, false, "a non-numeric second argument is refused"},
+		{[]string{"a", "1", "b"}, "", 0, false, "three arguments are refused"},
+	}
+	for _, c := range cases {
+		pod, n, ok := genRSSRequest(c.args)
+		if ok != c.ok || pod != c.podcast || n != c.count {
+			t.Errorf("%s: genRSSRequest(%q) = (%q, %d, %v), want (%q, %d, %v)",
+				c.what, c.args, pod, n, ok, c.podcast, c.count, c.ok)
 		}
-	}
-	for _, arg := range []string{"p0001", "e12345", "The Daily", "0", "-3", "10x"} {
-		if _, ok := genRSSCount([]string{arg}); ok {
-			t.Errorf("%q wrongly read as a count", arg)
-		}
-	}
-	// No argument regenerates everything, and two are not a count either.
-	if _, ok := genRSSCount(nil); ok {
-		t.Error("an absent argument was read as a count")
-	}
-	if _, ok := genRSSCount([]string{"10", "20"}); ok {
-		t.Error("two arguments were read as a count")
 	}
 }

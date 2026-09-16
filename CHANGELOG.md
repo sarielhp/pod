@@ -17,6 +17,10 @@ were written; they are not in version order.
   affected; all 84 are now correctly ordered.
 
 ### Added
+- `pod info <podcast>` prints the published subscribe URL and web page
+  address. Those are what a person wants from the command — the link to paste
+  into a podcast client — and it showed the local directory and cover path but
+  not either of them.
 - **`pod gen_rss N`** — fetch, ad-strip and publish the N most recently
   published episodes across the library in one command. Doing it by hand meant
   `server download`, then `rm_ads` per episode, then `gen_rss`, and forgetting

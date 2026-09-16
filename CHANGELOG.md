@@ -5,17 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [Unreleased]
-
-### Changed
-- **The complexity baseline is empty: the codebase has no outstanding
-  findings.** All 21 inherited violations are fixed — seven `else` blocks
-  after a terminal statement, one naked return, five functions nested five
-  deep, and eight carrying 16 to 22 decision points against a limit of 15.
-  Three of the branch-heavy ones shared the same inline logic, so extracting
-  it (`maxIndex`, `missingAfter`, `fetchableAfter`, `reverseEpisodes`,
-  `trimToCount`) fixed all three at once. Anything the auditor reports from
-  here is a regression rather than inherited debt.
+## [0.5.3] - 2026-09-16
 
 ### Added
 - **`pod info check --models`** compares the Gemini model chain against the
@@ -38,6 +28,14 @@ were written; they are not in version order.
   cuts to the tenth of a second. A profile may set `temperature`, and
   `pod detect --temperature` overrides it for one run so the effect can be
   measured rather than argued about.
+- **The complexity baseline is empty: the codebase has no outstanding
+  findings.** All 21 inherited violations are fixed — seven `else` blocks
+  after a terminal statement, one naked return, five functions nested five
+  deep, and eight carrying 16 to 22 decision points against a limit of 15.
+  Three of the branch-heavy ones shared the same inline logic, so extracting
+  it (`maxIndex`, `missingAfter`, `fetchableAfter`, `reverseEpisodes`,
+  `trimToCount`) fixed all three at once. Anything the auditor reports from
+  here is a regression rather than inherited debt.
 
 ### Fixed
 - `pod detect --repeat` no longer prints "agreement min 100%" beside "NOT
@@ -362,7 +360,7 @@ were written; they are not in version order.
 - Display `Scanning: <Directory>` status output when starting folder scan in default mode and `dir` mode
 - Dedicated user temporary directory `/tmp/$USER/abs/` created on demand for temporary log files and fallbacks
 
-## [Unreleased]
+## Earlier (pre-0.3.0)
 
 ### Added
 - Dynamic `read_timeout` based on audio duration (fixes timeout on long files)

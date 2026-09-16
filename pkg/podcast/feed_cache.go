@@ -92,6 +92,15 @@ type FeedCacheEntry struct {
 type FeedCachePubDate struct {
 	Title       string `json:"title,omitempty"`
 	PublishedAt int64  `json:"published_at"`
+
+	// GUID, URL and DurationSec let an episode that was never downloaded be
+	// republished pointing at its original audio, so a listener subscribing
+	// to the local feed gets the show's whole run. Descriptions are still
+	// left out: they were the bulk of the old whole-episode cache and a
+	// listing does not need them.
+	GUID        string  `json:"guid,omitempty"`
+	URL         string  `json:"url,omitempty"`
+	DurationSec float64 `json:"duration_sec,omitempty"`
 }
 
 const FeedCacheDefaultTTL = 48 * time.Hour
@@ -113,7 +122,13 @@ func (e *FeedCacheEntry) FeedEpisodes() []backend.FeedEpisode {
 	}
 	eps := make([]backend.FeedEpisode, 0, len(e.PubDates))
 	for _, pd := range e.PubDates {
-		eps = append(eps, backend.FeedEpisode{Title: pd.Title, PublishedAt: pd.PublishedAt})
+		eps = append(eps, backend.FeedEpisode{
+			Title:           pd.Title,
+			PublishedAt:     pd.PublishedAt,
+			GUID:            pd.GUID,
+			EnclosureURL:    pd.URL,
+			DurationSeconds: pd.DurationSec,
+		})
 	}
 	return eps
 }
@@ -146,14 +161,8 @@ func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, 
 			return
 		}
 		for _, idx := range byTime[pd.PublishedAt] {
-			if merged[idx].Title == pd.Title {
-				return
-			}
-			if merged[idx].Title == "" {
-				merged[idx].Title = pd.Title
-				return
-			}
-			if pd.Title == "" {
+			if merged[idx].Title == pd.Title || merged[idx].Title == "" || pd.Title == "" {
+				enrichPubDate(&merged[idx], pd)
 				return
 			}
 		}
@@ -165,7 +174,13 @@ func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, 
 		add(pd)
 	}
 	for _, ep := range episodes {
-		add(FeedCachePubDate{Title: ep.Title, PublishedAt: ep.PublishedAt})
+		add(FeedCachePubDate{
+			Title:       ep.Title,
+			PublishedAt: ep.PublishedAt,
+			GUID:        ep.GUID,
+			URL:         episodeEnclosureURL(ep),
+			DurationSec: ep.DurationSeconds,
+		})
 	}
 
 	sort.Slice(merged, func(i, j int) bool { return merged[i].PublishedAt > merged[j].PublishedAt })
@@ -173,6 +188,36 @@ func mergePubDates(existing []FeedCachePubDate, episodes []backend.FeedEpisode, 
 		merged = merged[:limit]
 	}
 	return merged
+}
+
+// episodeEnclosureURL is where a feed says the audio lives.
+// enrichPubDate fills gaps in a retained record from a newly seen one. A
+// history written before enclosure URLs were kept has titles and timestamps
+// only, and must gain the rest as feeds are re-read rather than staying
+// half-empty forever.
+func enrichPubDate(dst *FeedCachePubDate, src FeedCachePubDate) {
+	if dst.Title == "" {
+		dst.Title = src.Title
+	}
+	if dst.GUID == "" {
+		dst.GUID = src.GUID
+	}
+	if dst.URL == "" {
+		dst.URL = src.URL
+	}
+	if dst.DurationSec <= 0 {
+		dst.DurationSec = src.DurationSec
+	}
+}
+
+func episodeEnclosureURL(ep backend.FeedEpisode) string {
+	if ep.EnclosureURL != "" {
+		return ep.EnclosureURL
+	}
+	if ep.Enclosure != nil {
+		return ep.Enclosure.URL
+	}
+	return ""
 }
 
 func pubDatesFromEpisodes(episodes []backend.FeedEpisode) []FeedCachePubDate {

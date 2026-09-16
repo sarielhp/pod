@@ -7,7 +7,29 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Added
+- **A local feed now carries the show's whole run.** Episodes that were never
+  downloaded are published pointing at their original audio, so subscribing to
+  a local feed gives at least what subscribing upstream would. Previously a
+  feed held one item per downloaded file — a show with nothing downloaded
+  published an empty feed — which made the local feed strictly worse than the
+  original for any show not fully mirrored. Across this library that took the
+  published feeds from 973 items to 6,838: 973 served locally and ad-free,
+  5,865 passed through.
+- The feed cache retains each episode's enclosure URL, GUID and duration
+  alongside its title and publication time, which is what makes the
+  passthrough possible. Descriptions are still left out; they were the bulk of
+  the whole-episode cache that was dropped earlier.
+
 ### Fixed
+- **`pod server feed <target>` silently did nothing when the target matched no
+  subscription** — no output, exit zero, the stale feed left in place. It now
+  reports the mismatch and exits non-zero.
+- **Ad removal by file path or directory never republished the feed.** Only
+  the episode-id path did, so identical work left the published site correct
+  or stale depending on how the argument was typed.
+- The catalogue page is regenerated whenever any show is republished, not only
+  on a run with no target.
 - **The feed catalogue never refreshed.** A feed check carried the retained
   publication history across unchanged and never added the episodes it had
   just read, so the catalogue froze at whenever it was first written — one

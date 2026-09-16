@@ -37,7 +37,28 @@ func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, ac
 		return
 	}
 
-	executeLocalBatchProcessing(expandedArgs, opts, cfg, action)
+	if err := executeLocalBatchProcessing(expandedArgs, opts, cfg, action); err != nil {
+		return
+	}
+	// Republish whatever was touched. Ad removal by episode id already did
+	// this; by file path or directory it did not, so the same work left the
+	// published feed correct or stale depending only on how the argument was
+	// typed.
+	refreshFeedsForAudio(expandedArgs, cfg)
+}
+
+// refreshFeedsForAudio regenerates the static site for each podcast directory
+// holding one of these files.
+func refreshFeedsForAudio(audioPaths []string, cfg types.Config) {
+	seen := map[string]bool{}
+	for _, p := range audioPaths {
+		dir := filepath.Dir(p)
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		refreshPodcastFeedXML(dir, cfg)
+	}
 }
 
 func groupAndFilterAudioByPodcast(rawMp3Files []string, opts types.ProcOptions, appCfg types.Config) []string {

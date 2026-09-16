@@ -4,7 +4,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
+	"time"
 
 	"pod/pkg/backend"
 	"pod/pkg/podsite"
@@ -53,6 +56,78 @@ func siteEpisodes(podDir string, episodes []LocalEpisodeMeta) []podsite.Episode 
 		})
 	}
 	return out
+}
+
+// appendRemoteEpisodes adds the feed's episodes that are not held locally,
+// pointing at their original audio.
+//
+// Without this a show with nothing downloaded publishes an empty feed, and a
+// show with three downloads publishes three episodes — so subscribing to the
+// local feed gave you strictly less than subscribing upstream. The local feed
+// is meant to be a superset: ad-free audio served from here where it exists,
+// the original everywhere else.
+func appendRemoteEpisodes(local []podsite.Episode, localMeta []LocalEpisodeMeta, feedEpisodes []backend.FeedEpisode) []podsite.Episode {
+	if len(feedEpisodes) == 0 {
+		return local
+	}
+
+	held := make(map[string]bool, len(localMeta)*2)
+	for _, ep := range localMeta {
+		if ep.GUID != "" {
+			held[ep.GUID] = true
+		}
+		held[remoteEpisodeKey(ep.Title)] = true
+	}
+
+	out := local
+	for _, fe := range feedEpisodes {
+		url := episodeEnclosureURL(fe)
+		if url == "" || fe.Title == "" {
+			continue
+		}
+		pubMs := GetPubMS(fe)
+		if (fe.GUID != "" && held[fe.GUID]) || held[remoteEpisodeKey(fe.Title)] {
+			continue
+		}
+		held[remoteEpisodeKey(fe.Title)] = true
+
+		guid := fe.GUID
+		if guid == "" {
+			guid = "pod:remote:" + remoteEpisodeKey(fe.Title)
+		}
+		out = append(out, podsite.Episode{
+			Title:       fe.Title,
+			GUID:        guid,
+			PubDate:     time.UnixMilli(pubMs).UTC().Format(time.RFC1123Z),
+			Description: fe.Title,
+			DurationSec: fe.DurationSeconds,
+			RemoteURL:   url,
+		})
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].PubDate > out[j].PubDate })
+	return out
+}
+
+// episodeDatePrefix matches the publication date pod prefixes to a filename.
+var episodeDatePrefix = regexp.MustCompile(`^\d{4}[-_]\d{2}[-_]\d{2}[-_ ]*`)
+
+// remoteEpisodeKey identifies an episode across the local and upstream views.
+//
+// The two share a title but not a filename, and a local episode whose title
+// could not be matched to the feed carries a title derived from its filename
+// instead — date-prefixed, punctuation replaced. Both sides are stripped of a
+// leading date and reduced to letters and digits so those still meet, or the
+// same episode is published twice, once from each side.
+func remoteEpisodeKey(title string) string {
+	title = episodeDatePrefix.ReplaceAllString(strings.TrimSpace(title), "")
+	var b strings.Builder
+	for _, r := range strings.ToLower(title) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func episodeReportHref(podDir, filename string) string {
@@ -118,7 +193,7 @@ func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisode
 
 	episodes := CollectLocalEpisodes(podDir, feedEpisodes)
 	show := siteShow(sub, podDir)
-	eps := siteEpisodes(podDir, episodes)
+	eps := appendRemoteEpisodes(siteEpisodes(podDir, episodes), episodes, feedEpisodes)
 
 	feed, err := podsite.RenderFeed(show, eps, siteBaseURL(baseURL))
 	if err != nil {

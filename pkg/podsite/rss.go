@@ -115,9 +115,15 @@ func feedCoverURL(show Show, baseURL, escapedFolder string) string {
 }
 
 func feedItem(ep Episode, baseURL, escapedFolder, coverURL string) rssItemXML {
-	encURL := escapeRelPath(ep.Filename)
-	if baseURL != "" {
-		encURL = fmt.Sprintf("%s/%s/%s", baseURL, escapedFolder, escapeRelPath(ep.Filename))
+	// An episode that is not held locally is published pointing at its
+	// original enclosure, so subscribing to this feed still gives the show's
+	// whole run rather than only the downloaded part.
+	encURL := ep.RemoteURL
+	if ep.Local() {
+		encURL = escapeRelPath(ep.Filename)
+		if baseURL != "" {
+			encURL = fmt.Sprintf("%s/%s/%s", baseURL, escapedFolder, escapeRelPath(ep.Filename))
+		}
 	}
 	item := rssItemXML{
 		Title:       ep.Title,

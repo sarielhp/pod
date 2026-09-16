@@ -30,7 +30,7 @@ type Show struct {
 	CoverSrc  string
 }
 
-// Episode is one downloaded episode. Filename is relative to the show
+// Episode is one episode of a show. Filename is relative to the show
 // directory. ReportHref points at an ad-removal report next to the audio file,
 // or is empty when there is none.
 type Episode struct {
@@ -42,7 +42,17 @@ type Episode struct {
 	DurationSec float64
 	SizeBytes   int64
 	ReportHref  string
+
+	// RemoteURL is where the audio lives when it is not held locally. A
+	// listener subscribing to this feed should get the show's whole run, not
+	// only the part that happens to have been downloaded, so an episode that
+	// is not on disk is published pointing at its original enclosure. Empty
+	// means the audio is local and the URL is built from Filename.
+	RemoteURL string
 }
+
+// Local reports whether the audio is held here rather than upstream.
+func (e Episode) Local() bool { return e.RemoteURL == "" }
 
 // CatalogEntry is one show as it appears on the library index page.
 type CatalogEntry struct {

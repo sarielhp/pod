@@ -180,10 +180,12 @@ func handleServerFeed(cfg Config, cli CLIOptions) error {
 		target = cli.Args[0]
 	}
 
+	matched := 0
 	for _, sub := range subs {
 		if !podcast.SubscriptionMatches(sub, target) {
 			continue
 		}
+		matched++
 		podDir := filepath.Join(cfg.PodcastsDir, sub.Folder)
 		if err := podcast.PublishPodcast(podDir, sub, cfg.ServerBaseURL, nil); err != nil {
 			fmt.Fprintf(errFor(cli), "Warning: failed to write feed for %s: %v\n", sub.Title, err)
@@ -199,10 +201,19 @@ func handleServerFeed(cfg Config, cli CLIOptions) error {
 		eps := podcast.CollectLocalEpisodes(podDir, nil)
 		fmt.Fprintf(outFor(cli), "Updated feed: %s (%d episodes)\n", filepath.Join(podDir, "feed.xml"), len(eps))
 	}
+	if matched > 0 && cfg.PodcastsDir != "" {
+		// The catalogue lists every show, so it goes stale whenever any one
+		// of them is republished — not only on a run with no target.
+		_ = podcast.PublishCatalog(cfg.PodcastsDir, subs)
+	}
+	// A target that matches nothing used to print nothing and exit zero,
+	// which reads as success: the feed it was asked to rebuild stays stale
+	// and the caller has no way to tell.
+	if target != "" && matched == 0 {
+		return fmt.Errorf("no subscription matches %q; `pod info` lists them", target)
+	}
 	if target == "" && cfg.PodcastsDir != "" {
-		if err := podcast.PublishCatalog(cfg.PodcastsDir, subs); err == nil {
-			fmt.Fprintf(outFor(cli), "Updated catalog webpage: %s\n", filepath.Join(cfg.PodcastsDir, "index.html"))
-		}
+		fmt.Fprintf(outFor(cli), "Updated catalog webpage: %s\n", filepath.Join(cfg.PodcastsDir, "index.html"))
 	}
 	return nil
 }

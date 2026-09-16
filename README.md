@@ -83,6 +83,7 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 | `podcasts_dir` | "" | Default directory for podcast storage and processing |
 | `server_base_url` | "" | Base URL for static HTTP serving of feeds and web pages |
 | `gemini_api_key_file` | "" | Path to file containing Gemini API key |
+| `gemini_chunk_sec` | 900 | Audio per Gemini request; above ~1200 Gemini returns an empty response |
 | `backend_type` | "standalone" | Backend provider: `"standalone"` (native, default) |
 
 ## Standalone Backend Architecture
@@ -177,17 +178,25 @@ pod config show
 pod config get <key>
 pod config set <key> <value>
 
+# Ad detection on a transcript you already have
+pod detect episode.transcript.json      # Report ad segments; touches nothing
+pod detect --profile 3 episode.mp3      # Use a specific LLM profile
+pod detect -n 5 --json episode.mp3      # Detect 5 times and report how much the runs agree
+pod detect --raw episode.mp3            # Segments as the model returned them, unmerged
+pod detect --write-cuts episode.mp3     # Also save a .cuts.json
+
 # Interactive TUI browser
 pod tui
 ```
 
 ### Commands Overview
 
-Every canonical command begins with a distinct letter (`c`, `i`, `o`, `p`, `q`, `r`, `s`, `t`), enabling unambiguous single-letter prefixes:
+Every canonical command begins with a distinct letter (`c`, `d`, `i`, `p`, `q`, `r`, `s`, `t`), enabling unambiguous single-letter prefixes. The one exception is `t`, which is ambiguous between `transcribe` and `tui`; use `tr` or `tu`.
 
 | Command | Prefix | Usage | Description |
 |---------|--------|-------|-------------|
 | `config` | `c` | `pod config [command]` | View and manage application configuration, profiles, and cache |
+| `detect` | `d` | `pod detect [options] <path...>` | Detect ad segments in an existing transcript, without re-transcribing or cutting |
 | `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts breakdown, transcripts, and status diagnostics |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
 | `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue (`list`, `add`, `remove`, `clear`) |

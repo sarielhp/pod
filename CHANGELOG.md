@@ -18,7 +18,81 @@ were written; they are not in version order.
   library is touched: no status file, no queue entry, no short ID. A lecture
   recording is not an episode.
 
+- **`pod detect <path...>`** — run ad detection over a transcript you already
+  have, without re-transcribing and without cutting anything. Takes a
+  transcript or any media file whose transcript sits beside it, touches no
+  library state, and reports the segments with reasons. `--profile` picks the
+  LLM, `--raw` shows the model's own intervals before merging, `--write-cuts`
+  saves a `.cuts.json`, and `--json` emits machine-readable output.
+- **`pod detect -n/--repeat <count>`** — detect several times over identical
+  input and report how much the runs agree, as shared ad time over claimed ad
+  time across every pair of runs. Ad detection is not reproducible: the
+  detector sends a non-zero temperature and some providers vary regardless, so
+  a single run says what a model answered once rather than what it thinks.
+  Measured on one episode, DeepSeek V4 Flash agreed with itself as little as
+  51% while Gemini 2.5 Flash reached 98%.
+- Ad detection now reports token usage, including how much of the prompt the
+  provider served from cache. Every provider returns this on every response
+  and pod discarded it, so there was no way to see what detection cost, nor to
+  tell a cached call from a recomputed one. The total covers the empty-answer
+  confirmation re-asks, which can silently triple the cost of a detection.
+
+### Fixed
+- **A transcript produced by the Whisper fallback was labelled `"Gemini"`.**
+  When a Gemini request failed, `runWhisperTranscription` fell back to local
+  whisper.cpp but returned before adopting the fallback profile, so the
+  deferred `StampBackend` still recorded the engine that had been *asked* for.
+  The saved transcript therefore claimed a provenance it did not have, which
+  is silent and unrecoverable after the fact. A successful Gemini run now also
+  records its model, which was previously written as `null`.
+- **Gemini could not transcribe anything longer than ~20 minutes.** Chunks were
+  fixed at 30 minutes, and Gemini answers a chunk that long with an empty
+  candidate and `blockReason: "OTHER"` — the verbatim transcript does not fit
+  in one response. With the fallback mislabelling above, this surfaced as a
+  local-quality transcript stamped "Gemini" rather than as an error.
+- **A one-minute quota blip disabled Gemini for an hour.** Any 429 tripped the
+  circuit breaker for a fixed hour, including the free tier's per-minute
+  request quota, whose own error says `please retry in 58.8s`. The breaker now
+  believes that number when the server supplies one, with a 90-second floor and
+  the hour still the ceiling. Losing the only good free transcription backend
+  for an hour over a one-minute limit cost far more than the retry it saved.
+- Gemini requests that fail with 503/504 are now retried six times with
+  exponential backoff (~60s total) rather than three times over six seconds.
+  "High demand" spikes are transient, and giving up on one meant a whole
+  transcript was silently produced by a much weaker engine.
+
+- **`--whisper-model` was silently ignored when the engine was Gemini.** Gemini
+  takes its model from the config rather than the whisper profile, so the flag
+  did nothing. It matters because the free tier meters requests per model:
+  naming another model is the difference between a transcript and a fallback.
+
 ### Changed
+- **Quality gate now measures cognitive complexity, not line count.** The
+  project followed a local rule of a blanket 80-line hard limit per function;
+  it now follows `~/prog/standards/go/GUIDELINES.md`, applied by `go-audit`:
+  nesting depth at most 4, at most 15 branch decision points, and function
+  length tiered by role (110 for standard logic, 160 for builders, 200 for
+  dispatchers, 250 for table-driven tests). A long run of straight-line logic
+  is no longer a failure, while depth 5, 17 branches, an `else` after a
+  `return` and a naked return now are — 22 such findings existed and are
+  baselined in `tools/go-audit-baseline.txt`, so the gate blocks new ones
+  without requiring a repo-wide cleanup. Splitting functions that were never
+  hard to read cost effort that the real complexity deserved.
+- Gemini now tries a chain of models rather than a single one, pinned to
+  `gemini-3.8-flash` and falling back through `gemini-3.7-flash` to
+  `gemini-3.5-flash` when a model is rate-limited or retired. The default was
+  the alias `gemini-flash-latest`, which silently follows Google's newest
+  model — and the newest model carries the smallest free-tier allowance, so
+  the alias drifted onto whatever was most rate-limited. A model that is out
+  of quota is now abandoned immediately rather than waited on, since another
+  model with untouched quota answers at once.
+- Transcripts record the model the API reports as having answered, rather than
+  the one that was requested. An alias never named a real model, and with a
+  chain the two routinely differ.
+- Gemini audio is now sent in 15-minute chunks instead of 30, configurable as
+  `gemini_chunk_sec`. Chunks are transcribed in parallel, so this is not
+  slower. `chunk_duration_sec` (a whisper.cpp setting) may still shorten a
+  Gemini chunk but can no longer lengthen one past what Gemini can answer.
 - `pod t` is now ambiguous between `transcribe` and `tui` and reports both.
   Use `pod tr` or `pod tu`; the full names are unaffected. `pod t` was never a
   documented shortcut, only a side effect of prefix matching.

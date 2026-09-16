@@ -76,9 +76,53 @@ end
 
 run_staticcheck
 
-# 4. Audit lines
-stdout, _ = run_cmd("Line audit", "./tools/audit_lines --quiet")
-puts stdout.strip unless stdout.strip.empty?
+# 4. Cognitive complexity audit
+#
+# The authority is ~/prog/standards/go/GUIDELINES.md, applied by go-audit:
+# nesting depth, branch density and role-tiered function length, rather than a
+# blanket line count. A 90-line piece of straight-line logic is not a defect;
+# depth 5, 17 branches or an `else` after a `return` is. Chasing the former
+# wasted effort that the latter deserved.
+#
+# Pre-existing findings are baselined, exactly as staticcheck's are, so the
+# gate blocks new complexity without demanding a repo-wide cleanup first.
+AUDIT_BASELINE_PATH = 'tools/go-audit-baseline.txt'
+
+def audit_findings
+  audit_bin = [File.expand_path('~/bin/go-audit'), 'go-audit'].find { |b| File.executable?(b) }
+  unless audit_bin
+    puts "\e[33m! go-audit not found; skipping complexity audit\e[0m"
+    puts "  Install: ln -sf ~/prog/standards/go/bin/go-audit ~/bin/go-audit"
+    return nil
+  end
+  stdout, = Open3.capture3("#{audit_bin} --quiet .")
+  stdout.gsub(/\e\[[0-9;]*m/, '')
+        .lines
+        .select { |l| l =~ /^\s*\[FAIL\]/ }
+        .map { |l| l.sub(/^\s*\[FAIL\]\s+\d+ lines\s+/, '').sub(/:\d+ /, ' ').strip }
+        .sort
+end
+
+def run_complexity_audit
+  found = audit_findings
+  return if found.nil?
+
+  baseline = File.exist?(AUDIT_BASELINE_PATH) ? File.read(AUDIT_BASELINE_PATH).lines.map(&:strip).reject(&:empty?) : []
+  introduced = found - baseline
+  resolved = (baseline - found).length
+
+  unless introduced.empty?
+    puts "\e[31m✗ Complexity audit failed: #{introduced.length} new finding(s)\e[0m"
+    introduced.each { |f| puts "  #{f}" }
+    puts ""
+    puts "  See ~/prog/standards/go/GUIDELINES.md section 5 for how to decompose these."
+    puts "  Deliberate exception: regenerate the baseline and say why in the commit."
+    exit 1
+  end
+  puts "Complexity audit: #{found.length} baselined finding(s), 0 new#{resolved.zero? ? '' : ", #{resolved} resolved"}"
+end
+
+run_complexity_audit
 
 # 5. Go test
 if full_mode

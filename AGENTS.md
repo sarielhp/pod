@@ -15,8 +15,8 @@
 | `tools/build_local` | Build local `./pod` binary strictly within repo directory |
 | `tools/check` | Full quality gate: format → tidy → vet → staticcheck → test → build |
 | `tools/format.sh` | Run `gofmt -s -w .` only |
-| `tools/lint` | Static analysis: `go vet` + `staticcheck` (respecting baseline) + `tools/audit_lines` |
-| `tools/audit_lines` | Audit function lengths (80-line limit) and file lengths (800 warn / 1100 limit) |
+| `tools/lint` | Static analysis: `go vet` + `staticcheck` (respecting baseline) + `go-audit` |
+| `go-audit` | Cognitive complexity and role-tiered sizing, per `~/prog/standards/go/GUIDELINES.md`; baselined in `tools/go-audit-baseline.txt` |
 | `tools/outline_symbols` | Index all Go types, structs, interfaces, and functions |
 | `tools/show_symbol <sym>` | Display single symbol code block with line numbers |
 | `tools/suggest_split` | Suggest logical file split boundaries for oversized files |
@@ -38,7 +38,7 @@ A `Makefile` at the project root delegates to all scripts:
 | `make check` | Quality gate for committing: format, vet, staticcheck, line audit, tests, build. No race detector — see `make ci` |
 | `make visual` | Run full live PTY visual audit across all 19 TUI screens (`tools/visual_audit`) |
 | `make lint` | Static analysis (vet + staticcheck + line audit) |
-| `make audit` | Audit Go source file line lengths (`tools/audit_lines`) |
+| `make audit` | Audit complexity and sizing (`go-audit`) |
 | `make symbols` | Outline symbols (`tools/outline_symbols ARGS="..."`) |
 | `make suggest-split` | Suggest file splits (`tools/suggest_split ARGS="..."`) |
 | `make template` | Regenerate config template (`tools/generate_config_template`) |
@@ -83,38 +83,73 @@ During active development, use lightweight commands to maximize iteration speed:
 - Run `make bump` to bump, commit, and push version in one silent step
 - The version is not embedded in the Go binary (VERSION file is the source of truth)
 
-## Sizing
+## Sizing & Complexity
 
-Two limits, and they are not equally important. `tools/audit_lines` checks both.
+**The authority is `~/prog/standards/go/GUIDELINES.md`**, with the reasoning in
+`RATIONALE.md` beside it. This project follows those standards rather than local
+rules; when the two conflict, the standards win and this project's tooling should be
+updated to match. `tools/check` enforces them through `go-audit`.
 
-### Functions — hard limit 80 lines
+### Cognitive complexity is the metric; line count is a proxy
 
-No function may exceed **80 lines**. This is the limit that protects correctness, so
-when it conflicts with anything else, it wins.
+The primary limits are on how much state a reader must hold, not on length:
 
-Extracting a function is a *semantic* edit: the extracted piece needs a name,
-parameters and return values, and the compiler checks every call site. A control-flow
-statement that goes missing during an extraction becomes a build error — a lost
-`return` fails to compile, and a lost `continue` has no loop left to sit in.
+- **Nesting depth** — hard limit **4**, warn at 3. Flatten with guard clauses and
+  early returns.
+- **Branch decision points** — hard limit **15** (`if`, `for`, `switch`, `select`);
+  **20** for builders and dispatchers. A `switch` counts once, and flat `case`
+  branches that delegate do not add to the count.
+
+### Function length is tiered by role
+
+| Tier | Naming patterns | Soft warn | Hard limit |
+|---|---|---|---|
+| Standard logic | general logic, handlers, computations | 80 | **110** |
+| Declarative builders | `build*`, `init*`, `render*`, `generate*`, `View` | 120 | **160** |
+| Event/key dispatchers | `handle*`, `dispatch*`, `*Key`, `*Route` | 150 | **200** |
+| Table-driven tests | `Test*` with case slices | 180 | **250** |
+
+A 90-line run of straight-line logic is a soft warning, not a defect, and must not be
+split on length alone. Splitting a function that was never hard to read costs real
+effort and buys nothing. What does warrant a fix is genuine complexity: depth over 4,
+more than 15 branches, an `else` after a terminal statement, or a naked return.
 
 ### Files — warn over 800 lines, hard limit 1100
 
-Files should stay comfortably readable, but file length is a *comfort* metric, not a
-correctness one. Keep functions under 80 lines and files land in the 300–700 range on
-their own; the 800-line warning exists to catch the cases where they do not.
+File length is a *comfort* metric, not a correctness one. Keep functions within the
+tiers above and files land in the 300–700 range on their own.
 
-### Validation Tool — `tools/audit_lines`
+### Validation — `go-audit`, baselined
 
-Line lengths are verified using `tools/audit_lines` (run via `make audit` or as part of `make lint` / `make check`):
-- **Function verification**: Measures line counts of Go function declarations (matching `func` in column 0 to its closing `}`). Flags any function exceeding **80 lines**.
-- **File verification**: Scans all Go files (excluding `.work/` and vendor directories). Emits a warning if a file exceeds **800 lines** and reports a hard failure if it exceeds **1100 lines**.
-- **Key Flags**:
-  - `-f, --max-func LINES`: Configure function line limit (default: `80`).
-  - `-s, --soft LINES`: Configure file soft warning threshold (default: `800`).
-  - `-m, --max LINES`: Configure file hard limit (default: `1100`).
-  - `--strict`: Return a non-zero exit code if any hard limit is exceeded.
-  - `-q, --quiet`: Report only warnings and violations.
-  - `--include-tests`: Apply function limits to `*_test.go` files.
+`tools/check` runs `go-audit --quiet .` and compares against
+`tools/go-audit-baseline.txt`, the same pattern used for staticcheck. **New findings
+fail the gate; pre-existing ones do not.** Never regenerate the baseline to silence a
+finding you introduced — fix it, as `pkg/gemini` was fixed when it first ran.
+Regenerate only when findings are genuinely resolved, or for a deliberate exception
+explained in the commit message.
+
+Install the tooling once per machine:
+
+```bash
+ln -sf ~/prog/standards/go/bin/go-audit ~/bin/go-audit
+ln -sf ~/prog/standards/go/bin/go-static-analysis ~/bin/go-static-analysis
+```
+
+`go-static-analysis` (gocritic, shadow, revive, govulncheck, dupl) is the deep review
+pass — run it before releases, not on every commit.
+
+### Decomposition discipline
+
+From GUIDELINES.md §5, and binding when an audit finding must be fixed:
+
+1. **No artificial continuation helpers.** Never extract `processPart2`,
+   `handleStepB` or `runRemainder`. Every helper must be one cohesive,
+   domain-named responsibility.
+2. **No parameter dumping.** Do not extract a helper needing more than 4 parameters,
+   or one that takes pointers to locals merely to share state. If the state
+   transitions are linear, keep them in place and simplify with guard clauses.
+3. **Decompose in place first**, into named helpers in the same file, before moving
+   anything into a new file.
 
 
 ### Never split a file through a function body

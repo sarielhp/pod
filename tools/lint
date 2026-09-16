@@ -62,5 +62,8 @@ end
 run_cmd("Go vet", "go vet ./...")
 run_staticcheck
 
-stdout, _ = run_cmd("Line audit", "./tools/audit_lines --quiet")
+# Complexity and sizing per ~/prog/standards/go/GUIDELINES.md. Reported here
+# rather than enforced; tools/check is the gate that compares to the baseline.
+audit_bin = [File.expand_path('~/bin/go-audit'), 'go-audit'].find { |b| File.executable?(b) }
+stdout = audit_bin ? run_cmd("Complexity audit", "#{audit_bin} --quiet .").first : ""
 puts stdout.strip unless stdout.strip.empty?

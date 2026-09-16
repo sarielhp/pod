@@ -15,7 +15,7 @@ lint:
 	@./tools/lint
 
 audit:
-	@./tools/audit_lines
+	@go-audit .
 
 symbols:
 	@./tools/outline_symbols $(ARGS)

@@ -288,10 +288,42 @@ func resolvePodcastDirForSub(sub Subscription, podcastsDir string) string {
 // regular expression. The two should converge, but widening subscription
 // matching to regexes changes which podcasts a command touches, so it is a
 // behaviour change rather than a refactor.
+// SubscriptionMatches reports whether a query names this subscription.
+//
+// A person reaches for whichever identifier is in front of them: the short id
+// `pod info` prints, the folder on disk, the title, or a fragment of it. The
+// query previously had to be the subscription's UUID or a title substring, so
+// the very id the listing showed back — tdbwg — matched nothing.
 func SubscriptionMatches(sub Subscription, query string) bool {
-	if query == "" {
+	q := strings.TrimSpace(query)
+	if q == "" {
 		return true
 	}
-	return strings.EqualFold(sub.ID, query) ||
-		strings.Contains(strings.ToLower(sub.Title), strings.ToLower(query))
+	if strings.EqualFold(sub.ID, q) ||
+		strings.EqualFold(sub.Folder, q) ||
+		strings.EqualFold(GeneratePodcastShortID(sub.Title), q) {
+		return true
+	}
+	// Fall back to a fragment of the title or folder, with separators
+	// normalised so "daily blast" finds "THE_DAILY_BLAST_with_Greg_Sargent".
+	return strings.Contains(normalizeMatchText(sub.Title), normalizeMatchText(q)) ||
+		strings.Contains(normalizeMatchText(sub.Folder), normalizeMatchText(q))
+}
+
+// normalizeMatchText reduces a name to lowercase words separated by single
+// spaces, so underscores, hyphens and punctuation do not defeat a match.
+func normalizeMatchText(s string) string {
+	var b strings.Builder
+	prevSpace := true
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r > 127:
+			b.WriteRune(r)
+			prevSpace = false
+		case !prevSpace:
+			b.WriteByte(' ')
+			prevSpace = true
+		}
+	}
+	return strings.TrimSpace(b.String())
 }

@@ -31,21 +31,37 @@ func buildQueueTodaySubcommand(opts *CLIOptions, action *string) clihelp.Command
 	}
 }
 
-func todayQueueCandidates(dir string, now time.Time, source map[string]time.Time) []string {
-	cached := make(map[string]time.Time)
-	if index, _ := podcast.LoadPodcastCache(dir); index != nil {
-		for _, ep := range index.Episodes {
-			if ep.PublishedAt > 0 {
-				path := ep.Path
-				if path == "" {
-					path = filepath.Join(dir, ep.Filename)
-				} else if !filepath.IsAbs(path) {
-					path = filepath.Join(dir, path)
-				}
-				cached[filepath.Clean(path)] = time.UnixMilli(ep.PublishedAt)
-			}
-		}
+// cachedPublicationTimes reads the publication time of every cached episode,
+// keyed by its absolute path.
+func cachedPublicationTimes(dir string) map[string]time.Time {
+	out := make(map[string]time.Time)
+	index, _ := podcast.LoadPodcastCache(dir)
+	if index == nil {
+		return out
 	}
+	for _, ep := range index.Episodes {
+		if ep.PublishedAt <= 0 {
+			continue
+		}
+		out[filepath.Clean(cachedEpisodePath(dir, ep))] = time.UnixMilli(ep.PublishedAt)
+	}
+	return out
+}
+
+// cachedEpisodePath resolves a cached episode's location, which older caches
+// recorded as a bare filename and newer ones as a path that may be relative.
+func cachedEpisodePath(dir string, ep podcast.CachedEpisodeSummary) string {
+	if ep.Path == "" {
+		return filepath.Join(dir, ep.Filename)
+	}
+	if !filepath.IsAbs(ep.Path) {
+		return filepath.Join(dir, ep.Path)
+	}
+	return ep.Path
+}
+
+func todayQueueCandidates(dir string, now time.Time, source map[string]time.Time) []string {
+	cached := cachedPublicationTimes(dir)
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	end := start.AddDate(0, 0, 1)
 	var candidates []string

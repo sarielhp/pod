@@ -56,37 +56,44 @@ func StripHTML(s string) string {
 	inTag := false
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if c == '<' {
+		switch {
+		case c == '<':
 			inTag = true
-		} else if c == '>' {
+		case c == '>':
 			inTag = false
-		} else if !inTag {
-			if c == '&' {
-				entityEnd := strings.IndexByte(s[i:], ';')
-				if entityEnd >= 0 {
-					entity := s[i : i+entityEnd+1]
-					switch entity {
-					case "&amp;":
-						result.WriteByte('&')
-					case "&lt;":
-						result.WriteByte('<')
-					case "&gt;":
-						result.WriteByte('>')
-					case "&quot;":
-						result.WriteByte('"')
-					case "&apos;":
-						result.WriteByte('\'')
-					case "&nbsp;":
-						result.WriteByte(' ')
-					default:
-						result.WriteString(entity)
-					}
-					i += entityEnd
-					continue
-				}
-			}
+		case inTag:
+			// Inside a tag: drop the byte.
+		case c == '&':
+			decoded, width := decodeEntity(s[i:])
+			result.WriteString(decoded)
+			i += width - 1
+		default:
 			result.WriteByte(c)
 		}
 	}
 	return strings.TrimSpace(result.String())
+}
+
+// decodeEntity reads one HTML entity from the start of s, returning its
+// replacement and how many bytes it consumed. An unterminated or unknown
+// entity is passed through unchanged, so text that merely contains an
+// ampersand survives intact.
+func decodeEntity(s string) (string, int) {
+	end := strings.IndexByte(s, ';')
+	if end < 0 {
+		return "&", 1
+	}
+	entity := s[:end+1]
+	replacements := map[string]string{
+		"&amp;":  "&",
+		"&lt;":   "<",
+		"&gt;":   ">",
+		"&quot;": `"`,
+		"&apos;": "'",
+		"&nbsp;": " ",
+	}
+	if r, ok := replacements[entity]; ok {
+		return r, len(entity)
+	}
+	return entity, len(entity)
 }

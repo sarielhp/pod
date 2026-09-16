@@ -193,6 +193,20 @@ func TestTUILoadPodcastsError(t *testing.T) {
 	}
 }
 
+// findLoadedPodcastsMsg runs the commands in a batch and returns the first
+// loadedPodcastsMsg among their results.
+func findLoadedPodcastsMsg(batch tea.BatchMsg) (loadedPodcastsMsg, bool) {
+	for _, subCmd := range batch {
+		if subCmd == nil {
+			continue
+		}
+		if lp, ok := subCmd().(loadedPodcastsMsg); ok {
+			return lp, true
+		}
+	}
+	return loadedPodcastsMsg{}, false
+}
+
 func TestTUIModelInit(t *testing.T) {
 	bk := &TuiBackend{
 		LoadPodcasts: func(dir string) ([]tuiPodcast, error) {
@@ -208,20 +222,12 @@ func TestTUIModelInit(t *testing.T) {
 	msg := cmd()
 	switch v := msg.(type) {
 	case tea.BatchMsg:
-		found := false
-		for _, subCmd := range v {
-			if subCmd != nil {
-				subMsg := subCmd()
-				if lp, ok := subMsg.(loadedPodcastsMsg); ok {
-					found = true
-					if lp.err != "" {
-						t.Errorf("unexpected error: %s", lp.err)
-					}
-				}
-			}
-		}
+		lp, found := findLoadedPodcastsMsg(v)
 		if !found {
 			t.Errorf("expected loadedPodcastsMsg in batch")
+		}
+		if lp.err != "" {
+			t.Errorf("unexpected error: %s", lp.err)
 		}
 	case loadedPodcastsMsg:
 		if v.err != "" {
@@ -247,20 +253,12 @@ func TestTUIModelInitError(t *testing.T) {
 	msg := cmd()
 	switch v := msg.(type) {
 	case tea.BatchMsg:
-		found := false
-		for _, subCmd := range v {
-			if subCmd != nil {
-				subMsg := subCmd()
-				if lp, ok := subMsg.(loadedPodcastsMsg); ok {
-					found = true
-					if lp.err == "" {
-						t.Error("expected error")
-					}
-				}
-			}
-		}
+		lp, found := findLoadedPodcastsMsg(v)
 		if !found {
 			t.Errorf("expected loadedPodcastsMsg in batch")
+		}
+		if lp.err == "" {
+			t.Error("expected error")
 		}
 	case loadedPodcastsMsg:
 		if v.err == "" {

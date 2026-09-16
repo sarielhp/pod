@@ -61,20 +61,27 @@ func TestLibraryPackagesDoNotWriteToTheTerminal(t *testing.T) {
 			if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 				continue
 			}
-			path := filepath.Join(pkgDir, name)
-			data, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatalf("read %s: %v", path, err)
+			checkFileIsSilent(t, filepath.Join(pkgDir, name))
+		}
+	}
+}
+
+// checkFileIsSilent reports every line of one file that writes to the
+// terminal directly.
+func checkFileIsSilent(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	for i, line := range strings.Split(string(data), "\n") {
+		code, _, _ := strings.Cut(line, "//")
+		for _, banned := range bannedCalls {
+			if !standaloneCall(code, banned) {
+				continue
 			}
-			for i, line := range strings.Split(string(data), "\n") {
-				code, _, _ := strings.Cut(line, "//")
-				for _, banned := range bannedCalls {
-					if standaloneCall(code, banned) {
-						t.Errorf("%s:%d writes to the terminal (%s); report through a progress.Reporter instead:\n\t%s",
-							path, i+1, strings.TrimSuffix(banned, "("), strings.TrimSpace(line))
-					}
-				}
-			}
+			t.Errorf("%s:%d writes to the terminal (%s); report through a progress.Reporter instead:\n\t%s",
+				path, i+1, strings.TrimSuffix(banned, "("), strings.TrimSpace(line))
 		}
 	}
 }

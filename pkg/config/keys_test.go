@@ -10,10 +10,10 @@ import (
 
 func TestReadKeyFile(t *testing.T) {
 	t.Parallel()
-	if got := ReadKeyFile(""); got != "" {
+	if got := readKeyFile(""); got != "" {
 		t.Errorf("expected empty string for empty path, got %q", got)
 	}
-	if got := ReadKeyFile("/path/to/nonexistent/file/abs_test"); got != "" {
+	if got := readKeyFile("/path/to/nonexistent/file/abs_test"); got != "" {
 		t.Errorf("expected empty string for missing file, got %q", got)
 	}
 
@@ -23,7 +23,7 @@ func TestReadKeyFile(t *testing.T) {
 		t.Fatalf("failed to write key file: %v", err)
 	}
 
-	if got := ReadKeyFile(keyPath); got != "secret-key-123" {
+	if got := readKeyFile(keyPath); got != "secret-key-123" {
 		t.Errorf("expected 'secret-key-123', got %q", got)
 	}
 
@@ -31,7 +31,7 @@ func TestReadKeyFile(t *testing.T) {
 	if err := os.WriteFile(zeroPath, []byte("00000000"), 0600); err != nil {
 		t.Fatalf("failed to write zero key: %v", err)
 	}
-	if got := ReadKeyFile(zeroPath); got != "" {
+	if got := readKeyFile(zeroPath); got != "" {
 		t.Errorf("expected zeroed key to be ignored, got %q", got)
 	}
 }
@@ -102,7 +102,7 @@ func TestResolveGeminiAPIKeyPrecedence(t *testing.T) {
 func TestApplyAPIKeyEnvOverridesFile(t *testing.T) {
 	cfg := &types.Config{}
 	t.Setenv("GEMINI_API_KEY_FILE", "/custom/path/key.txt")
-	ApplyAPIKeyEnvOverrides(cfg)
+	applyAPIKeyEnvOverrides(cfg)
 	if cfg.GeminiAPIKeyFile != "/custom/path/key.txt" {
 		t.Errorf("expected /custom/path/key.txt, got %q", cfg.GeminiAPIKeyFile)
 	}

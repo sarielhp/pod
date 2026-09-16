@@ -19,7 +19,7 @@ func TestSubscriptionMatches(t *testing.T) {
 		{"The Daily Show", true, "full title"},
 		{"ab1", false, "id must match exactly, not by prefix"},
 		{"weekly", false, "unrelated"},
-		{"dai.*show", false, "regex is not supported here, unlike MatchesPodcastName"},
+		{"dai.*show", false, "regex is not supported here, unlike matchesPodcastName"},
 	}
 	for _, c := range cases {
 		if got := SubscriptionMatches(sub, c.query); got != c.want {

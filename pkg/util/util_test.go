@@ -7,30 +7,6 @@ import (
 	"time"
 )
 
-func TestExtractHostAndPort(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		url          string
-		expectedHost string
-		expectedPort string
-	}{
-		{"http://localhost:8080/path", "localhost", "8080"},
-		{"https://api.example.com/v1", "api.example.com", ""},
-		{"http://127.0.0.1:9000", "127.0.0.1", "9000"},
-	}
-
-	for _, c := range cases {
-		host := ExtractHost(c.url)
-		port := ExtractPort(c.url)
-		if host != c.expectedHost {
-			t.Errorf("ExtractHost(%q) = %q; want %q", c.url, host, c.expectedHost)
-		}
-		if port != c.expectedPort {
-			t.Errorf("ExtractPort(%q) = %q; want %q", c.url, port, c.expectedPort)
-		}
-	}
-}
-
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
 	if got := RoundFloat(3.14159, 2); got != 3.14 {

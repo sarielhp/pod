@@ -129,7 +129,7 @@ func feedCheckWorkers(requested, total int) int {
 func checkOneFeed(item backend.Podcast, index EpisodeIndex, cache *FeedCacheManager, client *http.Client, opts FeedCheckOptions) FeedCheckResult {
 	res := FeedCheckResult{
 		Podcast: item,
-		Title:   PodcastDisplayTitle(item),
+		Title:   podcastDisplayTitle(item),
 		FeedURL: strings.TrimSpace(item.Media.Metadata.FeedURL),
 	}
 	if res.FeedURL == "" {
@@ -150,7 +150,7 @@ func checkOneFeed(item backend.Podcast, index EpisodeIndex, cache *FeedCacheMana
 		fetchOpts.LastModified = entry.LastModified
 	}
 
-	fetched, err := FetchFeedConditional(res.FeedURL, fetchOpts)
+	fetched, err := fetchFeedConditional(res.FeedURL, fetchOpts)
 	if err != nil {
 		res.Status = FeedUnknown
 		res.Err = err
@@ -263,9 +263,9 @@ func feedMarkersUnchanged(entry *FeedCacheEntry, doc *FeedDocument, latest strin
 	return latest == entry.LatestGUID
 }
 
-// PodcastDisplayTitle is the podcast's title, or a placeholder when the server
+// podcastDisplayTitle is the podcast's title, or a placeholder when the server
 // records none.
-func PodcastDisplayTitle(item backend.Podcast) string {
+func podcastDisplayTitle(item backend.Podcast) string {
 	if title := strings.TrimSpace(item.Media.Metadata.Title); title != "" {
 		return title
 	}

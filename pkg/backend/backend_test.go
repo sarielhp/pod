@@ -2,7 +2,6 @@ package backend
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 )
@@ -61,38 +60,6 @@ func TestFeedEpisodeUnmarshalJSON(t *testing.T) {
 	}
 	if ep.Enclosure == nil || ep.Enclosure.URL != "https://example.com/audio.mp3" {
 		t.Errorf("expected enclosure URL 'https://example.com/audio.mp3', got %+v", ep.Enclosure)
-	}
-}
-
-func TestOPMLRoundtrip(t *testing.T) {
-	t.Parallel()
-	feeds := []OPMLFeed{
-		{Title: "Podcast One", URL: "https://example.com/feed1.xml"},
-		{Title: "Podcast Two & Three", URL: "https://example.com/feed2.xml"},
-	}
-
-	data, err := BuildOPMLXML(feeds)
-	if err != nil {
-		t.Fatalf("BuildOPMLXML failed: %v", err)
-	}
-
-	if !strings.Contains(string(data), "<opml version=\"2.0\">") {
-		t.Errorf("expected valid OPML header")
-	}
-
-	parsed, err := ParseOPMLXML(data)
-	if err != nil {
-		t.Fatalf("ParseOPMLXML failed: %v", err)
-	}
-
-	if len(parsed) != 2 {
-		t.Fatalf("expected 2 parsed feeds, got %d", len(parsed))
-	}
-	if parsed[0].Title != "Podcast One" || parsed[0].URL != "https://example.com/feed1.xml" {
-		t.Errorf("unexpected feed 0: %+v", parsed[0])
-	}
-	if parsed[1].Title != "Podcast Two & Three" || parsed[1].URL != "https://example.com/feed2.xml" {
-		t.Errorf("unexpected feed 1: %+v", parsed[1])
 	}
 }
 

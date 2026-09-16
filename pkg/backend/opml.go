@@ -29,10 +29,6 @@ type opmlRoot struct {
 	} `xml:"body"`
 }
 
-func BuildOPMLXML(feeds []OPMLFeed) ([]byte, error) {
-	return BuildOPMLXMLWithTitle(feeds, "Podcast Feeds", "Podcasts")
-}
-
 func BuildOPMLXMLWithTitle(feeds []OPMLFeed, headTitle, groupText string) ([]byte, error) {
 	var itemOutlines []opmlOutline
 	for _, f := range feeds {

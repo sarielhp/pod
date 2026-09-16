@@ -24,16 +24,16 @@ type StandaloneBackend struct {
 
 func init() {
 	backend.Register("standalone", func(cfg backend.Config) (backend.Backend, error) {
-		return NewStandaloneBackend(cfg), nil
+		return newStandaloneBackend(cfg), nil
 	})
 	backend.Register("pod", func(cfg backend.Config) (backend.Backend, error) {
-		return NewStandaloneBackend(cfg), nil
+		return newStandaloneBackend(cfg), nil
 	})
 	backend.Register("abs", func(cfg backend.Config) (backend.Backend, error) {
-		return NewStandaloneBackend(cfg), nil
+		return newStandaloneBackend(cfg), nil
 	})
 	backend.Register("local", func(cfg backend.Config) (backend.Backend, error) {
-		return NewStandaloneBackend(cfg), nil
+		return newStandaloneBackend(cfg), nil
 	})
 }
 
@@ -53,7 +53,7 @@ func resolveStorePath(cfg backend.Config) string {
 	return ""
 }
 
-func NewStandaloneBackend(cfg backend.Config) *StandaloneBackend {
+func newStandaloneBackend(cfg backend.Config) *StandaloneBackend {
 	storePath := resolveStorePath(cfg)
 	store, _ := NewSubscriptionStore(storePath)
 	return &StandaloneBackend{
@@ -126,7 +126,7 @@ func (b *StandaloneBackend) Podcasts() ([]backend.Podcast, error) {
 }
 
 func subToBackendPodcast(sub Subscription, podcastsDir string) backend.Podcast {
-	podDir := ResolvePodcastDirForSub(sub, podcastsDir)
+	podDir := resolvePodcastDirForSub(sub, podcastsDir)
 	localEps := CollectLocalEpisodes(podDir, nil)
 	eps := make([]backend.Episode, 0, len(localEps))
 	for _, le := range localEps {
@@ -216,7 +216,7 @@ func (b *StandaloneBackend) DownloadCover(podcastID, destPath string) error {
 		FeedURL:  p.Media.Metadata.FeedURL,
 		ImageURL: p.Media.Metadata.ImageURL,
 	}
-	cover := EnsurePodcastCover(filepath.Dir(destPath), &sub)
+	cover := ensurePodcastCover(filepath.Dir(destPath), &sub)
 	if cover == "" {
 		return fmt.Errorf("no cover available for %s", p.Media.Metadata.Title)
 	}

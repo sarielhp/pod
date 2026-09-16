@@ -43,13 +43,13 @@ func TestParsePolicyBool(t *testing.T) {
 func TestApplyPolicyUpdateNoneDisablesAutoDownload(t *testing.T) {
 	t.Parallel()
 	cfg := config.PodcastConfig{}
-	ApplyPolicyUpdate(&cfg, PolicyUpdate{DownloadPolicy: "none"})
+	applyPolicyUpdate(&cfg, PolicyUpdate{DownloadPolicy: "none"})
 	if cfg.IsAutoDownloadEnabled() {
 		t.Error("policy none should disable auto-download")
 	}
 
 	cfg = config.PodcastConfig{}
-	ApplyPolicyUpdate(&cfg, PolicyUpdate{DownloadPolicy: "none", AutoDownload: "true"})
+	applyPolicyUpdate(&cfg, PolicyUpdate{DownloadPolicy: "none", AutoDownload: "true"})
 	if !cfg.IsAutoDownloadEnabled() {
 		t.Error("an explicit auto-download should survive policy none")
 	}
@@ -58,7 +58,7 @@ func TestApplyPolicyUpdateNoneDisablesAutoDownload(t *testing.T) {
 func TestApplyPolicyUpdateCleanupDaysEnablesCleanup(t *testing.T) {
 	t.Parallel()
 	cfg := config.PodcastConfig{}
-	ApplyPolicyUpdate(&cfg, PolicyUpdate{CleanupDays: 14})
+	applyPolicyUpdate(&cfg, PolicyUpdate{CleanupDays: 14})
 	if !cfg.IsAutoCleanupEnabled() || cfg.AutoCleanupDays != 14 {
 		t.Errorf("setting a retention should enable cleanup: %+v", cfg)
 	}
@@ -67,7 +67,7 @@ func TestApplyPolicyUpdateCleanupDaysEnablesCleanup(t *testing.T) {
 func TestApplyPolicyUpdateLeavesUnsetFieldsAlone(t *testing.T) {
 	t.Parallel()
 	cfg := config.PodcastConfig{DownloadPolicy: "latest_k", DownloadK: 5, AdRemoval: "all"}
-	ApplyPolicyUpdate(&cfg, PolicyUpdate{CleanupDays: 3})
+	applyPolicyUpdate(&cfg, PolicyUpdate{CleanupDays: 3})
 
 	if cfg.DownloadPolicy != "latest_k" || cfg.DownloadK != 5 || cfg.AdRemoval != "all" {
 		t.Errorf("an update touched fields it did not name: %+v", cfg)
@@ -85,7 +85,7 @@ func TestApplyPolicyUpdateLeavesUnsetFieldsAlone(t *testing.T) {
 func TestApplyPolicyUpdateFavoriteRewritesRelatedSettings(t *testing.T) {
 	t.Parallel()
 	cfg := config.PodcastConfig{DownloadPolicy: "latest_k", DownloadK: 5, AdRemoval: "none"}
-	ApplyPolicyUpdate(&cfg, PolicyUpdate{Favorite: "true"})
+	applyPolicyUpdate(&cfg, PolicyUpdate{Favorite: "true"})
 
 	if !cfg.Favorite {
 		t.Fatal("favourite not set")

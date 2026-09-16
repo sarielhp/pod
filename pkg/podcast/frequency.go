@@ -23,12 +23,12 @@ type PodcastFreqResult struct {
 // some feeds carry thousands.
 const freqCacheEpisodeLimit = 100
 
-func GetEpisodesForFrequency(client backend.Backend, item backend.Podcast, podcastsDir string, refresh bool, feedCache *FeedCacheManager) ([]backend.FeedEpisode, error) {
+func getEpisodesForFrequency(client backend.Backend, item backend.Podcast, podcastsDir string, refresh bool, feedCache *FeedCacheManager) ([]backend.FeedEpisode, error) {
 	if feedCache == nil {
 		feedCache = defaultFeedCache()
 	}
 	feedURL := item.Media.Metadata.FeedURL
-	podDir := FindPodcastDirForItem(item, podcastsDir)
+	podDir := findPodcastDirForItem(item, podcastsDir)
 
 	if !refresh {
 		if feedURL != "" {
@@ -39,7 +39,7 @@ func GetEpisodesForFrequency(client backend.Backend, item backend.Podcast, podca
 			}
 		}
 		if podDir != "" {
-			if eps := LoadCachedFeedEpisodes(podDir); len(eps) > 0 {
+			if eps := loadCachedFeedEpisodes(podDir); len(eps) > 0 {
 				return eps, nil
 			}
 		}
@@ -74,7 +74,7 @@ func GetEpisodesForFrequency(client backend.Backend, item backend.Podcast, podca
 	}
 
 	if podDir != "" {
-		if eps := LoadCachedFeedEpisodes(podDir); len(eps) > 0 {
+		if eps := loadCachedFeedEpisodes(podDir); len(eps) > 0 {
 			return eps, nil
 		}
 	}
@@ -82,7 +82,7 @@ func GetEpisodesForFrequency(client backend.Backend, item backend.Podcast, podca
 	return nil, fmt.Errorf("no episodes available")
 }
 
-func LoadCachedFeedEpisodes(podDir string) []backend.FeedEpisode {
+func loadCachedFeedEpisodes(podDir string) []backend.FeedEpisode {
 	if cache, _ := LoadPodcastCache(podDir); cache != nil && len(cache.Episodes) > 0 {
 		eps := make([]backend.FeedEpisode, len(cache.Episodes))
 		for i, ep := range cache.Episodes {

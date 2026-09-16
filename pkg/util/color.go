@@ -1,12 +1,9 @@
 package util
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/fatih/color"
-	"golang.org/x/term"
 	"golang.org/x/text/unicode/bidi"
 )
 
@@ -31,15 +28,7 @@ func BoldRed(s string) string {
 	return color.New(color.FgRed, color.Bold).Sprint(s)
 }
 
-func PrintSeparator() {
-	w, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || w <= 1 {
-		w = 80
-	}
-	fmt.Println(Green(RepeatStr("─", w-1)))
-}
-
-func HasRTL(s string) bool {
+func hasRTL(s string) bool {
 	for _, r := range s {
 		if (r >= 0x0590 && r <= 0x05FF) || (r >= 0xFB1D && r <= 0xFB4F) || (r >= 0x0600 && r <= 0x06FF) {
 			return true
@@ -48,7 +37,7 @@ func HasRTL(s string) bool {
 	return false
 }
 
-func ReverseRunes(s string) string {
+func reverseRunes(s string) string {
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
@@ -68,10 +57,10 @@ func reverseRTLRun(str string) string {
 	leadSpaces := str[:leading]
 	trailSpaces := str[trailing:]
 	core := str[leading:trailing]
-	return leadSpaces + ReverseRunes(core) + trailSpaces
+	return leadSpaces + reverseRunes(core) + trailSpaces
 }
 
-func IsBaseRTL(s string) bool {
+func isBaseRTL(s string) bool {
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
 			return false
@@ -84,7 +73,7 @@ func IsBaseRTL(s string) bool {
 }
 
 func DisplayName(name string) string {
-	if !HasRTL(name) {
+	if !hasRTL(name) {
 		return name
 	}
 	var p bidi.Paragraph
@@ -119,7 +108,7 @@ func TruncateDisplayName(s string, maxRunes int) string {
 	if maxRunes <= 3 {
 		return "..."
 	}
-	if IsBaseRTL(s) {
+	if isBaseRTL(s) {
 		sub := string(runes[:maxRunes-3])
 		return "..." + DisplayName(sub)
 	}

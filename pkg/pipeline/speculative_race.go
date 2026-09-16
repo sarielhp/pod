@@ -28,7 +28,7 @@ type SpeculativeCandidateResult struct {
 	Err         error
 }
 
-func RunLocalCandidateTranscription(ctx context.Context, audioPath string, wp types.WhisperProfile, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string) (td *types.TranscriptionData, err error) {
+func runLocalCandidateTranscription(ctx context.Context, audioPath string, wp types.WhisperProfile, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string) (td *types.TranscriptionData, err error) {
 	defer func() { transcribe.StampBackend(td, wp.Engine, wp.Model) }()
 	if wp.Engine == types.WhisperEngineLocal {
 		return transcribe.RunWhisperCLITranscriptionContext(ctx, audioPath, wp, opts.Quiet, opts.Verbose, whisperPrompt, whisperLang)
@@ -180,7 +180,7 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 			}()
 		} else {
 			go func(r SpeculativeRacer) {
-				td, err := RunLocalCandidateTranscription(ctx, audioPath, r.Profile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLang, dockerContainer)
+				td, err := runLocalCandidateTranscription(ctx, audioPath, r.Profile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLang, dockerContainer)
 				resultCh <- SpeculativeCandidateResult{
 					ServiceName: r.Name,
 					TD:          td,
@@ -191,10 +191,10 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 		}
 	}
 
-	return AwaitRaceResults(ctx, cancel, resultCh, len(racers), opts.Quiet)
+	return awaitRaceResults(ctx, cancel, resultCh, len(racers), opts.Quiet)
 }
 
-func AwaitRaceResults(ctx context.Context, cancel context.CancelFunc, resultCh <-chan SpeculativeCandidateResult, totalRacers int, quiet bool) (*types.TranscriptionData, []types.AdSegment, bool, error) {
+func awaitRaceResults(ctx context.Context, cancel context.CancelFunc, resultCh <-chan SpeculativeCandidateResult, totalRacers int, quiet bool) (*types.TranscriptionData, []types.AdSegment, bool, error) {
 	remaining := totalRacers
 	var errors []string
 

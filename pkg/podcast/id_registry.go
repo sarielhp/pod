@@ -82,7 +82,7 @@ func DetectPodcastDirForAudio(audioPath string) string {
 	return dir
 }
 
-func EpisodeUniqueKey(podDir, audioPath string) string {
+func episodeUniqueKey(podDir, audioPath string) string {
 	if podDir != "" {
 		if rel, err := filepath.Rel(podDir, audioPath); err == nil && rel != "." && rel != "" {
 			return filepath.ToSlash(rel)
@@ -95,7 +95,7 @@ func EpisodeUniqueKey(podDir, audioPath string) string {
 	return filepath.Base(audioPath)
 }
 
-func GenerateEpisodeShortID(podShortID, epKey string) string {
+func generateEpisodeShortID(podShortID, epKey string) string {
 	cleanKey := strings.TrimSpace(epKey)
 	cleanPod := strings.ToLower(strings.TrimSpace(podShortID))
 	h := sha256.Sum256([]byte(cleanPod + ":" + cleanKey))
@@ -119,8 +119,8 @@ func GetOrSetEpisodeShortID(podDir, podShortID, audioPath string) string {
 }
 
 func EpisodeShortIDReadOnly(podDir, podShortID, audioPath string) string {
-	bogusID := GenerateEpisodeShortID(podShortID, "podcast")
-	key := EpisodeUniqueKey(podDir, audioPath)
+	bogusID := generateEpisodeShortID(podShortID, "podcast")
+	key := episodeUniqueKey(podDir, audioPath)
 
 	statPath := pipeline.StatusPathFor(audioPath)
 	if st, err := pipeline.LoadEpisodeStatus(statPath); err == nil && st != nil {
@@ -158,7 +158,7 @@ func EpisodeShortIDReadOnly(podDir, podShortID, audioPath string) string {
 		}
 	}
 
-	return GenerateEpisodeShortID(podShortID, key)
+	return generateEpisodeShortID(podShortID, key)
 }
 
 func ResolveAnyID(podcastsDir, query string) (*ResolvedID, error) {

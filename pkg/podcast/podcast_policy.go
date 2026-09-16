@@ -38,13 +38,13 @@ func ParsePolicyBool(s string) bool {
 	return false
 }
 
-// ApplyPolicyUpdate folds an update into a podcast's configuration.
+// applyPolicyUpdate folds an update into a podcast's configuration.
 //
 // Setting the download policy to "none" also turns auto-download off, unless
 // the same command said otherwise: asking for no downloads and leaving
 // auto-download on would contradict itself. Setting a retention in days
 // likewise turns auto-cleanup on.
-func ApplyPolicyUpdate(cfg *config.PodcastConfig, u PolicyUpdate) {
+func applyPolicyUpdate(cfg *config.PodcastConfig, u PolicyUpdate) {
 	if u.Favorite != "" {
 		cfg.SetFavorite(ParsePolicyBool(u.Favorite))
 	}
@@ -150,7 +150,7 @@ func (l *Library) BackendName() string {
 // SetPodcastPolicy applies an update to one podcast and saves it, returning
 // the resulting configuration and the outcome of pushing it to the backend.
 func (l *Library) SetPodcastPolicy(dir, uuid, shortID string, cfg config.PodcastConfig, u PolicyUpdate) (config.PodcastConfig, BackendSync, error) {
-	ApplyPolicyUpdate(&cfg, u)
+	applyPolicyUpdate(&cfg, u)
 	if err := config.SavePodcastConfig(dir, cfg); err != nil {
 		return cfg, BackendSync{}, fmt.Errorf("failed to save podcast config: %w", err)
 	}

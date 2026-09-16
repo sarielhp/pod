@@ -55,7 +55,7 @@ func NormalizeEpisodeTitle(name string) string {
 	return strings.ToLower(strings.TrimSpace(base))
 }
 
-func QuarantineFile(path string) error {
+func quarantineFile(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
@@ -106,12 +106,12 @@ func QuarantineAbandonedDuplicates(podDir string, trackedEpisodes []backend.Epis
 			}
 			base := strings.TrimSuffix(mp3, ".mp3")
 
-			if err := QuarantineFile(mp3); err == nil {
-				_ = QuarantineFile(base + ".cuts.json")
-				_ = QuarantineFile(base + ".transcript.json")
-				_ = QuarantineFile(mp3 + ".precut")
-				_ = QuarantineFile(base + ".srt")
-				_ = QuarantineFile(base + ".txt")
+			if err := quarantineFile(mp3); err == nil {
+				_ = quarantineFile(base + ".cuts.json")
+				_ = quarantineFile(base + ".transcript.json")
+				_ = quarantineFile(mp3 + ".precut")
+				_ = quarantineFile(base + ".srt")
+				_ = quarantineFile(base + ".txt")
 
 				quarantined = append(quarantined, fn)
 			}

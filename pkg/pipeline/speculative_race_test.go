@@ -22,7 +22,7 @@ func TestAwaitRaceResultsGeminiWins(t *testing.T) {
 		IsGemini:    true,
 	}
 
-	td, ads, geminiWon, err := AwaitRaceResults(ctx, cancel, resultCh, 2, true)
+	td, ads, geminiWon, err := awaitRaceResults(ctx, cancel, resultCh, 2, true)
 	if err != nil || !geminiWon {
 		t.Fatalf("expected Gemini to win: err=%v, geminiWon=%v", err, geminiWon)
 	}
@@ -48,7 +48,7 @@ func TestAwaitRaceResultsGemini503FallbackToLocal(t *testing.T) {
 		IsGemini:    false,
 	}
 
-	td, ads, geminiWon, err := AwaitRaceResults(ctx, cancel, resultCh, 2, true)
+	td, ads, geminiWon, err := awaitRaceResults(ctx, cancel, resultCh, 2, true)
 	if err != nil || geminiWon {
 		t.Fatalf("expected local to win after Gemini 503: err=%v, geminiWon=%v", err, geminiWon)
 	}

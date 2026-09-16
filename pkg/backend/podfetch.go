@@ -27,14 +27,14 @@ type PodFetchBackend struct {
 
 func init() {
 	Register("podfetch", func(cfg Config) (Backend, error) {
-		return NewPodFetch(cfg), nil
+		return newPodFetch(cfg), nil
 	})
 	Register("pod_fetch", func(cfg Config) (Backend, error) {
-		return NewPodFetch(cfg), nil
+		return newPodFetch(cfg), nil
 	})
 }
 
-func NewPodFetch(cfg Config) *PodFetchBackend {
+func newPodFetch(cfg Config) *PodFetchBackend {
 	host := strings.TrimRight(cfg.Host, "/")
 	timeout := cfg.Timeout
 	if timeout <= 0 {

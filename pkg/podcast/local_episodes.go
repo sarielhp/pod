@@ -187,7 +187,7 @@ func findLocalCover(podDir string) string {
 	return ""
 }
 
-func EnsurePodcastCover(podDir string, sub *Subscription) string {
+func ensurePodcastCover(podDir string, sub *Subscription) string {
 	if podDir == "" {
 		return ""
 	}
@@ -207,7 +207,7 @@ func EnsurePodcastCover(podDir string, sub *Subscription) string {
 		ext = ".png"
 	}
 	destPath := filepath.Join(podDir, "cover"+ext)
-	if err := DownloadCoverImage(imageURL, destPath); err == nil {
+	if err := downloadCoverImage(imageURL, destPath); err == nil {
 		return destPath
 	}
 	return ""
@@ -227,7 +227,7 @@ func resolveCoverImageURL(sub *Subscription) string {
 		sub.ImageURL = entry.ImageURL
 		return entry.ImageURL
 	}
-	if doc, err := FetchFeedDoc(sub.FeedURL); err == nil && doc != nil && doc.ImageURL != "" {
+	if doc, err := fetchFeedDoc(sub.FeedURL); err == nil && doc != nil && doc.ImageURL != "" {
 		sub.ImageURL = doc.ImageURL
 		if entry := defaultFeedCache().Get(sub.FeedURL); entry != nil {
 			entry.ImageURL = doc.ImageURL

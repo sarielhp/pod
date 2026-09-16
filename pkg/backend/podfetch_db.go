@@ -33,15 +33,6 @@ func getPodfetchDB(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func ClosePodfetchDB(dbPath string) {
-	podfetchDBPoolMu.Lock()
-	defer podfetchDBPoolMu.Unlock()
-	if db, ok := podfetchDBPool[dbPath]; ok {
-		_ = db.Close()
-		delete(podfetchDBPool, dbPath)
-	}
-}
-
 func podfetchHasColumn(db *sql.DB, table, column string) bool {
 	if table != "podcasts" && table != "podcast_episodes" && table != "podcast_settings" {
 		return false

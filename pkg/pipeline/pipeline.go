@@ -87,7 +87,7 @@ func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName 
 		return err
 	}
 
-	keepSegments, _, ok := LoadRecutKeepSegments(cutsFile, mainMP3File, totalDuration, selectedProfile, opts)
+	keepSegments, _, ok := loadRecutKeepSegments(cutsFile, mainMP3File, totalDuration, selectedProfile, opts)
 	if !ok || len(keepSegments) == 0 {
 		return fmt.Errorf("no keep segments loaded from '%s'", cutsFile)
 	}
@@ -102,10 +102,10 @@ func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName 
 		return err
 	}
 
-	return ExecuteRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir, keepSegments, totalDuration, cfg, opts, fileStartTime)
+	return executeRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir, keepSegments, totalDuration, cfg, opts, fileStartTime)
 }
 
-func LoadRecutKeepSegments(cutsFile, mainMP3File string, totalDuration float64, selectedProfile types.LLMProfile, opts types.ProcOptions) ([][2]float64, types.CutsData, bool) {
+func loadRecutKeepSegments(cutsFile, mainMP3File string, totalDuration float64, selectedProfile types.LLMProfile, opts types.ProcOptions) ([][2]float64, types.CutsData, bool) {
 	if !opts.Quiet {
 		fmt.Printf("Recutting audio using existing cut metadata: '%s'\n", cutsFile)
 	}
@@ -148,7 +148,7 @@ func LoadRecutKeepSegments(cutsFile, mainMP3File string, totalDuration float64, 
 	return keepSegments, cutsData, true
 }
 
-func ExecuteRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir string, keepSegments [][2]float64, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) error {
+func executeRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir string, keepSegments [][2]float64, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) error {
 	t0Recut := time.Now()
 	if !opts.Quiet {
 		fmt.Printf("Cutting ads with ffmpeg (%d non-ad clips)...\n", len(keepSegments))
@@ -174,11 +174,11 @@ func ExecuteRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, 
 		return fmt.Errorf("failed to install cut audio '%s': %w", outputFile, err)
 	}
 	_ = os.RemoveAll(workDir)
-	FinishRecutStatusAndSummary(mainMP3File, precutFile, outputFile, totalDuration, cfg, opts, fileStartTime)
+	finishRecutStatusAndSummary(mainMP3File, precutFile, outputFile, totalDuration, cfg, opts, fileStartTime)
 	return nil
 }
 
-func FinishRecutStatusAndSummary(mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) {
+func finishRecutStatusAndSummary(mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) {
 	newDuration := audio.GetAudioDuration(outputFile)
 	actualCut := totalDuration - newDuration
 	pctCut := 0.0
@@ -253,7 +253,7 @@ func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts t
 		}
 	}
 
-	transcriptionData, err := RunWhisperTranscription(sourceAudioFile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLanguage, dockerContainer)
+	transcriptionData, err := runWhisperTranscription(sourceAudioFile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLanguage, dockerContainer)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func transcribeWhisperServerWithChunkFallback(sourceAudioFile string, cfg types.
 	return data, err
 }
 
-func RunWhisperTranscription(sourceAudioFile string, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string) (td *types.TranscriptionData, err error) {
+func runWhisperTranscription(sourceAudioFile string, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string) (td *types.TranscriptionData, err error) {
 	wp := resolveWhisperRoutingProfile(&cfg, sourceAudioFile, opts, &whisperLang)
 	defer func() { transcribe.StampBackend(td, wp.Engine, wp.Model) }()
 

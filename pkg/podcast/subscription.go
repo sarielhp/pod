@@ -267,7 +267,7 @@ func (s *SubscriptionStore) ImportFromBackend(reader backend.PodcastReader) (int
 	return count, nil
 }
 
-func ResolvePodcastDirForSub(sub Subscription, podcastsDir string) string {
+func resolvePodcastDirForSub(sub Subscription, podcastsDir string) string {
 	if sub.Folder != "" {
 		target := filepath.Join(podcastsDir, sub.Folder)
 		if fi, err := os.Stat(target); err == nil && fi.IsDir() {
@@ -284,7 +284,7 @@ func ResolvePodcastDirForSub(sub Subscription, podcastsDir string) string {
 // empty query selects everything, which is how "act on all subscriptions" is
 // spelled at the call sites.
 //
-// This is deliberately narrower than MatchesPodcastName, which also accepts a
+// This is deliberately narrower than matchesPodcastName, which also accepts a
 // regular expression. The two should converge, but widening subscription
 // matching to regexes changes which podcasts a command touches, so it is a
 // behaviour change rather than a refactor.

@@ -7,57 +7,6 @@ import (
 	"testing"
 )
 
-func TestGeneratePodcastWebpage(t *testing.T) {
-	t.Parallel()
-	podDir := t.TempDir()
-	sub := Subscription{
-		ID:       "pod1",
-		Title:    "History Show",
-		FeedURL:  "https://example.com/feed.xml",
-		Folder:   "History Show",
-		ImageURL: "https://example.com/cover.jpg",
-	}
-
-	episodes := []LocalEpisodeMeta{
-		{
-			EpisodeFile: EpisodeFile{
-				Path:        filepath.Join(podDir, "Episode 1.mp3"),
-				Filename:    "Episode 1.mp3",
-				Title:       "Episode 1: The Beginning",
-				DurationSec: 3600,
-				SizeBytes:   50000000,
-			},
-			PubDate:     "Mon, 01 Jan 2026 12:00:00 +0000",
-			Description: "First episode of the show.",
-		},
-	}
-
-	htmlData, err := GeneratePodcastWebpageHTML(sub, podDir, episodes, "http://localhost:8080/podcasts")
-	if err != nil {
-		t.Fatalf("GeneratePodcastWebpageHTML failed: %v", err)
-	}
-
-	content := string(htmlData)
-	if !strings.Contains(content, "History Show") {
-		t.Errorf("expected HTML to contain title 'History Show'")
-	}
-	if !strings.Contains(content, "Episode 1: The Beginning") {
-		t.Errorf("expected HTML to contain episode title")
-	}
-	if !strings.Contains(content, "<audio controls") {
-		t.Errorf("expected HTML to contain audio player")
-	}
-
-	if err := PublishPodcast(podDir, sub, "http://localhost:8080/podcasts", nil); err != nil {
-		t.Fatalf("PublishPodcast failed: %v", err)
-	}
-
-	idxPath := filepath.Join(podDir, "index.html")
-	if _, err := os.Stat(idxPath); err != nil {
-		t.Fatalf("expected index.html to exist at %s: %v", idxPath, err)
-	}
-}
-
 func TestGenerateCatalogWebpage(t *testing.T) {
 	t.Parallel()
 	podcastsDir := t.TempDir()
@@ -76,9 +25,9 @@ func TestGenerateCatalogWebpage(t *testing.T) {
 		},
 	}
 
-	htmlData, err := GenerateCatalogWebpageHTML(podcastsDir, subs)
+	htmlData, err := generateCatalogWebpageHTML(podcastsDir, subs)
 	if err != nil {
-		t.Fatalf("GenerateCatalogWebpageHTML failed: %v", err)
+		t.Fatalf("generateCatalogWebpageHTML failed: %v", err)
 	}
 
 	content := string(htmlData)

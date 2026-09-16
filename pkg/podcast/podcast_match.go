@@ -46,14 +46,14 @@ func FormatPodcastMatches(matches []AmbiguousPodcastMatch) string {
 	return strings.TrimRight(sb.String(), "\n")
 }
 
-func NewAmbiguousPodcastError(query string, matches []AmbiguousPodcastMatch) error {
+func newAmbiguousPodcastError(query string, matches []AmbiguousPodcastMatch) error {
 	return &AmbiguousPodcastError{
 		Query:   query,
 		Matches: matches,
 	}
 }
 
-func MatchesPodcastName(name, query string) bool {
+func matchesPodcastName(name, query string) bool {
 	q := strings.ToLower(strings.TrimSpace(query))
 	n := strings.ToLower(strings.TrimSpace(name))
 	if q == "" || n == "" {
@@ -78,7 +78,7 @@ func matchByName[T any](items []T, search string, names func(T) []string, descri
 	var hits []T
 	for _, it := range items {
 		for _, n := range names(it) {
-			if n != "" && MatchesPodcastName(n, search) {
+			if n != "" && matchesPodcastName(n, search) {
 				hits = append(hits, it)
 				break
 			}
@@ -92,7 +92,7 @@ func matchByName[T any](items []T, search string, names func(T) []string, descri
 		for _, h := range hits {
 			described = append(described, describe(h))
 		}
-		return nil, NewAmbiguousPodcastError(search, described)
+		return nil, newAmbiguousPodcastError(search, described)
 	}
 	return byID(items, search)
 }
@@ -147,7 +147,7 @@ func describeLocalPodcast(p PodcastDirEntry) AmbiguousPodcastMatch {
 	return AmbiguousPodcastMatch{ID: p.ShortID, Name: title}
 }
 
-func BackendPodcastTitle(p backend.Podcast) string {
+func backendPodcastTitle(p backend.Podcast) string {
 	if p.Media.Metadata.Title != "" {
 		return p.Media.Metadata.Title
 	}
@@ -171,7 +171,7 @@ func resolveBackendPodcastByID(podcasts []backend.Podcast, search string) (*back
 		return nil, fmt.Errorf("multiple podcasts match ID %q", search)
 	}
 	for i := range podcasts {
-		title := BackendPodcastTitle(podcasts[i])
+		title := backendPodcastTitle(podcasts[i])
 		if strings.EqualFold(GeneratePodcastShortID(title), search) {
 			return &podcasts[i], nil
 		}
@@ -192,11 +192,11 @@ func MatchBackendPodcasts(podcasts []backend.Podcast, query string) (*backend.Po
 }
 
 func backendMatchNames(p backend.Podcast) []string {
-	return []string{BackendPodcastTitle(p)}
+	return []string{backendPodcastTitle(p)}
 }
 
 func describeBackendPodcast(p backend.Podcast) AmbiguousPodcastMatch {
-	title := BackendPodcastTitle(p)
+	title := backendPodcastTitle(p)
 	id := p.ID
 	if id == "" {
 		id = p.Media.ID

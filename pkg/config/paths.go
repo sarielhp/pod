@@ -20,7 +20,7 @@ func SetTestConfigPath(p string) {
 	testConfigPath = p
 }
 
-func UserTmpDir() string {
+func userTmpDir() string {
 	username := os.Getenv("USER")
 	if username == "" {
 		username = os.Getenv("LOGNAME")
@@ -39,7 +39,7 @@ func ConfigDir() string {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return UserTmpDir()
+		return userTmpDir()
 	}
 	podDir := filepath.Join(home, ConfigDirName)
 	if _, err := os.Stat(podDir); err == nil {
@@ -67,7 +67,7 @@ func OpencodeConfigPath() string {
 	return filepath.Join(home, OpencodeConfigFile)
 }
 
-func LocalIP() string {
+func localIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "127.0.0.1"
@@ -83,6 +83,6 @@ func LocalIP() string {
 	return "127.0.0.1"
 }
 
-func ReplaceIP(url, ip string) string {
+func replaceIP(url, ip string) string {
 	return strings.Replace(url, "192.168.1.230", ip, 1)
 }

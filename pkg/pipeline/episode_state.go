@@ -13,13 +13,13 @@ import (
 
 // IsEpisodeClean reports whether an episode has finished ad removal.
 func IsEpisodeClean(mp3Path string) bool {
-	if !HasNonEmptyTranscript(mp3Path) {
+	if !hasNonEmptyTranscript(mp3Path) {
 		return false
 	}
 	return IsEpisodeCompleted(mp3Path)
 }
 
-func HasNonEmptyTranscript(mp3Path string) bool {
+func hasNonEmptyTranscript(mp3Path string) bool {
 	path := util.StripExt(mp3Path) + ".transcript.json"
 	data, err := os.ReadFile(path)
 	if err != nil {

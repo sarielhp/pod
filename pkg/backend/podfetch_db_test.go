@@ -66,7 +66,7 @@ func setupTestPodFetchDB(t *testing.T) string {
 func TestPodFetchDBDirectSync(t *testing.T) {
 	t.Parallel()
 	dbPath := setupTestPodFetchDB(t)
-	be := NewPodFetch(Config{DBPath: dbPath})
+	be := newPodFetch(Config{DBPath: dbPath})
 
 	ok, err := be.TestConnection(nil)
 	if !ok || err != nil {
@@ -131,7 +131,7 @@ func TestPodFetchModernSchemaCompatibility(t *testing.T) {
 		t.Fatalf("failed to initialize modern schema: %v", err)
 	}
 
-	be := NewPodFetch(Config{DBPath: dbPath})
+	be := newPodFetch(Config{DBPath: dbPath})
 	podcasts, err := be.Podcasts()
 	if err != nil {
 		t.Fatalf("be.Podcasts() failed: %v", err)

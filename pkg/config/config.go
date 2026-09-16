@@ -63,14 +63,14 @@ func EnsureConfigExists() (*types.Config, error) {
 	path := ConfigPath()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		cfg := DefaultConfig()
-		ip := LocalIP()
+		ip := localIP()
 		cfg.WhisperURL = fmt.Sprintf("http://%s:8088/inference", ip)
 		for i := range cfg.Profiles {
-			cfg.Profiles[i].URL = ReplaceIP(cfg.Profiles[i].URL, ip)
+			cfg.Profiles[i].URL = replaceIP(cfg.Profiles[i].URL, ip)
 		}
 		for i := range cfg.WhisperProfiles {
 			if cfg.WhisperProfiles[i].Engine == types.WhisperEngineDocker {
-				cfg.WhisperProfiles[i].URL = ReplaceIP(cfg.WhisperProfiles[i].URL, ip)
+				cfg.WhisperProfiles[i].URL = replaceIP(cfg.WhisperProfiles[i].URL, ip)
 			}
 		}
 		data, err := json.MarshalIndent(cfg, "", "  ")
@@ -95,9 +95,9 @@ func LoadConfig() (*types.Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("invalid config json in %s: %w", path, err)
 	}
-	ApplyEnvOverrides(&cfg)
-	ResolveAuthFolderCredentials(&cfg)
-	SanitizeDisabledAPIKeys(&cfg)
+	applyEnvOverrides(&cfg)
+	resolveAuthFolderCredentials(&cfg)
+	sanitizeDisabledAPIKeys(&cfg)
 	return &cfg, nil
 }
 
@@ -116,14 +116,14 @@ func SaveConfig(cfg *types.Config) error {
 	return util.WriteFileAtomic(ConfigPath(), append(data, '\n'), 0600)
 }
 
-func ApplyEnvOverrides(cfg *types.Config) {
+func applyEnvOverrides(cfg *types.Config) {
 	if cfg == nil {
 		return
 	}
 	applyBackendEnv(cfg)
 	applyWhisperEnv(cfg)
 	applyRemoteEnv(cfg)
-	ApplyAPIKeyEnvOverrides(cfg)
+	applyAPIKeyEnvOverrides(cfg)
 }
 
 func applyBackendEnv(cfg *types.Config) {

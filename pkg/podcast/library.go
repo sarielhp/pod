@@ -87,7 +87,7 @@ func (l *Library) Subscriptions() (*SubscriptionStore, error) {
 
 // PodcastDir returns the directory a subscription's episodes live in.
 func (l *Library) PodcastDir(sub Subscription) string {
-	return ResolvePodcastDirForSub(sub, l.cfg.PodcastsDir)
+	return resolvePodcastDirForSub(sub, l.cfg.PodcastsDir)
 }
 
 // Publish regenerates one podcast's feed.xml and index.html.

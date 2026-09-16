@@ -36,13 +36,13 @@ type CleanOrphansResult struct {
 	Errors       []error
 }
 
-func NormalizeFeedURL(u string) string {
+func normalizeFeedURL(u string) string {
 	trimmed := strings.TrimSpace(u)
 	trimmed = strings.TrimRight(trimmed, "/")
 	return strings.ToLower(trimmed)
 }
 
-func FindOrphanPodcasts(podcasts []backend.Podcast) []OrphanPodcast {
+func findOrphanPodcasts(podcasts []backend.Podcast) []OrphanPodcast {
 	var orphans []OrphanPodcast
 	orphanedIDs := make(map[string]bool)
 
@@ -63,7 +63,7 @@ func FindOrphanPodcasts(podcasts []backend.Podcast) []OrphanPodcast {
 		if orphanedIDs[item.ID] {
 			continue
 		}
-		normURL := NormalizeFeedURL(item.Media.Metadata.FeedURL)
+		normURL := normalizeFeedURL(item.Media.Metadata.FeedURL)
 		if normURL != "" {
 			feedGroups[normURL] = append(feedGroups[normURL], item)
 		}
@@ -80,7 +80,7 @@ func collectDuplicateFeedOrphans(feedGroups map[string][]backend.Podcast, orphan
 		if len(group) <= 1 {
 			continue
 		}
-		SortFeedGroup(group)
+		sortFeedGroup(group)
 		primary := group[0]
 		primaryTitle := primary.Media.Metadata.Title
 		if primaryTitle == "" {
@@ -104,7 +104,7 @@ func collectDuplicateFeedOrphans(feedGroups map[string][]backend.Podcast, orphan
 	return orphans
 }
 
-func SortFeedGroup(group []backend.Podcast) {
+func sortFeedGroup(group []backend.Podcast) {
 	sort.SliceStable(group, func(i, j int) bool {
 		if len(group[i].Media.Episodes) != len(group[j].Media.Episodes) {
 			return len(group[i].Media.Episodes) > len(group[j].Media.Episodes)
@@ -152,7 +152,7 @@ func RunCleanOrphans(client backend.Backend, opts CleanOrphansOptions) (CleanOrp
 		return CleanOrphansResult{}, fmt.Errorf("failed to fetch podcasts: %w", err)
 	}
 
-	orphans := FindOrphanPodcasts(podcasts)
+	orphans := findOrphanPodcasts(podcasts)
 	res := CleanOrphansResult{
 		ScannedCount: len(podcasts),
 		OrphanCount:  len(orphans),

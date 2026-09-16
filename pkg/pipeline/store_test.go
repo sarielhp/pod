@@ -13,7 +13,7 @@ func TestFileEpisodeStateStoreUpdateAndGet(t *testing.T) {
 	dir := t.TempDir()
 	audioPath := filepath.Join(dir, "episode.mp3")
 
-	store := NewFileEpisodeStateStore()
+	store := newFileEpisodeStateStore()
 	err := store.Update(context.Background(), audioPath, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateNeedsAdR
 	})

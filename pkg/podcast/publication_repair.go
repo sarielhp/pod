@@ -26,7 +26,7 @@ func RepairPublicationDates(root string, dates map[string]time.Time, dryRun bool
 		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || !strings.HasSuffix(path, ".mp3.json") {
 			return nil
 		}
-		audio := PublicationAudioPath(root, strings.TrimSuffix(path, ".json"))
+		audio := publicationAudioPath(root, strings.TrimSuffix(path, ".json"))
 		if audio == "" {
 			return nil
 		}
@@ -105,7 +105,7 @@ func repairCachedPublication(dir string, dates map[string]time.Time, dryRun bool
 		if audio == "" {
 			audio = filename
 		}
-		date := dates[PublicationAudioPath(dir, audio)]
+		date := dates[publicationAudioPath(dir, audio)]
 		var want int64
 		if !date.IsZero() {
 			want = date.UnixMilli()

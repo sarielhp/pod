@@ -147,7 +147,7 @@ var globalFeedCache *FeedCacheManager
 // Library.FeedCache, so library state is owned rather than ambient.
 func defaultFeedCache() *FeedCacheManager {
 	globalFeedCacheOnce.Do(func() {
-		globalFeedCache = NewFeedCacheManager("")
+		globalFeedCache = newFeedCacheManager("")
 	})
 	return globalFeedCache
 }
@@ -173,7 +173,7 @@ func feedCachePath() string {
 	return filepath.Join(podDir, "feed_cache.json")
 }
 
-func NewFeedCacheManager(cachePath string) *FeedCacheManager {
+func newFeedCacheManager(cachePath string) *FeedCacheManager {
 	if cachePath == "" {
 		cachePath = feedCachePath()
 	}
@@ -368,7 +368,7 @@ var feedDateFormats = [...]string{
 	"2006-01-02",
 }
 
-func NormalizeFeedTimezone(s string) string {
+func normalizeFeedTimezone(s string) string {
 	for _, tz := range feedTZOffsets {
 		if len(s) >= len(tz.suffix) && strings.EqualFold(s[len(s)-len(tz.suffix):], tz.suffix) {
 			return s[:len(s)-len(tz.suffix)] + tz.offset
@@ -377,13 +377,13 @@ func NormalizeFeedTimezone(s string) string {
 	return s
 }
 
-func ParseFeedDate(pubDate string) (int64, string) {
+func parseFeedDate(pubDate string) (int64, string) {
 	pubDate = strings.TrimSpace(pubDate)
 	if pubDate == "" {
 		return 0, ""
 	}
 
-	normalizedPubDate := NormalizeFeedTimezone(pubDate)
+	normalizedPubDate := normalizeFeedTimezone(pubDate)
 	for _, layout := range feedDateFormats {
 		if t, err := time.Parse(layout, normalizedPubDate); err == nil {
 			return t.UnixMilli(), pubDate
@@ -464,12 +464,12 @@ func (d *FeedDocument) LatestGUID() string {
 	if newest == nil {
 		return ""
 	}
-	return EpisodeIdentity(*newest)
+	return episodeIdentity(*newest)
 }
 
-// EpisodeIdentity returns the most stable identifier available for an episode,
+// episodeIdentity returns the most stable identifier available for an episode,
 // preferring the GUID and falling back to the enclosure URL and then the title.
-func EpisodeIdentity(ep backend.FeedEpisode) string {
+func episodeIdentity(ep backend.FeedEpisode) string {
 	if g := strings.TrimSpace(ep.GUID); g != "" {
 		return g
 	}
@@ -482,15 +482,7 @@ func EpisodeIdentity(ep backend.FeedEpisode) string {
 	return strings.ToLower(strings.TrimSpace(ep.Title))
 }
 
-func ParseRSSXML(data []byte) ([]backend.FeedEpisode, error) {
-	doc, err := ParseRSSFeed(data)
-	if err != nil {
-		return nil, err
-	}
-	return doc.Episodes, nil
-}
-
-func ParseRSSFeed(data []byte) (*FeedDocument, error) {
+func parseRSSFeed(data []byte) (*FeedDocument, error) {
 	var rss rssXML
 	if err := xml.Unmarshal(data, &rss); err != nil {
 		return nil, err
@@ -516,7 +508,7 @@ func ParseRSSFeed(data []byte) (*FeedDocument, error) {
 			guid = it.Enclosure.URL
 		}
 
-		pubMS, pubStr := ParseFeedDate(it.PubDate)
+		pubMS, pubStr := parseFeedDate(it.PubDate)
 
 		ep := backend.FeedEpisode{
 			Title:            strings.TrimSpace(it.Title),
@@ -603,11 +595,11 @@ type FeedFetchResult struct {
 	NotModified  bool
 }
 
-// FetchFeedConditional fetches a feed, sending If-None-Match/If-Modified-Since
+// fetchFeedConditional fetches a feed, sending If-None-Match/If-Modified-Since
 // when the caller has cached validators. Most podcast hosts honour them and
 // answer 304, which is the cheapest possible way to learn that a feed has
 // nothing new.
-func FetchFeedConditional(feedURL string, opts FeedFetchOptions) (FeedFetchResult, error) {
+func fetchFeedConditional(feedURL string, opts FeedFetchOptions) (FeedFetchResult, error) {
 	client := opts.Client
 	if client == nil {
 		client = feedHTTPClient(opts.Timeout)
@@ -683,7 +675,7 @@ func readFeedResponse(resp *http.Response) (FeedFetchResult, bool, error) {
 	if err != nil {
 		return FeedFetchResult{}, true, err
 	}
-	doc, err := ParseRSSFeed(body)
+	doc, err := parseRSSFeed(body)
 	if err != nil {
 		return FeedFetchResult{}, false, err
 	}
@@ -692,7 +684,7 @@ func readFeedResponse(resp *http.Response) (FeedFetchResult, bool, error) {
 }
 
 func FetchFeedDirect(feedURL string, cachedETag, cachedLastMod string) ([]backend.FeedEpisode, string, string, bool, error) {
-	res, err := FetchFeedConditional(feedURL, FeedFetchOptions{
+	res, err := fetchFeedConditional(feedURL, FeedFetchOptions{
 		ETag:         cachedETag,
 		LastModified: cachedLastMod,
 		Timeout:      60 * time.Second,
@@ -725,8 +717,8 @@ func cacheDocImage(feedURL, imageURL string) {
 	})
 }
 
-func FetchFeedDoc(feedURL string) (*FeedDocument, error) {
-	res, err := FetchFeedConditional(feedURL, FeedFetchOptions{
+func fetchFeedDoc(feedURL string) (*FeedDocument, error) {
+	res, err := fetchFeedConditional(feedURL, FeedFetchOptions{
 		Timeout:     60 * time.Second,
 		MaxAttempts: 3,
 	})

@@ -1,19 +1,13 @@
 package backend
 
 import (
-	"bytes"
-	"context"
 	"io"
 	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/tcolgate/mp3"
 )
 
-func GetMP3DiskDurationNative(path string) float64 {
+func getMP3DiskDurationNative(path string) float64 {
 	file, err := os.Open(path)
 	if err != nil {
 		return 0
@@ -34,45 +28,4 @@ func GetMP3DiskDurationNative(path string) float64 {
 		}
 		duration += frame.Duration().Seconds()
 	}
-}
-
-func GetMP3DiskDuration(path string) float64 {
-	if path == "" {
-		return 0
-	}
-	if fi, err := os.Stat(path); err != nil || fi.IsDir() {
-		return 0
-	}
-
-	if dur := GetMP3DiskDurationNative(path); dur > 0 {
-		return dur
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err == nil {
-		s := strings.TrimSpace(out.String())
-		if dur, err := strconv.ParseFloat(s, 64); err == nil && dur > 0 {
-			return dur
-		}
-	}
-
-	ctxMI, cancelMI := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelMI()
-
-	cmdMI := exec.CommandContext(ctxMI, "mediainfo", "--Inform=General;%Duration%", path)
-	var outMI bytes.Buffer
-	cmdMI.Stdout = &outMI
-	if err := cmdMI.Run(); err == nil {
-		s := strings.TrimSpace(outMI.String())
-		if durMS, err := strconv.ParseFloat(s, 64); err == nil && durMS > 0 {
-			return durMS / 1000.0
-		}
-	}
-
-	return 0
 }

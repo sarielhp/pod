@@ -45,7 +45,7 @@ func GetPubMS(ep backend.FeedEpisode) int64 {
 		return ep.PublishedAt
 	}
 	if ep.PubDate != "" {
-		ms, _ := ParseFeedDate(ep.PubDate)
+		ms, _ := parseFeedDate(ep.PubDate)
 		return ms
 	}
 	return 0
@@ -53,7 +53,7 @@ func GetPubMS(ep backend.FeedEpisode) int64 {
 
 func scanPodcastDiskTitles(item backend.Podcast, podcastsDir string) map[string]bool {
 	diskTitles := make(map[string]bool)
-	podDir := FindPodcastDirForItem(item, podcastsDir)
+	podDir := findPodcastDirForItem(item, podcastsDir)
 	if podDir == "" {
 		return diskTitles
 	}
@@ -78,10 +78,10 @@ func scanPodcastDiskTitles(item backend.Podcast, podcastsDir string) map[string]
 	return diskTitles
 }
 
-// BuildDownloadedChecker reports which feed episodes need no download. What the
+// buildDownloadedChecker reports which feed episodes need no download. What the
 // server already holds comes from the catalog index, read once for the whole
 // run; queued downloads and audio already on disk are added on top of it.
-func BuildDownloadedChecker(item backend.Podcast, index *PodcastEpisodeIndex, active []backend.ActiveDownload, podcastsDir string) func(backend.FeedEpisode) bool {
+func buildDownloadedChecker(item backend.Podcast, index *PodcastEpisodeIndex, active []backend.ActiveDownload, podcastsDir string) func(backend.FeedEpisode) bool {
 	queuedTitles := make(map[string]bool)
 	queuedURLs := make(map[string]bool)
 	queuedGUIDs := make(map[string]bool)
@@ -143,8 +143,8 @@ func BuildDownloadedChecker(item backend.Podcast, index *PodcastEpisodeIndex, ac
 	}
 }
 
-func ResolveEpisodesToDownload(item backend.Podcast, sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, opts DownloadOptions) ([]backend.FeedEpisode, []string) {
-	podDir := FindPodcastDirForItem(item, opts.PodcastsDir)
+func resolveEpisodesToDownload(item backend.Podcast, sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, opts DownloadOptions) ([]backend.FeedEpisode, []string) {
+	podDir := findPodcastDirForItem(item, opts.PodcastsDir)
 	podCfg := config.DefaultPodcastConfigFrom(config.PolicyDefaults{
 		DownloadPolicy: opts.DefaultDownloadPolicy,
 		DownloadK:      opts.DefaultDownloadK,
@@ -154,7 +154,7 @@ func ResolveEpisodesToDownload(item backend.Podcast, sortedCatalog []backend.Fee
 	}
 
 	if opts.DownloadAll {
-		eps, reasons := SelectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, config.DownloadPolicyAll, 0, opts.Oldest)
+		eps, reasons := selectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, config.DownloadPolicyAll, 0, opts.Oldest)
 		if opts.CountGiven && opts.Count > 0 && len(eps) > opts.Count {
 			eps = eps[:opts.Count]
 		}
@@ -162,9 +162,9 @@ func ResolveEpisodesToDownload(item backend.Podcast, sortedCatalog []backend.Fee
 	}
 	if !opts.Fill && !opts.CountGiven {
 		if podCfg.Favorite || podCfg.DownloadPolicy == config.DownloadPolicyNew {
-			return SelectNewEpisodes(sortedCatalog, downloadedIndices, isDownloaded, podCfg.FavoriteSince)
+			return selectNewEpisodes(sortedCatalog, downloadedIndices, isDownloaded, podCfg.FavoriteSince)
 		}
-		return SelectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, podCfg.DownloadPolicy, podCfg.DownloadK, opts.Oldest)
+		return selectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, podCfg.DownloadPolicy, podCfg.DownloadK, opts.Oldest)
 	}
 	if opts.ForceNewOnly {
 		return selectForceNewEpisodes(sortedCatalog, downloadedIndices, isDownloaded, opts.Count, opts.CountGiven, opts.Oldest)

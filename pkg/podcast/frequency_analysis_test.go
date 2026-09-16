@@ -10,7 +10,7 @@ import (
 	"pod/pkg/config"
 )
 
-// PathSafeTitle must keep spaces and punctuation that a filesystem accepts.
+// pathSafeTitle must keep spaces and punctuation that a filesystem accepts.
 // SanitizeTitle, which strips a title to letters and digits, would turn
 // "Ep. 5: The Long Now" into a different directory name entirely.
 func TestPathSafeTitleReplacesOnlyIllegalCharacters(t *testing.T) {
@@ -25,12 +25,12 @@ func TestPathSafeTitleReplacesOnlyIllegalCharacters(t *testing.T) {
 		`Back\Slash`:          "Back_Slash",
 	}
 	for in, want := range cases {
-		if got := PathSafeTitle(in); got != want {
-			t.Errorf("PathSafeTitle(%q) = %q, want %q", in, got, want)
+		if got := pathSafeTitle(in); got != want {
+			t.Errorf("pathSafeTitle(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := PathSafeTitle("Ep. 5: The Long Now"); got == SanitizeTitle("Ep. 5: The Long Now") {
-		t.Error("PathSafeTitle should not agree with SanitizeTitle; they are for different jobs")
+	if got := pathSafeTitle("Ep. 5: The Long Now"); got == SanitizeTitle("Ep. 5: The Long Now") {
+		t.Error("pathSafeTitle should not agree with SanitizeTitle; they are for different jobs")
 	}
 }
 
@@ -138,7 +138,7 @@ func TestWithFeedURLFallsBackToEverything(t *testing.T) {
 	t.Parallel()
 	a := backend.Podcast{ID: "a"}
 	b := backend.Podcast{ID: "b"}
-	if got := WithFeedURL([]backend.Podcast{a, b}); len(got) != 2 {
+	if got := withFeedURL([]backend.Podcast{a, b}); len(got) != 2 {
 		t.Errorf("got %d, want both podcasts back", len(got))
 	}
 }

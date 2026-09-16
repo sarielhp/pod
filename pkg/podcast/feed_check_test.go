@@ -42,7 +42,7 @@ func testPodcast(id, title, feedURL string, episodes ...backend.Episode) backend
 
 func newTestCache(t *testing.T) *FeedCacheManager {
 	t.Helper()
-	return NewFeedCacheManager(filepath.Join(t.TempDir(), "feed_cache.json"))
+	return newFeedCacheManager(filepath.Join(t.TempDir(), "feed_cache.json"))
 }
 
 func checkOpts(cache *FeedCacheManager) FeedCheckOptions {
@@ -75,7 +75,7 @@ func TestCheckFeedsForUpdatesUsesConditionalGet(t *testing.T) {
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL,
 		backend.Episode{GUID: "g1", Title: "Ep 1", AudioFile: &backend.PodcastAudioFile{Duration: 1}})}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 	cache := newTestCache(t)
 
 	first := CheckFeedsForUpdates(pods, index, checkOpts(cache))
@@ -120,7 +120,7 @@ func TestCheckFeedsForUpdatesDetectsNewEpisode(t *testing.T) {
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL,
 		backend.Episode{GUID: "g1", Title: "Ep 1", AudioFile: &backend.PodcastAudioFile{Duration: 1}})}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 	cache := newTestCache(t)
 
 	CheckFeedsForUpdates(pods, index, checkOpts(cache))
@@ -153,7 +153,7 @@ func TestCheckFeedsForUpdatesFallsBackToContentMarkers(t *testing.T) {
 	defer srv.Close()
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL)}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 	cache := newTestCache(t)
 
 	if res := CheckFeedsForUpdates(pods, index, checkOpts(cache)); res[0].Status != FeedChanged {
@@ -174,7 +174,7 @@ func TestCheckFeedsForUpdatesForceIgnoresCache(t *testing.T) {
 	srv, bodyServed := etagServer(t, `"v1"`, body)
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL)}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 	cache := newTestCache(t)
 
 	CheckFeedsForUpdates(pods, index, checkOpts(cache))
@@ -200,7 +200,7 @@ func TestCheckFeedsForUpdatesUnreadableFeedFallsBackToServer(t *testing.T) {
 		testPodcast("p1", "Gone", srv.URL),
 		testPodcast("p2", "No Feed", ""),
 	}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 
 	res := CheckFeedsForUpdates(pods, index, checkOpts(newTestCache(t)))
 	for _, r := range res {
@@ -232,7 +232,7 @@ func TestCheckFeedsForUpdatesCatchesUnindexedEpisodeEvenIfOriginUnchanged(t *tes
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL,
 		backend.Episode{GUID: "g1", Title: "Ep 1", AudioFile: &backend.PodcastAudioFile{Duration: 1}})}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 
 	cache := newTestCache(t)
 	cache.Put(srv.URL, &FeedCacheEntry{

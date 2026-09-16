@@ -8,7 +8,7 @@ import (
 
 func TestGetMP3DiskDurationNative_NonExistent(t *testing.T) {
 	t.Parallel()
-	dur := GetMP3DiskDurationNative("/non/existent/path/audio.mp3")
+	dur := getMP3DiskDurationNative("/non/existent/path/audio.mp3")
 	if dur != 0 {
 		t.Fatalf("expected 0 for non-existent file, got %v", dur)
 	}
@@ -24,24 +24,8 @@ func TestGetMP3DiskDurationNative_CorruptStreamReturnsZero(t *testing.T) {
 		t.Fatalf("failed writing test file: %v", err)
 	}
 
-	dur := GetMP3DiskDurationNative(corruptFile)
+	dur := getMP3DiskDurationNative(corruptFile)
 	if dur != 0 {
 		t.Fatalf("expected 0 on decode failure, got %v", dur)
-	}
-}
-
-func TestGetMP3DiskDuration_EmptyOrCorrupt(t *testing.T) {
-	t.Parallel()
-	if dur := GetMP3DiskDuration(""); dur != 0 {
-		t.Fatalf("expected 0 for empty path, got %v", dur)
-	}
-
-	dir := t.TempDir()
-	emptyFile := filepath.Join(dir, "empty.mp3")
-	if err := os.WriteFile(emptyFile, []byte{}, 0644); err != nil {
-		t.Fatalf("failed to write empty file: %v", err)
-	}
-	if dur := GetMP3DiskDuration(emptyFile); dur != 0 {
-		t.Fatalf("expected 0 for empty file, got %v", dur)
 	}
 }

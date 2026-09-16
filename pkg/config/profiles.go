@@ -79,38 +79,6 @@ func InferWhisperEngine(wp types.WhisperProfile) types.WhisperEngine {
 	return types.WhisperEngineRemote
 }
 
-func SelectWhisperProfile(cfg *types.Config, query string) (types.WhisperProfile, error) {
-	if cfg == nil || len(cfg.WhisperProfiles) == 0 {
-		return types.WhisperProfile{}, fmt.Errorf("no whisper profiles available")
-	}
-	if query == "" {
-		for _, wp := range cfg.WhisperProfiles {
-			if wp.ID == cfg.ActiveWhisperID {
-				return wp, nil
-			}
-		}
-		return cfg.WhisperProfiles[0], nil
-	}
-
-	id := 0
-	fmt.Sscanf(query, "%d", &id)
-	if id > 0 {
-		for _, wp := range cfg.WhisperProfiles {
-			if wp.ID == id {
-				return wp, nil
-			}
-		}
-	}
-
-	lowerQuery := strings.ToLower(query)
-	for _, wp := range cfg.WhisperProfiles {
-		if strings.Contains(strings.ToLower(wp.Name), lowerQuery) || strings.Contains(strings.ToLower(string(wp.Engine)), lowerQuery) {
-			return wp, nil
-		}
-	}
-	return types.WhisperProfile{}, fmt.Errorf("whisper profile '%s' not found", query)
-}
-
 func SelectLLMProfile(cfg *types.Config, query string) (types.LLMProfile, error) {
 	profile, err := selectLLMProfile(cfg, query)
 	if err != nil {
@@ -196,19 +164,6 @@ func SetDefaultProfile(cfg *types.Config, targetID int) error {
 		}
 	}
 	return fmt.Errorf("profile ID [%d] not found in configuration", targetID)
-}
-
-func SetDefaultWhisperProfile(cfg *types.Config, targetID int) error {
-	if cfg == nil {
-		return fmt.Errorf("config cannot be nil")
-	}
-	for _, wp := range cfg.WhisperProfiles {
-		if wp.ID == targetID {
-			cfg.ActiveWhisperID = targetID
-			return nil
-		}
-	}
-	return fmt.Errorf("whisper profile ID [%d] not found in configuration", targetID)
 }
 
 func NormalizeWhisperProfile(p types.WhisperProfile) types.WhisperProfile {

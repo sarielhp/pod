@@ -83,8 +83,8 @@ func GetOrCreateEpisodeStatus(audioPath string) *types.EpisodeStatusFile {
 	}
 
 	applyInitialFavoriteStatus(audioPath, st)
-	PopulatePrecutOrCutsMeta(st, audioPath, fname, dur, sz)
-	PopulateAdsFromCutsFile(st, util.StripExt(audioPath)+".cuts.json")
+	populatePrecutOrCutsMeta(st, audioPath, fname, dur, sz)
+	populateAdsFromCutsFile(st, util.StripExt(audioPath)+".cuts.json")
 
 	if err := SaveEpisodeStatus(statPath, st); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to initialize episode status file '%s': %v\n", statPath, err)
@@ -112,7 +112,7 @@ func applyInitialFavoriteStatus(audioPath string, st *types.EpisodeStatusFile) {
 	st.SetFavorite(true)
 }
 
-func PopulatePrecutOrCutsMeta(st *types.EpisodeStatusFile, audioPath, fname string, dur float64, sz int64) {
+func populatePrecutOrCutsMeta(st *types.EpisodeStatusFile, audioPath, fname string, dur float64, sz int64) {
 	base := util.StripExt(audioPath)
 	cutsFile := base + ".cuts.json"
 	transcriptFile := base + ".transcript.json"
@@ -150,7 +150,7 @@ func PopulatePrecutOrCutsMeta(st *types.EpisodeStatusFile, audioPath, fname stri
 	}
 }
 
-func PopulateAdsFromCutsFile(st *types.EpisodeStatusFile, cutsFile string) {
+func populateAdsFromCutsFile(st *types.EpisodeStatusFile, cutsFile string) {
 	if !util.FileExists(cutsFile) {
 		return
 	}
@@ -233,20 +233,4 @@ func IsEpisodeInRemoteFlight(audioPath string) bool {
 		}
 	}
 	return false
-}
-
-func ComputeRelativeMediaDir(baseDir, fullPath string) (string, error) {
-	absBase, err := filepath.Abs(baseDir)
-	if err != nil {
-		return "", err
-	}
-	absTarget, err := filepath.Abs(fullPath)
-	if err != nil {
-		return "", err
-	}
-	rel, err := filepath.Rel(absBase, absTarget)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return filepath.Base(fullPath), nil
-	}
-	return rel, nil
 }

@@ -156,7 +156,7 @@ func (q *DownloadQueue) Save(persist *DownloadQueuePersist) error {
 	return util.WriteFileAtomic(q.filePath, append(data, '\n'), 0644)
 }
 
-func MatchEpisodeDeduplication(guid1, enc1, title1, guid2, enc2, title2 string) bool {
+func matchEpisodeDeduplication(guid1, enc1, title1, guid2, enc2, title2 string) bool {
 	if guid1 != "" && guid2 != "" && strings.EqualFold(strings.TrimSpace(guid1), strings.TrimSpace(guid2)) {
 		return true
 	}
@@ -180,7 +180,7 @@ func (q *DownloadQueue) IsEpisodeInQueue(guid, encURL, title string) bool {
 		if existing.Status == "completed" {
 			continue
 		}
-		if MatchEpisodeDeduplication(guid, encURL, title, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
+		if matchEpisodeDeduplication(guid, encURL, title, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
 			return true
 		}
 	}
@@ -196,13 +196,13 @@ func (q *DownloadQueue) Enqueue(item DownloadQueueItem) (bool, string) {
 		if existing.Status == "completed" || existing.Status == "failed" {
 			continue
 		}
-		if MatchEpisodeDeduplication(item.GUID, item.EnclosureURL, item.EpisodeTitle, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
+		if matchEpisodeDeduplication(item.GUID, item.EnclosureURL, item.EpisodeTitle, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
 			return false, "already_queued"
 		}
 	}
 
 	for i, existing := range persist.Items {
-		if existing.Status == "failed" && MatchEpisodeDeduplication(item.GUID, item.EnclosureURL, item.EpisodeTitle, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
+		if existing.Status == "failed" && matchEpisodeDeduplication(item.GUID, item.EnclosureURL, item.EpisodeTitle, existing.GUID, existing.EnclosureURL, existing.EpisodeTitle) {
 			persist.Items[i].Status = "queued"
 			persist.Items[i].Error = ""
 			persist.Items[i].AddedAt = time.Now().UTC()

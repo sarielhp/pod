@@ -27,17 +27,17 @@ func GeneratePodcastShortID(title string) string {
 		return hex.EncodeToString(h[:])[:5]
 	}
 
-	cleanWords := ExtractCleanAlphanumericWords(t)
+	cleanWords := extractCleanAlphanumericWords(t)
 	if len(cleanWords) >= 3 {
-		if id, ok := ShortIDFromManyWords(cleanWords); ok {
+		if id, ok := shortIDFromManyWords(cleanWords); ok {
 			return id
 		}
 	} else if len(cleanWords) == 2 {
-		if id, ok := ShortIDFromTwoWords(cleanWords[0], cleanWords[1]); ok {
+		if id, ok := shortIDFromTwoWords(cleanWords[0], cleanWords[1]); ok {
 			return id
 		}
 	} else if len(cleanWords) == 1 {
-		if id, ok := ShortIDFromOneWord(cleanWords[0]); ok {
+		if id, ok := shortIDFromOneWord(cleanWords[0]); ok {
 			return id
 		}
 	}
@@ -46,7 +46,7 @@ func GeneratePodcastShortID(title string) string {
 	return hex.EncodeToString(h[:])[:5]
 }
 
-func ExtractCleanAlphanumericWords(t string) []string {
+func extractCleanAlphanumericWords(t string) []string {
 	fields := strings.FieldsFunc(t, func(r rune) bool {
 		return r == ' ' || r == '-' || r == '_' || r == ':' || r == ',' || r == '.' || r == '\'' || r == '"'
 	})
@@ -68,7 +68,7 @@ func ExtractCleanAlphanumericWords(t string) []string {
 	return cleanWords
 }
 
-func ShortIDFromManyWords(cleanWords []string) (string, bool) {
+func shortIDFromManyWords(cleanWords []string) (string, bool) {
 	var initials strings.Builder
 	for _, w := range cleanWords {
 		initials.WriteByte(w[0])
@@ -95,7 +95,7 @@ func ShortIDFromManyWords(cleanWords []string) (string, bool) {
 	return "", false
 }
 
-func ShortIDFromTwoWords(w1, w2 string) (string, bool) {
+func shortIDFromTwoWords(w1, w2 string) (string, bool) {
 	var b strings.Builder
 	b.WriteByte(w1[0])
 	for i := 1; i < len(w1); i++ {
@@ -119,7 +119,7 @@ func ShortIDFromTwoWords(w1, w2 string) (string, bool) {
 	return "", false
 }
 
-func ShortIDFromOneWord(w string) (string, bool) {
+func shortIDFromOneWord(w string) (string, bool) {
 	var b strings.Builder
 	b.WriteByte(w[0])
 	for i := 1; i < len(w); i++ {
@@ -249,7 +249,7 @@ func assignUniqueShortIDsMode(entries []PodcastDirEntry, persist bool) {
 	}
 }
 
-func FindPodcastDirForItem(item backend.Podcast, podcastsDir string) string {
+func findPodcastDirForItem(item backend.Podcast, podcastsDir string) string {
 	if podcastsDir == "" {
 		return ""
 	}

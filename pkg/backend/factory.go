@@ -11,7 +11,7 @@ func IsStandalone(cfg *types.Config) bool {
 	return true
 }
 
-func IsPodfetchActive(cfg *types.Config) bool {
+func isPodfetchActive(cfg *types.Config) bool {
 	if cfg == nil {
 		return false
 	}
@@ -36,7 +36,7 @@ func ReaderFromAppConfig(cfg *types.Config, rep progress.Reporter) (PodcastReade
 	if cfg == nil {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
-	if IsPodfetchActive(cfg) {
+	if isPodfetchActive(cfg) {
 		return New("podfetch", Config{
 			Host:              cfg.PodfetchURL,
 			User:              cfg.PodfetchUser,

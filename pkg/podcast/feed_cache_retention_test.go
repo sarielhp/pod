@@ -52,7 +52,7 @@ func TestFeedCacheDropsEntriesPastRetention(t *testing.T) {
 		},
 	})
 
-	mgr := NewFeedCacheManager(path)
+	mgr := newFeedCacheManager(path)
 	if mgr.Get("https://fresh.example.com/feed.xml") == nil {
 		t.Error("an entry inside the retention window must survive")
 	}
@@ -84,7 +84,7 @@ func TestFeedCacheMigratesLegacyEpisodeRecords(t *testing.T) {
 		},
 	})
 
-	entry := NewFeedCacheManager(path).Get(url)
+	entry := newFeedCacheManager(path).Get(url)
 	if len(entry.PubDates) != 2 {
 		t.Fatalf("expected 2 publication records, got %d", len(entry.PubDates))
 	}
@@ -130,7 +130,7 @@ func TestFeedCacheUnchangedFileIsNotRewritten(t *testing.T) {
 		t.Fatalf("stat: %v", err)
 	}
 
-	mgr := NewFeedCacheManager(path)
+	mgr := newFeedCacheManager(path)
 	if mgr.Get(url) == nil {
 		t.Fatal("entry should have loaded")
 	}
@@ -158,7 +158,7 @@ func TestFeedSweepPreservesPublicationHistory(t *testing.T) {
 	})
 
 	pods := []backend.Podcast{testPodcast("p1", "Show", srv.URL)}
-	CheckFeedsForUpdates(pods, BuildEpisodeIndexFromPodcasts(nil, pods), checkOpts(cache))
+	CheckFeedsForUpdates(pods, buildEpisodeIndexFromPodcasts(nil, pods), checkOpts(cache))
 
 	entry := cache.Get(srv.URL)
 	if entry == nil || len(entry.PubDates) != 1 {

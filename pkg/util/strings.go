@@ -25,31 +25,6 @@ func ExtractHost(url string) string {
 	return url[protoEnd:hostEnd]
 }
 
-func ExtractPort(url string) string {
-	protoEnd := -1
-	for i := 0; i < len(url)-2; i++ {
-		if url[i:i+3] == "://" {
-			protoEnd = i + 3
-			break
-		}
-	}
-	if protoEnd < 0 {
-		protoEnd = 0
-	}
-	hostEnd := protoEnd
-	for hostEnd < len(url) && url[hostEnd] != '/' && url[hostEnd] != ':' {
-		hostEnd++
-	}
-	if hostEnd < len(url) && url[hostEnd] == ':' {
-		portEnd := hostEnd + 1
-		for portEnd < len(url) && url[portEnd] >= '0' && url[portEnd] <= '9' {
-			portEnd++
-		}
-		return url[hostEnd+1 : portEnd]
-	}
-	return ""
-}
-
 func IsLocalHost(host string) bool {
 	switch host {
 	case "localhost", "127.0.0.1", "0.0.0.0", "::1":
@@ -159,7 +134,7 @@ func Truncate(s string, max int) string {
 	return string(runes[:max-3]) + "..."
 }
 
-func StripANSI(s string) string {
+func stripANSI(s string) string {
 	if !strings.Contains(s, "\x1b[") {
 		return s
 	}
@@ -192,7 +167,7 @@ func isWideRune(r rune) bool {
 	return r >= 0x4E00 && r <= 0x9FFF
 }
 
-func RuneDisplayWidth(r rune) int {
+func runeDisplayWidth(r rune) int {
 	if r == 0xFE0F || r == 0xFE0E || (r >= 0x200B && r <= 0x200D) || (r >= 0x0300 && r <= 0x036F) || (r >= 0x0591 && r <= 0x05C7) {
 		return 0
 	}
@@ -203,10 +178,10 @@ func RuneDisplayWidth(r rune) int {
 }
 
 func StringDisplayWidth(s string) int {
-	clean := StripANSI(s)
+	clean := stripANSI(s)
 	w := 0
 	for _, r := range clean {
-		w += RuneDisplayWidth(r)
+		w += runeDisplayWidth(r)
 	}
 	return w
 }
@@ -217,14 +192,6 @@ func PadRight(s string, width int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", width-w)
-}
-
-func PadLeft(s string, width int) string {
-	w := StringDisplayWidth(s)
-	if w >= width {
-		return s
-	}
-	return strings.Repeat(" ", width-w) + s
 }
 
 func StripExt(path string) string {

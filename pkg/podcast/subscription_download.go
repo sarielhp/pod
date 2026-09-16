@@ -120,15 +120,15 @@ func (l *Library) planOneSubscription(sub Subscription, opts SubscriptionDownloa
 	}
 	plan.FeedEpisodes = feedEps
 	if len(feedEps) > 0 {
-		plan.ToDownload = SelectSubscriptionEpisodes(podDir, feedEps, sub, opts)
+		plan.ToDownload = selectSubscriptionEpisodes(podDir, feedEps, sub, opts)
 	}
 	return plan
 }
 
-// SelectSubscriptionEpisodes picks the episodes of a feed that are not already
+// selectSubscriptionEpisodes picks the episodes of a feed that are not already
 // on disk, honouring the explicit count, then the subscription's own policy,
 // then the podcast's, then the supplied defaults.
-func SelectSubscriptionEpisodes(podDir string, feedEps []backend.FeedEpisode, sub Subscription, opts SubscriptionDownloadOptions) []backend.FeedEpisode {
+func selectSubscriptionEpisodes(podDir string, feedEps []backend.FeedEpisode, sub Subscription, opts SubscriptionDownloadOptions) []backend.FeedEpisode {
 	isDownloaded := downloadedEpisodeChecker(podDir)
 	podCfg := subscriptionPodcastConfig(podDir, sub, opts.Defaults)
 
@@ -139,7 +139,7 @@ func SelectSubscriptionEpisodes(podDir string, feedEps []backend.FeedEpisode, su
 	})
 
 	if opts.DownloadAll || (opts.CountGiven && opts.Count > 0) {
-		eps, _ := SelectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, config.DownloadPolicyAll, 0, false)
+		eps, _ := selectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded, config.DownloadPolicyAll, 0, false)
 		if opts.CountGiven && opts.Count > 0 && len(eps) > opts.Count {
 			eps = eps[:opts.Count]
 		}
@@ -147,7 +147,7 @@ func SelectSubscriptionEpisodes(podDir string, feedEps []backend.FeedEpisode, su
 	}
 
 	if podCfg.Favorite || config.NormalizeDownloadPolicy(podCfg.DownloadPolicy) == config.DownloadPolicyNew {
-		eps, _ := SelectNewEpisodes(sortedCatalog, nil, isDownloaded, podCfg.FavoriteSince)
+		eps, _ := selectNewEpisodes(sortedCatalog, nil, isDownloaded, podCfg.FavoriteSince)
 		return eps
 	}
 	if !podCfg.IsAutoDownloadEnabled() {
@@ -158,7 +158,7 @@ func SelectSubscriptionEpisodes(podDir string, feedEps []backend.FeedEpisode, su
 	if k <= 0 {
 		k = opts.Defaults.DownloadK
 	}
-	eps, _ := SelectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded,
+	eps, _ := selectEpisodesByDownloadPolicy(sortedCatalog, isDownloaded,
 		config.NormalizeDownloadPolicy(podCfg.DownloadPolicy), k, false)
 	return eps
 }
@@ -198,9 +198,9 @@ func downloadedEpisodeChecker(podDir string) func(backend.FeedEpisode) bool {
 	}
 }
 
-// ShouldQueueForAdRemoval reports whether episodes downloaded for this
+// shouldQueueForAdRemoval reports whether episodes downloaded for this
 // subscription should be queued for ad removal.
-func ShouldQueueForAdRemoval(podDir string, sub Subscription, defaults config.PolicyDefaults) bool {
+func shouldQueueForAdRemoval(podDir string, sub Subscription, defaults config.PolicyDefaults) bool {
 	podCfg := config.LoadPodcastConfig(podDir, config.DefaultPodcastConfigFrom(defaults))
 	if podCfg.Favorite {
 		return true
@@ -256,7 +256,7 @@ func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts Subscr
 		l.progress.Infof("  %d. %s", idx+1, ep.Title)
 	}
 
-	shouldQueue := ShouldQueueForAdRemoval(plan.PodDir, plan.Sub, opts.Defaults)
+	shouldQueue := shouldQueueForAdRemoval(plan.PodDir, plan.Sub, opts.Defaults)
 	downloaded := 0
 	for _, ep := range plan.ToDownload {
 		if err := l.downloadEpisode(d, plan.PodDir, ep, shouldQueue); err != nil {

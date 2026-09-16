@@ -37,12 +37,12 @@ func ResolveGeminiAPIKey(cfg *types.Config) string {
 		keyFile = envFile
 	}
 	if keyFile != "" {
-		return ReadKeyFile(keyFile)
+		return readKeyFile(keyFile)
 	}
 	return ""
 }
 
-func ReadKeyFile(path string) string {
+func readKeyFile(path string) string {
 	if path == "" {
 		return ""
 	}
@@ -67,7 +67,7 @@ func ReadKeyFile(path string) string {
 	return k
 }
 
-func SanitizeDisabledAPIKeys(cfg *types.Config) {
+func sanitizeDisabledAPIKeys(cfg *types.Config) {
 	if cfg == nil {
 		return
 	}
@@ -100,7 +100,7 @@ func SanitizeDisabledAPIKeys(cfg *types.Config) {
 	}
 }
 
-func ValidateOpenRouterKey(profile types.LLMProfile, apiKey string, enabled bool) (string, error) {
+func validateOpenRouterKey(profile types.LLMProfile, apiKey string, enabled bool) (string, error) {
 	isOpenRouter := profile.Type == "openrouter" || strings.Contains(profile.URL, "openrouter") || strings.HasPrefix(apiKey, "sk-or-")
 	if isOpenRouter {
 		if !enabled || util.IsZeroedKey(apiKey) {
@@ -113,7 +113,7 @@ func ValidateOpenRouterKey(profile types.LLMProfile, apiKey string, enabled bool
 	return apiKey, nil
 }
 
-func ValidateGeminiKey(apiKey string, enabled bool) (string, error) {
+func validateGeminiKey(apiKey string, enabled bool) (string, error) {
 	if !enabled || util.IsZeroedKey(apiKey) {
 		if apiKey != "" {
 			_ = util.ZeroWipeKey(apiKey)
@@ -123,7 +123,7 @@ func ValidateGeminiKey(apiKey string, enabled bool) (string, error) {
 	return apiKey, nil
 }
 
-func ApplyAPIKeyEnvOverrides(cfg *types.Config) {
+func applyAPIKeyEnvOverrides(cfg *types.Config) {
 	if cfg == nil {
 		return
 	}
@@ -142,7 +142,7 @@ func ApplyAPIKeyEnvOverrides(cfg *types.Config) {
 	}
 }
 
-func ReadAuthSecret(name string) string {
+func readAuthSecret(name string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
@@ -159,7 +159,7 @@ func ReadAuthSecret(name string) string {
 	return k
 }
 
-func ResolveOpenRouterAPIKey(profile types.LLMProfile, cfg *types.Config) string {
+func resolveOpenRouterAPIKey(profile types.LLMProfile, cfg *types.Config) string {
 	isOpenRouter := profile.Type == "openrouter" || strings.Contains(profile.URL, "openrouter") || strings.HasPrefix(profile.APIKey, "sk-or-")
 	if !isOpenRouter {
 		return profile.APIKey
@@ -183,7 +183,7 @@ func ResolveOpenRouterAPIKey(profile types.LLMProfile, cfg *types.Config) string
 	if envKey := os.Getenv("OPENAI_API_KEY"); envKey != "" && strings.HasPrefix(envKey, "sk-or-") && !util.IsZeroedKey(envKey) {
 		return envKey
 	}
-	return ReadAuthSecret("openrouter_api_key")
+	return readAuthSecret("openrouter_api_key")
 }
 
 func ResolveLLMAPIKey(profile types.LLMProfile, cfg *types.Config) string {
@@ -193,16 +193,16 @@ func ResolveLLMAPIKey(profile types.LLMProfile, cfg *types.Config) string {
 			key = ResolveGeminiAPIKey(cfg)
 		}
 		if cfg != nil {
-			if valKey, err := ValidateGeminiKey(key, cfg.IsGeminiAPIKeyEnabled()); err == nil {
+			if valKey, err := validateGeminiKey(key, cfg.IsGeminiAPIKeyEnabled()); err == nil {
 				return valKey
 			}
 			return ""
 		}
 		return key
 	}
-	key := ResolveOpenRouterAPIKey(profile, cfg)
+	key := resolveOpenRouterAPIKey(profile, cfg)
 	if cfg != nil {
-		if valKey, err := ValidateOpenRouterKey(profile, key, cfg.IsOpenRouterAPIKeyEnabled()); err == nil {
+		if valKey, err := validateOpenRouterKey(profile, key, cfg.IsOpenRouterAPIKeyEnabled()); err == nil {
 			return valKey
 		}
 		return ""
@@ -210,18 +210,18 @@ func ResolveLLMAPIKey(profile types.LLMProfile, cfg *types.Config) string {
 	return key
 }
 
-func ResolveAuthFolderCredentials(cfg *types.Config) {
+func resolveAuthFolderCredentials(cfg *types.Config) {
 	if cfg == nil {
 		return
 	}
 	if cfg.PodfetchAPIKey == "" {
-		cfg.PodfetchAPIKey = ReadAuthSecret("podfetch_api_key")
+		cfg.PodfetchAPIKey = readAuthSecret("podfetch_api_key")
 	}
 	if cfg.PodfetchPass == "" {
-		if pass := ReadAuthSecret("podfetch_password"); pass != "" {
+		if pass := readAuthSecret("podfetch_password"); pass != "" {
 			cfg.PodfetchPass = pass
 		} else {
-			cfg.PodfetchPass = ReadAuthSecret("podfetch_pass")
+			cfg.PodfetchPass = readAuthSecret("podfetch_pass")
 		}
 	}
 }

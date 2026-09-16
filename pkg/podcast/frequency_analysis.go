@@ -20,13 +20,13 @@ type FrequencyOptions struct {
 	DisableHourly bool
 }
 
-// PathSafeTitle replaces the characters a filesystem will not accept in a name,
+// pathSafeTitle replaces the characters a filesystem will not accept in a name,
 // and nothing else.
 //
 // It is deliberately much gentler than SanitizeTitle, which strips a title down
 // to letters, digits and underscores for matching. This one is used to create a
 // podcast directory, where spaces and punctuation should survive.
-func PathSafeTitle(title string) string {
+func pathSafeTitle(title string) string {
 	return strings.Map(func(r rune) rune {
 		switch r {
 		case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
@@ -53,7 +53,7 @@ func (l *Library) analyzeOneFrequency(item backend.Podcast, opts FrequencyOption
 	if title == "" {
 		title = item.ID
 	}
-	eps, err := GetEpisodesForFrequency(l.backend, item, l.cfg.PodcastsDir, opts.Refresh, nil)
+	eps, err := getEpisodesForFrequency(l.backend, item, l.cfg.PodcastsDir, opts.Refresh, nil)
 	if err != nil {
 		return PodcastFreqResult{Title: title, Item: item, Err: err}
 	}
@@ -88,13 +88,13 @@ func (l *Library) analyzeOneFrequency(item backend.Podcast, opts FrequencyOption
 // that its downloads were switched off, so the next run would switch them off
 // again.
 func (l *Library) frequencyPodcastDir(item backend.Podcast, title string, freq types.PodcastFrequencyInfo, opts FrequencyOptions) string {
-	if dir := FindPodcastDirForItem(item, l.cfg.PodcastsDir); dir != "" {
+	if dir := findPodcastDirForItem(item, l.cfg.PodcastsDir); dir != "" {
 		return dir
 	}
 	if !opts.DisableHourly || freq.Type != string(backend.CadenceHourly) || l.cfg.PodcastsDir == "" {
 		return ""
 	}
-	candidate := filepath.Join(l.cfg.PodcastsDir, strings.TrimSpace(PathSafeTitle(title)))
+	candidate := filepath.Join(l.cfg.PodcastsDir, strings.TrimSpace(pathSafeTitle(title)))
 	if err := os.MkdirAll(candidate, 0755); err != nil {
 		return ""
 	}

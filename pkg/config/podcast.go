@@ -201,23 +201,6 @@ func NormalizeDownloadPolicy(policy string) string {
 	}
 }
 
-func CycleDownloadPolicy(current string) string {
-	switch NormalizeDownloadPolicy(current) {
-	case DownloadPolicyNone:
-		return DownloadPolicyLatest
-	case DownloadPolicyLatest:
-		return DownloadPolicyLatestK
-	case DownloadPolicyLatestK:
-		return DownloadPolicyNew
-	case DownloadPolicyNew:
-		return DownloadPolicyAll
-	case DownloadPolicyAll:
-		return DownloadPolicyNone
-	default:
-		return DownloadPolicyNone
-	}
-}
-
 func DownloadPolicyLabel(policy string, k int) string {
 	if k <= 0 {
 		k = 3

@@ -3,8 +3,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -66,67 +64,4 @@ func IsProcessAlive(pid int) bool {
 	}
 	err := syscall.Kill(pid, 0)
 	return err == nil || err == syscall.EPERM
-}
-
-var (
-	workerLocksMu SyncMutex
-	workerLocks   = make(map[string]*workerLockEntry)
-)
-
-type workerLockEntry struct {
-	fl       *flock.Flock
-	refCount int
-}
-
-func AcquireWorkerLock(resolvedDir string) (func(), error) {
-	lockPath := filepath.Join(resolvedDir, ".worker.lock")
-
-	workerLocksMu.Lock()
-	defer workerLocksMu.Unlock()
-
-	if entry, exists := workerLocks[lockPath]; exists {
-		entry.refCount++
-		return releaseWorkerLockFunc(lockPath), nil
-	}
-
-	fl := flock.New(lockPath)
-	locked, err := fl.TryLock()
-	if err != nil {
-		return nil, fmt.Errorf("acquire worker lock %s: %w", lockPath, err)
-	}
-	if !locked {
-		return nil, fmt.Errorf("remote worker is already running")
-	}
-
-	workerLocks[lockPath] = &workerLockEntry{
-		fl:       fl,
-		refCount: 1,
-	}
-	return releaseWorkerLockFunc(lockPath), nil
-}
-
-func releaseWorkerLockFunc(lockPath string) func() {
-	var once SyncOnce
-	return func() {
-		once.Do(func() {
-			workerLocksMu.Lock()
-			defer workerLocksMu.Unlock()
-			if entry, exists := workerLocks[lockPath]; exists {
-				entry.refCount--
-				if entry.refCount <= 0 {
-					delete(workerLocks, lockPath)
-					_ = entry.fl.Unlock()
-				}
-			}
-		})
-	}
-}
-
-func AcquireCollectLock(dir string) (*FileLockWrapper, error) {
-	if dir == "" {
-		return nil, fmt.Errorf("directory for collect lock must be specified")
-	}
-	_ = os.MkdirAll(dir, 0755)
-	lockPath := filepath.Join(dir, ".collect")
-	return AcquireFileLock(lockPath)
 }

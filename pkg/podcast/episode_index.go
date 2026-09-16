@@ -163,7 +163,7 @@ func BuildEpisodeIndex(b backend.Backend, podcasts []backend.Podcast) EpisodeInd
 			return buildIndexFromCatalog(catalog, podcasts)
 		}
 	}
-	return BuildEpisodeIndexFromPodcasts(b, podcasts)
+	return buildEpisodeIndexFromPodcasts(b, podcasts)
 }
 
 func buildIndexFromCatalog(catalog []backend.CatalogEpisode, podcasts []backend.Podcast) EpisodeIndex {
@@ -187,9 +187,9 @@ func buildIndexFromCatalog(catalog []backend.CatalogEpisode, podcasts []backend.
 	return index
 }
 
-// BuildEpisodeIndexFromPodcasts indexes the episode lists both backends return
+// buildEpisodeIndexFromPodcasts indexes the episode lists both backends return
 // inline with each podcast record.
-func BuildEpisodeIndexFromPodcasts(b backend.Backend, podcasts []backend.Podcast) EpisodeIndex {
+func buildEpisodeIndexFromPodcasts(b backend.Backend, podcasts []backend.Podcast) EpisodeIndex {
 	index := make(EpisodeIndex, len(podcasts))
 	global := newPodcastEpisodeIndex(len(podcasts) * 50)
 	for _, p := range podcasts {

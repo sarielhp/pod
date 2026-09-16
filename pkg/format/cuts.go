@@ -9,7 +9,7 @@ import (
 	"pod/pkg/util"
 )
 
-func BuildCutEntries(combined []types.AdSegment) []types.CutEntry {
+func buildCutEntries(combined []types.AdSegment) []types.CutEntry {
 	formattedRaw := make([]types.CutEntry, 0, len(combined))
 	for _, ad := range combined {
 		entry := types.CutEntry{
@@ -27,15 +27,15 @@ func BuildCutEntries(combined []types.AdSegment) []types.CutEntry {
 	return formattedRaw
 }
 
-func BuildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegment) ([]types.MergedCutInterval, [][2]float64, []types.KeepSegment) {
-	combined = SanitizeAdSegments(combined, totalDuration)
+func buildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegment) ([]types.MergedCutInterval, [][2]float64, []types.KeepSegment) {
+	combined = sanitizeAdSegments(combined, totalDuration)
 	allBounds := make([][2]float64, 0, len(combined))
 	for _, ad := range combined {
 		allBounds = append(allBounds, [2]float64{ad.Start, ad.End})
 	}
-	SortBounds(allBounds)
+	sortBounds(allBounds)
 
-	newMerged := MergeBounds(allBounds)
+	newMerged := mergeBounds(allBounds)
 	formattedMerged := make([]types.MergedCutInterval, 0, len(newMerged))
 	var mergedAds []types.AdSegment
 	for _, b := range newMerged {
@@ -46,7 +46,7 @@ func BuildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegme
 		mergedAds = append(mergedAds, types.AdSegment{Start: b[0], End: b[1]})
 	}
 
-	keep := CalculateKeepSegments(totalDuration, mergedAds)
+	keep := calculateKeepSegments(totalDuration, mergedAds)
 	keepIntervals := make([]types.KeepSegment, 0, len(keep))
 	for _, k := range keep {
 		keepIntervals = append(keepIntervals, types.KeepSegment{
@@ -57,7 +57,7 @@ func BuildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegme
 	return formattedMerged, keep, keepIntervals
 }
 
-func LoadExistingCuts(cutsFile string) ([]types.AdSegment, []types.MergedCutInterval, *types.CutsData) {
+func loadExistingCuts(cutsFile string) ([]types.AdSegment, []types.MergedCutInterval, *types.CutsData) {
 	var existingRaw []types.AdSegment
 	var existingMerged []types.MergedCutInterval
 	var existingCutsData *types.CutsData
@@ -82,14 +82,14 @@ func SaveCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdS
 	base := util.StripExt(mainFile)
 	cutsFile := base + ".cuts.json"
 
-	existingRaw, existingMerged, existingCutsData := LoadExistingCuts(cutsFile)
+	existingRaw, existingMerged, existingCutsData := loadExistingCuts(cutsFile)
 	combined := append(existingRaw, adSegments...)
-	combined = SanitizeAdSegments(combined, totalDuration)
+	combined = sanitizeAdSegments(combined, totalDuration)
 
-	formattedRaw := BuildCutEntries(combined)
-	formattedMerged, keep, keepIntervals := BuildMergedAndKeepIntervals(totalDuration, combined)
+	formattedRaw := buildCutEntries(combined)
+	formattedMerged, keep, keepIntervals := buildMergedAndKeepIntervals(totalDuration, combined)
 
-	if existingCutsData != nil && EqualMergedIntervals(existingMerged, formattedMerged) {
+	if existingCutsData != nil && equalMergedIntervals(existingMerged, formattedMerged) {
 		if !quiet {
 			fmt.Println("No new ad cuts were discovered (cut set remains unchanged).")
 		}

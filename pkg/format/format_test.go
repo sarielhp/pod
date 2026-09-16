@@ -36,7 +36,7 @@ func TestCalculateKeepSegments(t *testing.T) {
 		{Start: 10, End: 20},
 		{Start: 30, End: 40},
 	}
-	keep := CalculateKeepSegments(50, ads)
+	keep := calculateKeepSegments(50, ads)
 	if len(keep) != 3 {
 		t.Fatalf("expected 3 keep segments, got %d", len(keep))
 	}
@@ -59,7 +59,7 @@ func TestSaveCutsJSON(t *testing.T) {
 		t.Error("expected cuts result to be Changed=true on first save")
 	}
 
-	raw, merged, data := LoadExistingCuts(res.CutsFile)
+	raw, merged, data := loadExistingCuts(res.CutsFile)
 	if len(raw) != 1 || len(merged) != 1 || data == nil {
 		t.Fatalf("expected loaded cuts to have 1 entry: raw=%d merged=%d", len(raw), len(merged))
 	}

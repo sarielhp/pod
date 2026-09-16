@@ -17,7 +17,7 @@ type EpisodeStateStore interface {
 // FileEpisodeStateStore implements EpisodeStateStore using JSON status files with file and mutex locking.
 type FileEpisodeStateStore struct{}
 
-func NewFileEpisodeStateStore() *FileEpisodeStateStore {
+func newFileEpisodeStateStore() *FileEpisodeStateStore {
 	return &FileEpisodeStateStore{}
 }
 
@@ -42,4 +42,4 @@ func (s *FileEpisodeStateStore) IsClean(ctx context.Context, audioPath string) b
 	return IsEpisodeClean(audioPath)
 }
 
-var DefaultStateStore EpisodeStateStore = NewFileEpisodeStateStore()
+var DefaultStateStore EpisodeStateStore = newFileEpisodeStateStore()

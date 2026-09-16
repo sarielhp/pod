@@ -8,7 +8,7 @@ import (
 
 const maxAdSegments = 500
 
-func SanitizeAdSegments(ads []types.AdSegment, totalDuration float64) []types.AdSegment {
+func sanitizeAdSegments(ads []types.AdSegment, totalDuration float64) []types.AdSegment {
 	if totalDuration <= 0 {
 		return ads
 	}
@@ -41,7 +41,7 @@ func MergeIntervals(ads []types.AdSegment) []types.AdSegment {
 
 	sorted := make([]types.AdSegment, len(ads))
 	copy(sorted, ads)
-	SortAds(sorted)
+	sortAds(sorted)
 
 	merged := []types.AdSegment{sorted[0]}
 
@@ -85,7 +85,7 @@ func MergeIntervals(ads []types.AdSegment) []types.AdSegment {
 	return merged
 }
 
-func SortAds(ads []types.AdSegment) {
+func sortAds(ads []types.AdSegment) {
 	for i := 0; i < len(ads); i++ {
 		for j := i + 1; j < len(ads); j++ {
 			if ads[j].Start < ads[i].Start || (ads[j].Start == ads[i].Start && ads[j].End < ads[i].End) {
@@ -95,11 +95,11 @@ func SortAds(ads []types.AdSegment) {
 	}
 }
 
-func CalculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]float64 {
-	ads = SanitizeAdSegments(ads, totalDuration)
+func calculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]float64 {
+	ads = sanitizeAdSegments(ads, totalDuration)
 	sorted := make([]types.AdSegment, len(ads))
 	copy(sorted, ads)
-	SortAds(sorted)
+	sortAds(sorted)
 
 	var keep [][2]float64
 	currentStart := 0.0
@@ -123,7 +123,7 @@ func CalculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]fl
 	return keep
 }
 
-func SortBounds(bounds [][2]float64) {
+func sortBounds(bounds [][2]float64) {
 	for i := 0; i < len(bounds); i++ {
 		for j := i + 1; j < len(bounds); j++ {
 			if bounds[j][0] < bounds[i][0] || (bounds[j][0] == bounds[i][0] && bounds[j][1] < bounds[i][1]) {
@@ -133,7 +133,7 @@ func SortBounds(bounds [][2]float64) {
 	}
 }
 
-func MergeBounds(bounds [][2]float64) [][2]float64 {
+func mergeBounds(bounds [][2]float64) [][2]float64 {
 	if len(bounds) == 0 {
 		return bounds
 	}
@@ -174,7 +174,7 @@ func MergeBounds(bounds [][2]float64) [][2]float64 {
 	return merged
 }
 
-func EqualMergedIntervals(a, b []types.MergedCutInterval) bool {
+func equalMergedIntervals(a, b []types.MergedCutInterval) bool {
 	if len(a) != len(b) {
 		return false
 	}

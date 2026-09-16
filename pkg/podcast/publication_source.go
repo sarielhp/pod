@@ -52,7 +52,7 @@ func CatalogPublicationDates(root string, episodes []backend.CatalogEpisode) (ma
 	}
 	dates := make(map[string]time.Time)
 	for _, ep := range episodes {
-		path := PublicationAudioPath(root, ep.AudioPath)
+		path := publicationAudioPath(root, ep.AudioPath)
 		if path == "" {
 			continue
 		}
@@ -68,7 +68,7 @@ func CatalogPublicationDates(root string, episodes []backend.CatalogEpisode) (ma
 	return dates, nil
 }
 
-func PublicationAudioPath(root, path string) string {
+func publicationAudioPath(root, path string) string {
 	if path == "" {
 		return ""
 	}

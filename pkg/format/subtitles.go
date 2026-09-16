@@ -10,7 +10,7 @@ import (
 	"pod/pkg/util"
 )
 
-func FormatSRT(data *types.TranscriptionData) string {
+func formatSRT(data *types.TranscriptionData) string {
 	if data == nil {
 		return ""
 	}
@@ -49,7 +49,7 @@ func ConvertJSONToSRT(inputFile string, data *types.TranscriptionData, customPat
 		srtFile = base + ".srt"
 	}
 
-	content := FormatSRT(data)
+	content := formatSRT(data)
 	if err := util.WriteFileAtomic(srtFile, []byte(content), 0644); err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func ConvertJSONToSRT(inputFile string, data *types.TranscriptionData, customPat
 	return srtFile, nil
 }
 
-func FormatTXT(data *types.TranscriptionData, totalDuration float64, baseName string) string {
+func formatTXT(data *types.TranscriptionData, totalDuration float64, baseName string) string {
 	if data == nil {
 		return ""
 	}
@@ -118,7 +118,7 @@ func ConvertJSONToTXT(inputFile string, data *types.TranscriptionData, totalDura
 		txtFile = base + ".transcript.txt"
 	}
 
-	content := FormatTXT(data, totalDuration, base)
+	content := formatTXT(data, totalDuration, base)
 	if err := util.WriteFileAtomic(txtFile, []byte(content), 0644); err != nil {
 		return "", err
 	}

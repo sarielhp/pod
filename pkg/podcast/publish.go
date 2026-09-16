@@ -73,15 +73,7 @@ func findCoverRelativePath(podDir, fallbackURL string) string {
 	return fallbackURL
 }
 
-func GeneratePodcastFeedXML(sub Subscription, podDir string, episodes []LocalEpisodeMeta, baseURL string) ([]byte, error) {
-	return podsite.RenderFeed(siteShow(sub, podDir), siteEpisodes(podDir, episodes), siteBaseURL(baseURL))
-}
-
-func GeneratePodcastWebpageHTML(sub Subscription, podDir string, episodes []LocalEpisodeMeta, baseURL string) ([]byte, error) {
-	return podsite.RenderShowPage(siteShow(sub, podDir), siteEpisodes(podDir, episodes), baseURL)
-}
-
-func GenerateCatalogWebpageHTML(podcastsDir string, subs []Subscription) ([]byte, error) {
+func generateCatalogWebpageHTML(podcastsDir string, subs []Subscription) ([]byte, error) {
 	entries := make([]podsite.CatalogEntry, 0, len(subs))
 	for _, sub := range subs {
 		entries = append(entries, catalogEntry(podcastsDir, sub))
@@ -91,7 +83,7 @@ func GenerateCatalogWebpageHTML(podcastsDir string, subs []Subscription) ([]byte
 }
 
 func catalogEntry(podcastsDir string, sub Subscription) podsite.CatalogEntry {
-	podDir := ResolvePodcastDirForSub(sub, podcastsDir)
+	podDir := resolvePodcastDirForSub(sub, podcastsDir)
 	folder := sub.Folder
 	if folder == "" {
 		folder = filepath.Base(podDir)
@@ -116,7 +108,7 @@ func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisode
 	if err := os.MkdirAll(podDir, 0755); err != nil {
 		return err
 	}
-	EnsurePodcastCover(podDir, &sub)
+	ensurePodcastCover(podDir, &sub)
 
 	if len(feedEpisodes) == 0 && sub.FeedURL != "" {
 		if entry := defaultFeedCache().Get(sub.FeedURL); entry != nil {
@@ -148,7 +140,7 @@ func PublishCatalog(podcastsDir string, subs []Subscription) error {
 	if err := os.MkdirAll(podcastsDir, 0755); err != nil {
 		return err
 	}
-	data, err := GenerateCatalogWebpageHTML(podcastsDir, subs)
+	data, err := generateCatalogWebpageHTML(podcastsDir, subs)
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 	"pod/pkg/config"
 )
 
-func SelectEpisodesByDownloadPolicy(sortedCatalog []backend.FeedEpisode, isDownloaded func(ep backend.FeedEpisode) bool, policy string, k int, oldest bool) ([]backend.FeedEpisode, []string) {
+func selectEpisodesByDownloadPolicy(sortedCatalog []backend.FeedEpisode, isDownloaded func(ep backend.FeedEpisode) bool, policy string, k int, oldest bool) ([]backend.FeedEpisode, []string) {
 	normPolicy := config.NormalizeDownloadPolicy(policy)
 	if k <= 0 {
 		k = 3
@@ -24,13 +24,13 @@ func SelectEpisodesByDownloadPolicy(sortedCatalog []backend.FeedEpisode, isDownl
 	case config.DownloadPolicyAll:
 		return selectAllEpisodes(sortedCatalog, isDownloaded, oldest)
 	case config.DownloadPolicyNew:
-		return SelectNewEpisodes(sortedCatalog, nil, isDownloaded, nil)
+		return selectNewEpisodes(sortedCatalog, nil, isDownloaded, nil)
 	default:
 		return nil, nil
 	}
 }
 
-func SelectNewEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, favoriteSince *time.Time) ([]backend.FeedEpisode, []string) {
+func selectNewEpisodes(sortedCatalog []backend.FeedEpisode, downloadedIndices []int, isDownloaded func(backend.FeedEpisode) bool, favoriteSince *time.Time) ([]backend.FeedEpisode, []string) {
 	if len(sortedCatalog) == 0 {
 		return nil, nil
 	}

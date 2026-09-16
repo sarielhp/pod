@@ -31,9 +31,9 @@ func TestParsePodcastGroupKind(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		gotKind, gotOK := ParsePodcastGroupKind(tc.input)
+		gotKind, gotOK := parsePodcastGroupKind(tc.input)
 		if gotKind != tc.wantKind || gotOK != tc.wantOK {
-			t.Errorf("ParsePodcastGroupKind(%q) = (%v, %v), want (%v, %v)",
+			t.Errorf("parsePodcastGroupKind(%q) = (%v, %v), want (%v, %v)",
 				tc.input, gotKind, gotOK, tc.wantKind, tc.wantOK)
 		}
 	}
@@ -105,18 +105,18 @@ func TestResolveBackendPodcastGroup(t *testing.T) {
 		{ID: "p2", Path: pod2, Media: backend.PodcastMedia{Metadata: backend.PodcastMetadata{Title: "Show B"}}},
 	}
 
-	gFav, err := ResolveBackendPodcastGroup(podcasts, tempDir, "favorites")
+	gFav, err := resolveBackendPodcastGroup(podcasts, tempDir, "favorites")
 	if err != nil || len(gFav.Podcasts) != 1 || gFav.Podcasts[0].ID != "p2" {
-		t.Fatalf("ResolveBackendPodcastGroup(favorites) failed: %+v, err=%v", gFav, err)
+		t.Fatalf("resolveBackendPodcastGroup(favorites) failed: %+v, err=%v", gFav, err)
 	}
 
-	gNotFav, err := ResolveBackendPodcastGroup(podcasts, tempDir, "not-fav")
+	gNotFav, err := resolveBackendPodcastGroup(podcasts, tempDir, "not-fav")
 	if err != nil || len(gNotFav.Podcasts) != 1 || gNotFav.Podcasts[0].ID != "p1" {
-		t.Fatalf("ResolveBackendPodcastGroup(not-fav) failed: %+v, err=%v", gNotFav, err)
+		t.Fatalf("resolveBackendPodcastGroup(not-fav) failed: %+v, err=%v", gNotFav, err)
 	}
 
-	gSingle, err := ResolveBackendPodcastGroup(podcasts, tempDir, "show a")
+	gSingle, err := resolveBackendPodcastGroup(podcasts, tempDir, "show a")
 	if err != nil || len(gSingle.Podcasts) != 1 || gSingle.Podcasts[0].ID != "p1" {
-		t.Fatalf("ResolveBackendPodcastGroup(show a) failed: %+v, err=%v", gSingle, err)
+		t.Fatalf("resolveBackendPodcastGroup(show a) failed: %+v, err=%v", gSingle, err)
 	}
 }

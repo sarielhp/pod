@@ -12,9 +12,9 @@ func TestParseRSSFeedCapturesChannelMarkers(t *testing.T) {
 		feedItem("Ep 2", "g2", "Tue, 02 Sep 2026 10:00:00 -0000"),
 		feedItem("Ep 1", "g1", "Mon, 01 Sep 2026 10:00:00 -0000")))
 
-	doc, err := ParseRSSFeed(raw)
+	doc, err := parseRSSFeed(raw)
 	if err != nil {
-		t.Fatalf("ParseRSSFeed failed: %v", err)
+		t.Fatalf("parseRSSFeed failed: %v", err)
 	}
 	if doc.Title != "Show" {
 		t.Errorf("title: got %q", doc.Title)
@@ -38,9 +38,9 @@ func TestParseRSSFeedLatestGUIDIgnoresFeedOrder(t *testing.T) {
 		feedItem("Ep 1", "g1", "Mon, 01 Sep 2026 10:00:00 -0000"),
 		feedItem("Ep 3", "g3", "Wed, 03 Sep 2026 10:00:00 -0000")))
 
-	doc, err := ParseRSSFeed(raw)
+	doc, err := parseRSSFeed(raw)
 	if err != nil {
-		t.Fatalf("ParseRSSFeed failed: %v", err)
+		t.Fatalf("parseRSSFeed failed: %v", err)
 	}
 	if guid := doc.LatestGUID(); guid != "g3" {
 		t.Errorf("expected g3, got %q", guid)
@@ -53,7 +53,7 @@ func TestEpisodeIndexMatchesAcrossIdentifiers(t *testing.T) {
 		"https://example.com/feed.xml",
 		backend.Episode{GUID: "g1", Title: "First Episode", EnclosureURL: "http://cdn.example.com/1.mp3"},
 	)}
-	index := BuildEpisodeIndexFromPodcasts(nil, pods)
+	index := buildEpisodeIndexFromPodcasts(nil, pods)
 	idx := index["p1"]
 
 	cases := []struct {
@@ -86,7 +86,7 @@ func TestEpisodeIndexPendingCountsMissingAudio(t *testing.T) {
 		backend.Episode{GUID: "g2", Title: "Catalogued Only"},
 	)}
 
-	pending := BuildEpisodeIndexFromPodcasts(nil, pods)["p1"]
+	pending := buildEpisodeIndexFromPodcasts(nil, pods)["p1"]
 	if pending.Total() != 2 || pending.Pending() != 1 {
 		t.Errorf("total=%d pending=%d, want 2 and 1", pending.Total(), pending.Pending())
 	}
@@ -94,7 +94,7 @@ func TestEpisodeIndexPendingCountsMissingAudio(t *testing.T) {
 
 func TestEpisodeIndexUnknownPodcastTreatsEverythingAsNew(t *testing.T) {
 	t.Parallel()
-	index := BuildEpisodeIndexFromPodcasts(nil, nil)
+	index := buildEpisodeIndexFromPodcasts(nil, nil)
 	unknown := index.Unknown("missing", []backend.FeedEpisode{{GUID: "g1"}, {GUID: "g2"}})
 	if len(unknown) != 2 {
 		t.Errorf("an unindexed podcast must look entirely new, got %d of 2", len(unknown))

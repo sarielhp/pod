@@ -42,8 +42,8 @@ func QueueFilename(podDir, audioPath string) string {
 	return filepath.Base(audioPath)
 }
 
-// QueueEntryMatchesAudio reports whether a queue entry names a given audio file.
-func QueueEntryMatchesAudio(podDir, queuedFilename, audioPath string) bool {
+// queueEntryMatchesAudio reports whether a queue entry names a given audio file.
+func queueEntryMatchesAudio(podDir, queuedFilename, audioPath string) bool {
 	path, err := pipeline.ResolveQueueAudioPath(podDir, queuedFilename)
 	return err == nil && filepath.Clean(path) == filepath.Clean(audioPath)
 }
@@ -136,7 +136,7 @@ func (l *Library) queuedEpisode(res *ResolvedID) ([]QueueItem, error) {
 	}
 	var matched []QueueItem
 	for _, it := range items {
-		if QueueEntryMatchesAudio(it.PodcastDir, it.Filename, res.Episode.Path) {
+		if queueEntryMatchesAudio(it.PodcastDir, it.Filename, res.Episode.Path) {
 			matched = append(matched, it)
 		}
 	}

@@ -18,7 +18,7 @@ const (
 	GroupKindSingle       PodcastGroupKind = "single"
 )
 
-func ParsePodcastGroupKind(query string) (PodcastGroupKind, bool) {
+func parsePodcastGroupKind(query string) (PodcastGroupKind, bool) {
 	q := strings.ToLower(strings.TrimSpace(query))
 	switch q {
 	case "all", "*":
@@ -50,7 +50,7 @@ func ResolvePodcastGroup(podcastsDir, query string) (*ResolvedPodcastGroup, erro
 		return nil, fmt.Errorf("no podcasts found in %s", podcastsDir)
 	}
 
-	if kind, ok := ParsePodcastGroupKind(q); ok {
+	if kind, ok := parsePodcastGroupKind(q); ok {
 		members, label, err := filterGroup(entries, kind, isLocalEntryFavorite)
 		if err != nil {
 			return nil, err
@@ -104,7 +104,7 @@ func isLocalEntryFavorite(e PodcastDirEntry) bool {
 func isBackendPodcastFavorite(p backend.Podcast, podcastsDir string) bool {
 	dir := p.Path
 	if dir == "" {
-		dir = FindPodcastDirForItem(p, podcastsDir)
+		dir = findPodcastDirForItem(p, podcastsDir)
 	}
 	if dir == "" {
 		return false
@@ -119,13 +119,13 @@ type ResolvedBackendGroup struct {
 	Podcasts []backend.Podcast
 }
 
-func ResolveBackendPodcastGroup(podcasts []backend.Podcast, podcastsDir, query string) (*ResolvedBackendGroup, error) {
+func resolveBackendPodcastGroup(podcasts []backend.Podcast, podcastsDir, query string) (*ResolvedBackendGroup, error) {
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return nil, fmt.Errorf("empty podcast query")
 	}
 
-	if kind, ok := ParsePodcastGroupKind(q); ok {
+	if kind, ok := parsePodcastGroupKind(q); ok {
 		members, label, err := filterGroup(podcasts, kind, func(p backend.Podcast) bool {
 			return isBackendPodcastFavorite(p, podcastsDir)
 		})
@@ -141,17 +141,17 @@ func ResolveBackendPodcastGroup(podcasts []backend.Podcast, podcastsDir, query s
 	}
 	return &ResolvedBackendGroup{
 		Kind:     GroupKindSingle,
-		Label:    BackendPodcastTitle(*matched),
+		Label:    backendPodcastTitle(*matched),
 		Podcasts: []backend.Podcast{*matched},
 	}, nil
 }
 
-// WithFeedURL keeps only the podcasts that have an upstream feed, falling back
+// withFeedURL keeps only the podcasts that have an upstream feed, falling back
 // to the whole list when none does. A podcast with no feed cannot be checked
 // for new episodes, so narrowing to the ones that can is almost always what a
 // command means — but returning nothing at all would be worse than returning
 // everything.
-func WithFeedURL(podcasts []backend.Podcast) []backend.Podcast {
+func withFeedURL(podcasts []backend.Podcast) []backend.Podcast {
 	var active []backend.Podcast
 	for _, p := range podcasts {
 		if strings.TrimSpace(p.Media.Metadata.FeedURL) != "" {
@@ -170,14 +170,14 @@ func WithFeedURL(podcasts []backend.Podcast) []backend.Podcast {
 // by name.
 func (l *Library) SelectBackendTargets(podcasts []backend.Podcast, target string) ([]backend.Podcast, error) {
 	if target == "" {
-		return WithFeedURL(podcasts), nil
+		return withFeedURL(podcasts), nil
 	}
-	group, err := ResolveBackendPodcastGroup(podcasts, l.cfg.PodcastsDir, target)
+	group, err := resolveBackendPodcastGroup(podcasts, l.cfg.PodcastsDir, target)
 	if err != nil {
 		return nil, err
 	}
 	if group.Kind == GroupKindSingle {
 		return group.Podcasts, nil
 	}
-	return WithFeedURL(group.Podcasts), nil
+	return withFeedURL(group.Podcasts), nil
 }

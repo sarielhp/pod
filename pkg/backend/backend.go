@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -86,8 +85,4 @@ func New(name string, cfg Config) (Backend, error) {
 		return nil, fmt.Errorf("unknown backend: %s", name)
 	}
 	return factory(cfg)
-}
-
-func NewContext(ctx context.Context, name string, cfg Config) (Backend, error) {
-	return New(name, cfg)
 }

@@ -33,19 +33,19 @@ func TestSelectSubscriptionEpisodesRespectsPolicy(t *testing.T) {
 	}
 	sub := Subscription{Title: "Show", Folder: "Show"}
 
-	if res := SelectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 0 {
+	if res := selectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 0 {
 		t.Fatalf("policy none should select nothing, got %d", len(res))
 	}
 
 	sub.DownloadPolicy = "latest"
-	res := SelectSubscriptionEpisodes(podDir, feedEps, sub, opts)
+	res := selectSubscriptionEpisodes(podDir, feedEps, sub, opts)
 	if len(res) != 1 || res[0].Title != "Ep 3" {
 		t.Fatalf("policy latest should select Ep 3, got %v", res)
 	}
 
 	sub.DownloadPolicy = "latest_k"
 	sub.DownloadK = 2
-	if res := SelectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 2 {
+	if res := selectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 2 {
 		t.Fatalf("latest_k(2) should select 2, got %d", len(res))
 	}
 
@@ -56,7 +56,7 @@ func TestSelectSubscriptionEpisodesRespectsPolicy(t *testing.T) {
 	if err := config.SavePodcastConfig(podDir, config.PodcastConfig{Favorite: true}); err != nil {
 		t.Fatal(err)
 	}
-	res = SelectSubscriptionEpisodes(podDir, feedEps, sub, opts)
+	res = selectSubscriptionEpisodes(podDir, feedEps, sub, opts)
 	if len(res) != 1 || res[0].Title != "Ep 3" {
 		t.Fatalf("a favourite should take only new episodes, got %v", res)
 	}
@@ -73,12 +73,12 @@ func TestSelectSubscriptionEpisodesExplicitCountOverridesPolicy(t *testing.T) {
 	sub := Subscription{Title: "Show", DownloadPolicy: "none"}
 
 	opts := SubscriptionDownloadOptions{Count: 2, CountGiven: true}
-	if res := SelectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 2 {
+	if res := selectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 2 {
 		t.Fatalf("an explicit count should override policy none, got %d", len(res))
 	}
 
 	opts = SubscriptionDownloadOptions{DownloadAll: true}
-	if res := SelectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 3 {
+	if res := selectSubscriptionEpisodes(podDir, feedEps, sub, opts); len(res) != 3 {
 		t.Fatalf("DownloadAll should override policy none, got %d", len(res))
 	}
 }
@@ -111,16 +111,16 @@ func TestShouldQueueForAdRemoval(t *testing.T) {
 	podDir := t.TempDir()
 	defaults := config.PolicyDefaults{AdRemoval: "none"}
 
-	if ShouldQueueForAdRemoval(podDir, Subscription{}, defaults) {
+	if shouldQueueForAdRemoval(podDir, Subscription{}, defaults) {
 		t.Error("ad removal none should not queue")
 	}
-	if !ShouldQueueForAdRemoval(podDir, Subscription{AdRemoval: "all"}, defaults) {
+	if !shouldQueueForAdRemoval(podDir, Subscription{AdRemoval: "all"}, defaults) {
 		t.Error("the subscription's own policy should win over the default")
 	}
 	if err := config.SavePodcastConfig(podDir, config.PodcastConfig{Favorite: true}); err != nil {
 		t.Fatal(err)
 	}
-	if !ShouldQueueForAdRemoval(podDir, Subscription{}, defaults) {
+	if !shouldQueueForAdRemoval(podDir, Subscription{}, defaults) {
 		t.Error("a favourite should always queue")
 	}
 }

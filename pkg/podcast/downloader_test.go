@@ -93,8 +93,8 @@ func TestDownloadCoverImage(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	dest := filepath.Join(tmpDir, "cover.jpg")
-	if err := DownloadCoverImage(ts.URL+"/cover.jpg", dest); err != nil {
-		t.Fatalf("DownloadCoverImage failed: %v", err)
+	if err := downloadCoverImage(ts.URL+"/cover.jpg", dest); err != nil {
+		t.Fatalf("downloadCoverImage failed: %v", err)
 	}
 
 	data, err := os.ReadFile(dest)

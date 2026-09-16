@@ -72,11 +72,11 @@ func AddToQueueChecked(podDir, filename string) (bool, error) {
 // RemoveFromQueue drops an episode from a podcast's queue, reporting whether it
 // was present.
 func RemoveFromQueue(podDir, filename string) bool {
-	found, _ := RemoveFromQueueChecked(podDir, filename)
+	found, _ := removeFromQueueChecked(podDir, filename)
 	return found
 }
 
-func RemoveFromQueueChecked(podDir, filename string) (bool, error) {
+func removeFromQueueChecked(podDir, filename string) (bool, error) {
 	found := false
 	err := UpdateQueue(podDir, func(entries []string) []string {
 		var filtered []string

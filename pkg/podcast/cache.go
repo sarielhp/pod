@@ -94,7 +94,7 @@ func CacheBaseDir() string {
 	return podCacheDir
 }
 
-func SanitizeDirName(dirPath string) string {
+func sanitizeDirName(dirPath string) string {
 	clean := filepath.Clean(dirPath)
 	base := filepath.Base(clean)
 	h := sha256.Sum256([]byte(clean))
@@ -113,7 +113,7 @@ func CacheDirForPodcast(podcastDir string) string {
 	if err != nil {
 		absDir = podcastDir
 	}
-	name := SanitizeDirName(absDir)
+	name := sanitizeDirName(absDir)
 	dir := filepath.Join(CacheBaseDir(), name)
 	_ = os.MkdirAll(dir, 0755)
 	_ = os.MkdirAll(filepath.Join(dir, "details"), 0755)
@@ -250,7 +250,7 @@ func ParseAnyPublicationTime(s string) (time.Time, error) {
 			return t.UTC(), nil
 		}
 	}
-	norm := NormalizeFeedTimezone(s)
+	norm := normalizeFeedTimezone(s)
 	for _, l := range layouts {
 		if t, err := time.Parse(l, norm); err == nil && !t.IsZero() {
 			return t.UTC(), nil
@@ -282,7 +282,7 @@ func parseFeedXMLDates(data []byte) map[string]time.Time {
 	}
 	m := make(map[string]time.Time, len(rss.Channel.Items)*4)
 	for _, it := range rss.Channel.Items {
-		pubMs, _ := ParseFeedDate(it.PubDate)
+		pubMs, _ := parseFeedDate(it.PubDate)
 		if pubMs <= 0 {
 			continue
 		}
@@ -366,7 +366,7 @@ func matchCachedEpisodeDate(ep CachedEpisodeSummary, dir, filePath, absolute str
 	}
 	baseName := filepath.Base(filePath)
 	cleanBase := strings.ToLower(util.StripExt(baseName))
-	matched := PublicationAudioPath(dir, path) == absolute ||
+	matched := publicationAudioPath(dir, path) == absolute ||
 		strings.EqualFold(ep.Filename, baseName) ||
 		strings.EqualFold(util.StripExt(ep.Filename), cleanBase) ||
 		strings.EqualFold(ep.Title, cleanBase)

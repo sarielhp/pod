@@ -96,35 +96,6 @@ func TestGeneratePodcastFeedXML(t *testing.T) {
 	}
 }
 
-func TestGeneratePodcastFeedXML_FallbackToRemoteImage(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-	podDir := filepath.Join(tmpDir, "Show_No_Local_Cover")
-	_ = os.MkdirAll(podDir, 0755)
-
-	ep1 := filepath.Join(podDir, "ep1.mp3")
-	_ = os.WriteFile(ep1, []byte("fake mp3 data"), 0644)
-
-	sub := Subscription{
-		Title:    "Show Without Local Cover",
-		ImageURL: "https://remote.example.com/art.jpg",
-		Folder:   "Show_No_Local_Cover",
-	}
-	eps := CollectLocalEpisodes(podDir, nil)
-	data, err := GeneratePodcastFeedXML(sub, podDir, eps, "http://server:8080/podcasts")
-	if err != nil {
-		t.Fatalf("GeneratePodcastFeedXML failed: %v", err)
-	}
-
-	content := string(data)
-	if !strings.Contains(content, "<url>https://remote.example.com/art.jpg</url>") {
-		t.Errorf("expected remote image in <image><url>, got:\n%s", content)
-	}
-	if !strings.Contains(content, "<itunes:image href=\"https://remote.example.com/art.jpg\"") {
-		t.Errorf("expected remote image in <itunes:image>, got:\n%s", content)
-	}
-}
-
 func TestParseRSSFeedExtractsImage(t *testing.T) {
 	t.Parallel()
 	itunesXML := []byte(`<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
@@ -138,9 +109,9 @@ func TestParseRSSFeedExtractsImage(t *testing.T) {
 			</item>
 		</channel>
 	</rss>`)
-	doc, err := ParseRSSFeed(itunesXML)
+	doc, err := parseRSSFeed(itunesXML)
 	if err != nil {
-		t.Fatalf("ParseRSSFeed failed: %v", err)
+		t.Fatalf("parseRSSFeed failed: %v", err)
 	}
 	if doc.ImageURL != "https://example.com/itunes_cover.jpg" {
 		t.Errorf("expected itunes image url, got %q", doc.ImageURL)
@@ -161,9 +132,9 @@ func TestParseRSSFeedExtractsImage(t *testing.T) {
 			</item>
 		</channel>
 	</rss>`)
-	doc2, err := ParseRSSFeed(rss20XML)
+	doc2, err := parseRSSFeed(rss20XML)
 	if err != nil {
-		t.Fatalf("ParseRSSFeed rss20 failed: %v", err)
+		t.Fatalf("parseRSSFeed rss20 failed: %v", err)
 	}
 	if doc2.ImageURL != "https://example.com/rss2_cover.png" {
 		t.Errorf("expected rss2 image url, got %q", doc2.ImageURL)
@@ -181,7 +152,7 @@ func TestEnsurePodcastCoverCopiesDetailsCache(t *testing.T) {
 	_ = os.WriteFile(cachedCover, []byte("cached image data"), 0644)
 
 	sub := Subscription{Title: "TestShow", Folder: "TestShow"}
-	resolved := EnsurePodcastCover(podDir, &sub)
+	resolved := ensurePodcastCover(podDir, &sub)
 	target := filepath.Join(podDir, "cover.jpg")
 	if resolved != target {
 		t.Fatalf("expected resolved cover at %s, got %s", target, resolved)

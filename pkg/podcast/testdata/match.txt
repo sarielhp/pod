@@ -4,267 +4,267 @@
   ResolvePodcastGroup -> <nil> | err=empty podcast query
   ResolveBackendGroup -> <nil> | err=empty podcast query
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "  "
   MatchLocalPodcasts  -> <nil> | err=empty podcast query
   MatchBackendPodcast -> <nil> | err=empty podcast query
   ResolvePodcastGroup -> <nil> | err=empty podcast query
   ResolveBackendGroup -> <nil> | err=empty podcast query
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "daily"
   MatchLocalPodcasts  -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   MatchBackendPodcast -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ResolvePodcastGroup -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   ResolveBackendGroup -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> true
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> true
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "Daily"
   MatchLocalPodcasts  -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   MatchBackendPodcast -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ResolvePodcastGroup -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   ResolveBackendGroup -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> true
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> true
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "DAILY"
   MatchLocalPodcasts  -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   MatchBackendPodcast -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ResolvePodcastGroup -> <nil> | err=dlynw | Daily_News / dlysh | Daily_Show
   ResolveBackendGroup -> <nil> | err=id-Daily_News | Daily_News / id-Daily_Show | Daily_Show
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> true
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> true
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "fridman"
   MatchLocalPodcasts  -> Lex_Fridman/Lex_Fridman | err=<nil>
   MatchBackendPodcast -> id-Lex_Fridman/Lex_Fridman | err=<nil>
   ResolvePodcastGroup -> kind=single label="Lex_Fridman" entries=[Lex_Fridman] | err=<nil>
   ResolveBackendGroup -> kind=single label="Lex_Fridman" podcasts=[id-Lex_Fridman] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> true
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> true
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "solo"
   MatchLocalPodcasts  -> Solo/Solo | err=<nil>
   MatchBackendPodcast -> id-Solo/Solo | err=<nil>
   ResolvePodcastGroup -> kind=single label="Solo" entries=[Solo] | err=<nil>
   ResolveBackendGroup -> kind=single label="Solo" podcasts=[id-Solo] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "nope"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "nope" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "nope" not found on server
   ResolvePodcastGroup -> <nil> | err=podcast matching "nope" not found
   ResolveBackendGroup -> <nil> | err=podcast matching "nope" not found on server
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "Daily_Show"
   MatchLocalPodcasts  -> Daily_Show/Daily_Show | err=<nil>
   MatchBackendPodcast -> id-Daily_Show/Daily_Show | err=<nil>
   ResolvePodcastGroup -> kind=single label="Daily_Show" entries=[Daily_Show] | err=<nil>
   ResolveBackendGroup -> kind=single label="Daily_Show" podcasts=[id-Daily_Show] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "daily_show"
   MatchLocalPodcasts  -> Daily_Show/Daily_Show | err=<nil>
   MatchBackendPodcast -> id-Daily_Show/Daily_Show | err=<nil>
   ResolvePodcastGroup -> kind=single label="Daily_Show" entries=[Daily_Show] | err=<nil>
   ResolveBackendGroup -> kind=single label="Daily_Show" podcasts=[id-Daily_Show] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "1"
   MatchLocalPodcasts  -> Numbers123/Numbers123 | err=<nil>
   MatchBackendPodcast -> id-Numbers123/Numbers123 | err=<nil>
   ResolvePodcastGroup -> kind=single label="Numbers123" entries=[Numbers123] | err=<nil>
   ResolveBackendGroup -> kind=single label="Numbers123" podcasts=[id-Numbers123] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> true
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> true
+  matchesPodcastName("") -> false
 === query "3"
   MatchLocalPodcasts  -> Numbers123/Numbers123 | err=<nil>
   MatchBackendPodcast -> id-Numbers123/Numbers123 | err=<nil>
   ResolvePodcastGroup -> kind=single label="Numbers123" entries=[Numbers123] | err=<nil>
   ResolveBackendGroup -> kind=single label="Numbers123" podcasts=[id-Numbers123] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> true
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> true
+  matchesPodcastName("") -> false
 === query "99"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "99" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "99" not found on server
   ResolvePodcastGroup -> <nil> | err=podcast matching "99" not found
   ResolveBackendGroup -> <nil> | err=podcast matching "99" not found on server
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "0"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "0" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "0" not found on server
   ResolvePodcastGroup -> <nil> | err=podcast matching "0" not found
   ResolveBackendGroup -> <nil> | err=podcast matching "0" not found on server
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "-1"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "-1" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "-1" not found on server
   ResolvePodcastGroup -> <nil> | err=podcast matching "-1" not found
   ResolveBackendGroup -> <nil> | err=podcast matching "-1" not found on server
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "lex.*man"
   MatchLocalPodcasts  -> Lex_Fridman/Lex_Fridman | err=<nil>
   MatchBackendPodcast -> id-Lex_Fridman/Lex_Fridman | err=<nil>
   ResolvePodcastGroup -> kind=single label="Lex_Fridman" entries=[Lex_Fridman] | err=<nil>
   ResolveBackendGroup -> kind=single label="Lex_Fridman" podcasts=[id-Lex_Fridman] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> true
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> true
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "^Solo$"
   MatchLocalPodcasts  -> Solo/Solo | err=<nil>
   MatchBackendPodcast -> id-Solo/Solo | err=<nil>
   ResolvePodcastGroup -> kind=single label="Solo" entries=[Solo] | err=<nil>
   ResolveBackendGroup -> kind=single label="Solo" podcasts=[id-Solo] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "["
   MatchLocalPodcasts  -> <nil> | err=podcast matching "[" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "[" not found on server
   ResolvePodcastGroup -> <nil> | err=podcast matching "[" not found
   ResolveBackendGroup -> <nil> | err=podcast matching "[" not found on server
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "123"
   MatchLocalPodcasts  -> Numbers123/Numbers123 | err=<nil>
   MatchBackendPodcast -> id-Numbers123/Numbers123 | err=<nil>
   ResolvePodcastGroup -> kind=single label="Numbers123" entries=[Numbers123] | err=<nil>
   ResolveBackendGroup -> kind=single label="Numbers123" podcasts=[id-Numbers123] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> true
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> true
+  matchesPodcastName("") -> false
 === query "Numbers123"
   MatchLocalPodcasts  -> Numbers123/Numbers123 | err=<nil>
   MatchBackendPodcast -> id-Numbers123/Numbers123 | err=<nil>
   ResolvePodcastGroup -> kind=single label="Numbers123" entries=[Numbers123] | err=<nil>
   ResolveBackendGroup -> kind=single label="Numbers123" podcasts=[id-Numbers123] | err=<nil>
   ParseGroupKind      -> "" ok=false
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "all"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "all" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "all" not found on server
   ResolvePodcastGroup -> kind=all label="all podcasts" entries=[Daily_News,Daily_Show,Lex_Fridman,Numbers123,Solo] | err=<nil>
   ResolveBackendGroup -> kind=all label="all podcasts" podcasts=[id-Daily_News,id-Daily_Show,id-Lex_Fridman,id-Numbers123,id-Solo] | err=<nil>
   ParseGroupKind      -> "all" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "*"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "*" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "*" not found on server
   ResolvePodcastGroup -> kind=all label="all podcasts" entries=[Daily_News,Daily_Show,Lex_Fridman,Numbers123,Solo] | err=<nil>
   ResolveBackendGroup -> kind=all label="all podcasts" podcasts=[id-Daily_News,id-Daily_Show,id-Lex_Fridman,id-Numbers123,id-Solo] | err=<nil>
   ParseGroupKind      -> "all" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "fav"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "fav" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "fav" not found on server
   ResolvePodcastGroup -> kind=favorites label="favorite podcasts" entries=[Daily_Show,Lex_Fridman] | err=<nil>
   ResolveBackendGroup -> kind=favorites label="favorite podcasts" podcasts=[id-Daily_Show,id-Lex_Fridman] | err=<nil>
   ParseGroupKind      -> "favorites" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "favorites"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "favorites" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "favorites" not found on server
   ResolvePodcastGroup -> kind=favorites label="favorite podcasts" entries=[Daily_Show,Lex_Fridman] | err=<nil>
   ResolveBackendGroup -> kind=favorites label="favorite podcasts" podcasts=[id-Daily_Show,id-Lex_Fridman] | err=<nil>
   ParseGroupKind      -> "favorites" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "not-fav"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "not-fav" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "not-fav" not found on server
   ResolvePodcastGroup -> kind=non-favorites label="non-favorite podcasts" entries=[Daily_News,Numbers123,Solo] | err=<nil>
   ResolveBackendGroup -> kind=non-favorites label="non-favorite podcasts" podcasts=[id-Daily_News,id-Numbers123,id-Solo] | err=<nil>
   ParseGroupKind      -> "non-favorites" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "non-favorites"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "non-favorites" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "non-favorites" not found on server
   ResolvePodcastGroup -> kind=non-favorites label="non-favorite podcasts" entries=[Daily_News,Numbers123,Solo] | err=<nil>
   ResolveBackendGroup -> kind=non-favorites label="non-favorite podcasts" podcasts=[id-Daily_News,id-Numbers123,id-Solo] | err=<nil>
   ParseGroupKind      -> "non-favorites" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false
 === query "unfav"
   MatchLocalPodcasts  -> <nil> | err=podcast matching "unfav" not found
   MatchBackendPodcast -> <nil> | err=podcast matching "unfav" not found on server
   ResolvePodcastGroup -> kind=non-favorites label="non-favorite podcasts" entries=[Daily_News,Numbers123,Solo] | err=<nil>
   ResolveBackendGroup -> kind=non-favorites label="non-favorite podcasts" podcasts=[id-Daily_News,id-Numbers123,id-Solo] | err=<nil>
   ParseGroupKind      -> "non-favorites" ok=true
-  MatchesPodcastName("The Daily Show") -> false
-  MatchesPodcastName("Lex Fridman Podcast") -> false
-  MatchesPodcastName("123 Numbers") -> false
-  MatchesPodcastName("") -> false
+  matchesPodcastName("The Daily Show") -> false
+  matchesPodcastName("Lex Fridman Podcast") -> false
+  matchesPodcastName("123 Numbers") -> false
+  matchesPodcastName("") -> false

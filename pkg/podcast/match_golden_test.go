@@ -65,14 +65,14 @@ func TestMatchGolden(t *testing.T) {
 		g, err := ResolvePodcastGroup(root, q)
 		fmt.Fprintf(&b, "  ResolvePodcastGroup -> %s | err=%s\n", groupStr(g), errStr(err))
 
-		bg, err := ResolveBackendPodcastGroup(pods, root, q)
+		bg, err := resolveBackendPodcastGroup(pods, root, q)
 		fmt.Fprintf(&b, "  ResolveBackendGroup -> %s | err=%s\n", bgroupStr(bg), errStr(err))
 
-		kind, ok := ParsePodcastGroupKind(q)
+		kind, ok := parsePodcastGroupKind(q)
 		fmt.Fprintf(&b, "  ParseGroupKind      -> %q ok=%t\n", kind, ok)
 
 		for _, name := range []string{"The Daily Show", "Lex Fridman Podcast", "123 Numbers", ""} {
-			fmt.Fprintf(&b, "  MatchesPodcastName(%q) -> %t\n", name, MatchesPodcastName(name, q))
+			fmt.Fprintf(&b, "  matchesPodcastName(%q) -> %t\n", name, matchesPodcastName(name, q))
 		}
 	}
 	path := filepath.Join("testdata", "match.txt")
@@ -110,7 +110,7 @@ func backendStr(p *backend.Podcast) string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%s/%s", p.ID, BackendPodcastTitle(*p))
+	return fmt.Sprintf("%s/%s", p.ID, backendPodcastTitle(*p))
 }
 
 func groupStr(g *ResolvedPodcastGroup) string {

@@ -29,7 +29,7 @@ func TestPodFetchLoginAndTestConnection(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	beAPIKey := NewPodFetch(Config{
+	beAPIKey := newPodFetch(Config{
 		Host:   srv.URL,
 		APIKey: "my-api-key",
 	})
@@ -42,7 +42,7 @@ func TestPodFetchLoginAndTestConnection(t *testing.T) {
 		t.Fatalf("TestConnection with API key failed: %v", err)
 	}
 
-	beBasic := NewPodFetch(Config{
+	beBasic := newPodFetch(Config{
 		Host: srv.URL,
 		User: "admin",
 		Pass: "secret",
@@ -56,7 +56,7 @@ func TestPodFetchLoginAndTestConnection(t *testing.T) {
 		t.Fatalf("TestConnection with Basic auth failed: %v", err)
 	}
 
-	beFail := NewPodFetch(Config{
+	beFail := newPodFetch(Config{
 		Host: srv.URL,
 		User: "admin",
 		Pass: "wrong",
@@ -93,7 +93,7 @@ func TestPodFetchLibrariesAndPodcasts(t *testing.T) {
 	srv := setupMockPodFetchServer()
 	defer srv.Close()
 
-	be := NewPodFetch(Config{Host: srv.URL, APIKey: "key-123"})
+	be := newPodFetch(Config{Host: srv.URL, APIKey: "key-123"})
 
 	libs, err := be.PodcastLibraries()
 	if err != nil || len(libs) == 0 || libs[0].MediaType != "podcast" {

@@ -34,11 +34,11 @@ func (p *DownloadPlan) Title() string {
 	return "Untitled Podcast"
 }
 
-// PlanPodcastDownloads reads one podcast's feed and decides which episodes to
+// planPodcastDownloads reads one podcast's feed and decides which episodes to
 // download. It performs no output and queues nothing, so it is safe to run for
 // many podcasts at once; index carries what the server already holds, read once
 // for the whole run rather than per podcast.
-func PlanPodcastDownloads(client backend.Backend, item backend.Podcast, index *PodcastEpisodeIndex, opts DownloadOptions) DownloadPlan {
+func planPodcastDownloads(client backend.Backend, item backend.Podcast, index *PodcastEpisodeIndex, opts DownloadOptions) DownloadPlan {
 	plan := DownloadPlan{Item: item}
 
 	feedURL := item.Media.Metadata.FeedURL
@@ -57,7 +57,7 @@ func PlanPodcastDownloads(client backend.Backend, item backend.Podcast, index *P
 	if client != nil {
 		active, _ = client.ActiveDownloads(item.ID)
 	}
-	isDownloaded := BuildDownloadedChecker(item, index, active, opts.PodcastsDir)
+	isDownloaded := buildDownloadedChecker(item, index, active, opts.PodcastsDir)
 
 	sortedCatalog := make([]backend.FeedEpisode, len(feedEpisodes))
 	copy(sortedCatalog, feedEpisodes)
@@ -72,7 +72,7 @@ func PlanPodcastDownloads(client backend.Backend, item backend.Podcast, index *P
 		}
 	}
 
-	plan.Episodes, plan.Reasons = ResolveEpisodesToDownload(item, sortedCatalog, downloadedIndices, isDownloaded, opts)
+	plan.Episodes, plan.Reasons = resolveEpisodesToDownload(item, sortedCatalog, downloadedIndices, isDownloaded, opts)
 	if catalogBound(client) {
 		plan.Episodes, plan.Unknown = splitByCatalog(plan.Episodes, index)
 	}
@@ -117,7 +117,7 @@ func PlanDownloads(client backend.Backend, items []backend.Podcast, index Episod
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				plans[i] = PlanPodcastDownloads(client, items[i], index[items[i].ID], opts)
+				plans[i] = planPodcastDownloads(client, items[i], index[items[i].ID], opts)
 				mu.Lock()
 				done++
 				if progress != nil {

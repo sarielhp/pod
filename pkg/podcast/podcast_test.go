@@ -14,7 +14,7 @@ func TestFeedCache(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	cachePath := filepath.Join(tmpDir, "feed_cache.json")
-	mgr := NewFeedCacheManager(cachePath)
+	mgr := newFeedCacheManager(cachePath)
 
 	feedURL := "https://example.com/feed.xml"
 	entry := &FeedCacheEntry{
@@ -36,7 +36,7 @@ func TestFeedCache(t *testing.T) {
 		t.Fatalf("Unexpected cached entry: %+v", got)
 	}
 
-	mgr2 := NewFeedCacheManager(cachePath)
+	mgr2 := newFeedCacheManager(cachePath)
 	got2 := mgr2.Get(feedURL)
 	if got2 == nil || got2.ETag != "\"12345\"" {
 		t.Fatalf("Reloaded cache missing entry")
@@ -48,41 +48,6 @@ func TestFeedCache(t *testing.T) {
 	oldEntry := &FeedCacheEntry{LastChecked: time.Now().Add(-48 * time.Hour)}
 	if !oldEntry.IsExpired(24 * time.Hour) {
 		t.Errorf("expected old entry to be expired")
-	}
-}
-
-func TestParseRSSXML(t *testing.T) {
-	t.Parallel()
-	xmlData := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Sample Podcast</title>
-    <item>
-      <title>Episode 1</title>
-      <description>First episode description</description>
-      <pubDate>Mon, 02 Jan 2006 15:04:05 -0700</pubDate>
-      <guid>ep1-guid</guid>
-      <enclosure url="http://example.com/ep1.mp3" type="audio/mpeg"/>
-    </item>
-    <item>
-      <title>Episode 2 (No Enclosure)</title>
-      <guid>ep2-guid</guid>
-    </item>
-  </channel>
-</rss>`)
-
-	eps, err := ParseRSSXML(xmlData)
-	if err != nil {
-		t.Fatalf("ParseRSSXML failed: %v", err)
-	}
-	if len(eps) != 1 {
-		t.Fatalf("expected 1 episode with enclosure, got %d", len(eps))
-	}
-	if eps[0].Title != "Episode 1" || eps[0].GUID != "ep1-guid" {
-		t.Errorf("unexpected episode data: %+v", eps[0])
-	}
-	if eps[0].EnclosureURL != "https://example.com/ep1.mp3" {
-		t.Errorf("expected https upgrade for enclosure URL, got %s", eps[0].EnclosureURL)
 	}
 }
 
@@ -111,7 +76,7 @@ func TestEpisodeShortID(t *testing.T) {
 	t.Parallel()
 	podShort := "plntm"
 	epKey := "123_Inflation.mp3"
-	id := GenerateEpisodeShortID(podShort, epKey)
+	id := generateEpisodeShortID(podShort, epKey)
 	if len(id) != 6 || id[0] != 'e' {
 		t.Fatalf("unexpected episode short ID: %s", id)
 	}
@@ -185,17 +150,17 @@ func TestDownloadPolicy(t *testing.T) {
 		return ep.Title == "Ep 1"
 	}
 
-	eps, _ := SelectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyNone, 0, false)
+	eps, _ := selectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyNone, 0, false)
 	if len(eps) != 0 {
 		t.Errorf("expected 0 episodes for none policy, got %d", len(eps))
 	}
 
-	eps, _ = SelectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyLatest, 0, false)
+	eps, _ = selectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyLatest, 0, false)
 	if len(eps) != 1 || eps[0].Title != "Ep 3" {
 		t.Errorf("expected Ep 3 for latest policy, got %+v", eps)
 	}
 
-	eps, _ = SelectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyAll, 0, false)
+	eps, _ = selectEpisodesByDownloadPolicy(catalog, isDl, config.DownloadPolicyAll, 0, false)
 	if len(eps) != 2 {
 		t.Errorf("expected 2 undownloaded episodes for all policy, got %d", len(eps))
 	}
@@ -224,7 +189,7 @@ func TestOrphanPodcasts(t *testing.T) {
 		},
 	}
 
-	orphans := FindOrphanPodcasts(podcasts)
+	orphans := findOrphanPodcasts(podcasts)
 	if len(orphans) != 2 {
 		t.Fatalf("expected 2 orphans (1 empty feed + 1 duplicate), got %d", len(orphans))
 	}
@@ -273,20 +238,20 @@ func TestSelectNewEpisodes(t *testing.T) {
 	downloaded := func(ep backend.FeedEpisode) bool {
 		return ep.Title == "Old 2"
 	}
-	eps, reasons := SelectNewEpisodes(catalog, []int{1}, downloaded, nil)
+	eps, reasons := selectNewEpisodes(catalog, []int{1}, downloaded, nil)
 	if len(eps) != 1 || eps[0].Title != "New 3" {
 		t.Fatalf("expected only 'New 3' selected, got %d eps: %v (reasons: %v)", len(eps), eps, reasons)
 	}
 
 	// 2. With 0 downloaded episodes and favoriteSince set to t2: only episodes >= t2 should be selected
-	eps2, _ := SelectNewEpisodes(catalog, nil, func(ep backend.FeedEpisode) bool { return false }, &t2)
+	eps2, _ := selectNewEpisodes(catalog, nil, func(ep backend.FeedEpisode) bool { return false }, &t2)
 	if len(eps2) != 1 || eps2[0].Title != "New 3" {
 		t.Fatalf("expected only 'New 3' selected for cutoff t2, got: %v", eps2)
 	}
 
 	// 3. With 0 downloaded episodes and favoriteSince set after all episodes: 0 should be selected
 	tFuture := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
-	eps3, _ := SelectNewEpisodes(catalog, nil, func(ep backend.FeedEpisode) bool { return false }, &tFuture)
+	eps3, _ := selectNewEpisodes(catalog, nil, func(ep backend.FeedEpisode) bool { return false }, &tFuture)
 	if len(eps3) != 0 {
 		t.Fatalf("expected 0 episodes selected for future cutoff, got: %v", eps3)
 	}

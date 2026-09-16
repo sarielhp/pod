@@ -94,7 +94,7 @@ func (d *Downloader) fetchToFile(ctx context.Context, enclosureURL, tempPath str
 	return nil
 }
 
-func DownloadCoverImage(imageURL, destPath string) error {
+func downloadCoverImage(imageURL, destPath string) error {
 	if strings.TrimSpace(imageURL) == "" {
 		return fmt.Errorf("empty image URL")
 	}

@@ -7,6 +7,15 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Fixed
+- **Published feeds were not in date order, so clients did not show the newest
+  episode.** Ordering compared the RFC1123 publication date as text, and an
+  RSS date leads with a weekday and carries a textual month — `Wed, 29 Apr`
+  sorts above `Wed, 16 Sep`. Years interleaved, and the day's episode landed
+  tenth of a hundred in the Daily Blast feed, where AntennaPod never surfaced
+  it. Episodes are now ordered by publication instant. All 84 feeds were
+  affected; all 84 are now correctly ordered.
+
 ### Added
 - **`pod gen_rss N`** — fetch, ad-strip and publish the N most recently
   published episodes across the library in one command. Doing it by hand meant

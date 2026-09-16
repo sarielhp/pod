@@ -5,7 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [Unreleased]
+## [0.4.0] - 2026-09-16
 
 ### Added
 - **`pod transcribe <path...>`** — transcribe an audio *or video* file without

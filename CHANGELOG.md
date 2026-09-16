@@ -5,6 +5,25 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Changed
+- **Ad detection now samples at temperature 0, and the temperature is
+  configurable.** It was hardcoded at 0.1, which bought nothing — detection is
+  an extraction task with a right answer in the transcript, not a creative one
+  — and cost reproducibility. Measured over five runs of one episode, Gemini
+  2.5 Flash went from 0.9952 agreement and 4/5 identical runs to exactly
+  1.0000 and 5/5, and three separate invocations then returned the same three
+  cuts to the tenth of a second. A profile may set `temperature`, and
+  `pod detect --temperature` overrides it for one run so the effect can be
+  measured rather than argued about.
+
+### Fixed
+- `pod detect --repeat` no longer prints "agreement min 100%" beside "NOT
+  reproducible". 0.9952 rounded up at zero decimals, which reads as a bug in
+  the measurement rather than as a near miss; figures below certainty are now
+  shown to a tenth and never rounded up to 100%.
+
 ## [0.5.2] - 2026-09-16
 
 ### Added

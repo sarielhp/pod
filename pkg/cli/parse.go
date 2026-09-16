@@ -47,7 +47,10 @@ func getTranscriptionOptions(opts *CLIOptions) []clihelp.Option {
 		clihelp.String(&opts.Force, "-f, --force <stage>", "", "Force: 'whisper', 'llm', or 'all'"),
 		clihelp.String(&opts.UseLLM, "--profile <id/name>", "", "Select LLM profile ID or name"),
 		clihelp.Bool(&opts.DryRun, "--dry-run", false, "Preview actions without file changes"),
-		hideOption(clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Max untranscribed episodes")),
+		// Not hidden: bounding a run is what makes ad removal safe to schedule.
+		// An unbounded sweep over this library is sixteen hours of GPU and a
+		// real bill, and it holds the library lock for all of it.
+		clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Process at most N episodes"),
 		hideOption(clihelp.Int(&opts.Priority, "-P, --priority <level>", 0, "Priority level for processing")),
 		clihelp.String(&opts.Podcast, "-p, --podcast <name>", "", "Target podcast by ID, index, or name"),
 		hideOption(clihelp.String(&opts.WhisperEngine, "--whisper-engine <engine>", "", "Engine: local, docker, remote, gemini")),

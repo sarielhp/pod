@@ -7,6 +7,17 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Added
+- **`pod info check --models`** compares the Gemini model chain against the
+  models the key can actually reach. The chain is hand-written and rots
+  silently in two directions: a model can be withdrawn — Google removed
+  gemini-2.5-flash from new users — and a model can appear that would have
+  served. `gemini-3.6-flash` was missing from the chain here and turned out to
+  be the one model with quota left on the day it mattered. The check names
+  retired entries, exits non-zero when it finds one, and lists comparable
+  models the chain does not mention, with the caveat that being listed is not
+  the same as being callable.
+
 ### Changed
 - **Ad detection now samples at temperature 0, and the temperature is
   configurable.** It was hardcoded at 0.1, which bought nothing — detection is

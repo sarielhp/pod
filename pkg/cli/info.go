@@ -53,7 +53,7 @@ func runInfoCommand(cfg Config, cli CLIOptions) error {
 	}
 
 	if resolved.IsPodcast() {
-		return inspectPodcastInfo(resolved.Podcast, cli)
+		return inspectPodcastInfo(resolved.Podcast, cli, cfg.ServerBaseURL)
 	}
 
 	if resolved.IsEpisode() {

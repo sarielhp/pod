@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"pod/pkg/config"
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
@@ -16,12 +18,19 @@ import (
 )
 
 type PodcastInfoJSON struct {
-	ID                 string             `json:"id"`
-	UUID               string             `json:"uuid,omitempty"`
-	Title              string             `json:"title"`
-	Directory          string             `json:"directory"`
-	Author             string             `json:"author,omitempty"`
-	FeedURL            string             `json:"feed_url,omitempty"`
+	ID        string `json:"id"`
+	UUID      string `json:"uuid,omitempty"`
+	Title     string `json:"title"`
+	Directory string `json:"directory"`
+	Author    string `json:"author,omitempty"`
+	FeedURL   string `json:"feed_url,omitempty"`
+
+	// LocalFeedURL and LocalPageURL are where this show is published for
+	// subscribing to. They are what a person actually needs from this command
+	// — the address to paste into a podcast client — and were the one thing
+	// it did not print.
+	LocalFeedURL       string             `json:"local_feed_url,omitempty"`
+	LocalPageURL       string             `json:"local_page_url,omitempty"`
 	CoverPath          string             `json:"cover_path,omitempty"`
 	Description        string             `json:"description,omitempty"`
 	AutoDownload       bool               `json:"auto_download"`
@@ -45,8 +54,8 @@ type RecentEpisodeDTO struct {
 	Duration string `json:"duration"`
 }
 
-func inspectPodcastInfo(pod *ResolvedPodcast, cli CLIOptions) error {
-	dto := buildPodcastInfoDTO(pod, cli.Count)
+func inspectPodcastInfo(pod *ResolvedPodcast, cli CLIOptions, baseURL string) error {
+	dto := buildPodcastInfoDTO(pod, cli.Count, baseURL)
 
 	if cli.JSON {
 		data, err := json.MarshalIndent(dto, "", "  ")
@@ -136,7 +145,7 @@ func getPodcastMetadataFields(pod *ResolvedPodcast) (string, string, string, str
 	return author, feedURL, coverPath, desc, uuid
 }
 
-func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int) PodcastInfoJSON {
+func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) PodcastInfoJSON {
 	mp3s := util.FindMP3Files(pod.Dir)
 	cleanCount, totalDur, totalSize, recent := collectPodcastStatsAndRecent(pod, mp3s, maxEpisodes)
 	author, feedURL, coverPath, desc, uuid := getPodcastMetadataFields(pod)
@@ -151,6 +160,8 @@ func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int) PodcastInfoJSON 
 		Directory:          pod.Dir,
 		Author:             author,
 		FeedURL:            feedURL,
+		LocalFeedURL:       publishedURL(baseURL, pod.Dir, "feed.xml"),
+		LocalPageURL:       publishedURL(baseURL, pod.Dir, "index.html"),
 		CoverPath:          coverPath,
 		Description:        desc,
 		AutoDownload:       autoDl,
@@ -167,6 +178,16 @@ func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int) PodcastInfoJSON 
 	}
 }
 
+// publishedURL is where one of a show's published files is served, or empty
+// when no base URL is configured and nothing is being served at all.
+func publishedURL(baseURL, podDir, name string) string {
+	base := strings.TrimRight(baseURL, "/")
+	if base == "" || podDir == "" {
+		return ""
+	}
+	return base + "/" + url.PathEscape(filepath.Base(podDir)) + "/" + name
+}
+
 func formatPodcastInfo(info PodcastInfoJSON) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n%s\n", strings.Repeat("=", 80)))
@@ -181,7 +202,13 @@ func formatPodcastInfo(info PodcastInfoJSON) string {
 		sb.WriteString(fmt.Sprintf("  Author:           %s\n", util.DisplayName(info.Author)))
 	}
 	if info.FeedURL != "" {
-		sb.WriteString(fmt.Sprintf("  Feed URL:         %s\n", info.FeedURL))
+		sb.WriteString(fmt.Sprintf("  Source Feed:      %s\n", info.FeedURL))
+	}
+	if info.LocalFeedURL != "" {
+		sb.WriteString(fmt.Sprintf("  Subscribe (RSS):  %s\n", util.BoldCyan(info.LocalFeedURL)))
+	}
+	if info.LocalPageURL != "" {
+		sb.WriteString(fmt.Sprintf("  Web Page:         %s\n", info.LocalPageURL))
 	}
 	if info.CoverPath != "" {
 		sb.WriteString(fmt.Sprintf("  Cover:            %s\n", info.CoverPath))

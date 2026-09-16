@@ -2,7 +2,6 @@ pkg/adremoval/batch_proc_file.go processSingleAudioFile() [16 branches (limit 15
 pkg/adremoval/rmads_audit.go RunTranscriptAudit() [16 branches (limit 15)]
 pkg/adremoval/rm_ads_podcast.go resolveMatchingEpisodeAudioFile() [16 branches (limit 15)]
 pkg/backend/sanitize.go StripHTML() [depth 5 (limit 4)]
-pkg/cli/check.go runCheckCommand() [else after terminal statement at line 6]
 pkg/cli/config_whisper.go parseEngineFirstSpec() [19 branches (limit 15)]
 pkg/cli/queue.go handleQueueClear() [else after terminal statement at line 13]
 pkg/cli/queue_today.go todayQueueCandidates() [depth 5 (limit 4)]

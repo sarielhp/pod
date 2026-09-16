@@ -7,7 +7,18 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Added
+- **`pod gen_rss <podcast> N`** scopes the fetch-clean-publish run to one show,
+  so a single podcast can be brought up to date without touching the rest of
+  the library.
+
 ### Changed
+- A podcast can be named by its short id, its folder, its title or a fragment
+  of any of them. `SubscriptionMatches` accepted only the subscription's UUID
+  or a title substring, so `tdbwg` — the very id `pod info` prints back —
+  matched nothing, and neither did the folder name. Separators are normalised,
+  so `daily blast`, `DAILY-BLAST` and `THE_DAILY_BLAST_with_Greg_Sargent` all
+  find the same show.
 - `pod rm_ads -n/--limit` is documented rather than hidden. Bounding a run is
   what makes ad removal safe to schedule: an unbounded sweep over a library
   with a backlog is many hours of GPU and a real detection bill, and it holds

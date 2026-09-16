@@ -42,16 +42,7 @@ func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptio
 		targets = []string{cfg.PodcastsDir}
 	}
 
-	minRatio := 0.15
-	if opts.AuditMinRatioStr != "" {
-		if v, err := strconv.ParseFloat(opts.AuditMinRatioStr, 64); err == nil && v > 0 {
-			minRatio = v
-		}
-	}
-	minChars := opts.AuditMinChars
-	if minChars <= 0 {
-		minChars = 50
-	}
+	minRatio, minChars := auditThresholds(opts)
 
 	audioFiles := collectAudioFilesForAudit(targets)
 	if len(audioFiles) == 0 {
@@ -65,10 +56,7 @@ func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptio
 		fmt.Printf("Auditing transcripts across %d audio file(s)...\n", len(audioFiles))
 	}
 
-	scanned := 0
-	suspiciousCount := 0
-	uncutCount := 0
-	adFailedCount := 0
+	var tally auditTally
 	var failures []error
 
 	for _, audioPath := range audioFiles {
@@ -76,26 +64,62 @@ func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptio
 		if item == nil {
 			continue
 		}
-		scanned++
-		if item.cleanStateMsg != "" {
-			uncutCount++
-		} else if item.isSuspicious {
-			suspiciousCount++
-		} else if item.adFailed {
-			adFailedCount++
-		} else if opts.Verbose && !opts.Quiet {
-			fmt.Printf("  [OK] %s (%.0fs, %d chars, %.1f%% coverage)\n",
-				auditDisplayName(item.audioPath), item.audioDur, item.textChars, item.coverageRatio*100)
+		tally.count(item, opts)
+		if !item.needsRepair() {
+			continue
 		}
-		if item.cleanStateMsg != "" || item.isSuspicious || item.adFailed {
-			if err := repairAuditedEpisode(item, cfg, opts.DryRun, opts.Quiet); err != nil {
-				failures = append(failures, fmt.Errorf("audit %s: %w", audioPath, err))
-			}
+		if err := repairAuditedEpisode(item, cfg, opts.DryRun, opts.Quiet); err != nil {
+			failures = append(failures, fmt.Errorf("audit %s: %w", audioPath, err))
 		}
 	}
 
-	printAuditSummary(scanned, suspiciousCount, uncutCount, adFailedCount, opts.DryRun, opts.Quiet)
+	printAuditSummary(tally.scanned, tally.suspicious, tally.uncut, tally.adFailed, opts.DryRun, opts.Quiet)
 	return errors.Join(failures...)
+}
+
+// auditThresholds reads the audit's tuning, falling back to defaults for a
+// value that is absent or unparseable.
+func auditThresholds(opts types.ProcOptions) (minRatio float64, minChars int) {
+	minRatio, minChars = 0.15, opts.AuditMinChars
+	if opts.AuditMinRatioStr != "" {
+		if v, err := strconv.ParseFloat(opts.AuditMinRatioStr, 64); err == nil && v > 0 {
+			minRatio = v
+		}
+	}
+	if minChars <= 0 {
+		minChars = 50
+	}
+	return minRatio, minChars
+}
+
+// auditTally counts what the audit found.
+type auditTally struct {
+	scanned    int
+	suspicious int
+	uncut      int
+	adFailed   int
+}
+
+// count records one inspected episode, reporting the healthy ones when asked
+// to be verbose.
+func (t *auditTally) count(item *transcriptAuditItem, opts types.ProcOptions) {
+	t.scanned++
+	switch {
+	case item.cleanStateMsg != "":
+		t.uncut++
+	case item.isSuspicious:
+		t.suspicious++
+	case item.adFailed:
+		t.adFailed++
+	case opts.Verbose && !opts.Quiet:
+		fmt.Printf("  [OK] %s (%.0fs, %d chars, %.1f%% coverage)\n",
+			auditDisplayName(item.audioPath), item.audioDur, item.textChars, item.coverageRatio*100)
+	}
+}
+
+// needsRepair reports an episode the audit should try to heal.
+func (i *transcriptAuditItem) needsRepair() bool {
+	return i.cleanStateMsg != "" || i.isSuspicious || i.adFailed
 }
 
 func auditDisplayName(p string) string {

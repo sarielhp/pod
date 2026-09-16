@@ -117,65 +117,81 @@ func listWhispers(w io.Writer, cfg Config) {
 func parseEngineFirstSpec(parts []string, nextID int, name string, engine WhisperEngine) WhisperProfile {
 	wp := WhisperProfile{ID: nextID, Name: name, Engine: engine, SpeedFactor: 7.0}
 	if engine == WhisperEngineLocal {
-		wp.SpeedFactor = 70.0
-		wp.Model = "tiny.en"
-		wp.CliBinary = "whisper-cli"
-		wp.Processors = 4
-		wp.Threads = 4
-		wp.Greedy = true
-		if len(parts) > 2 && strings.TrimSpace(parts[2]) != "" {
-			wp.Model = strings.TrimSpace(parts[2])
-		}
-		if len(parts) > 3 && strings.TrimSpace(parts[3]) != "" {
-			if sf, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64); err == nil {
-				wp.SpeedFactor = sf
-			}
-		}
-		if len(parts) > 4 && strings.TrimSpace(parts[4]) != "" {
-			if p, err := strconv.Atoi(strings.TrimSpace(parts[4])); err == nil {
-				wp.Processors = p
-			}
-		}
-		if len(parts) > 5 && strings.TrimSpace(parts[5]) != "" {
-			if t, err := strconv.Atoi(strings.TrimSpace(parts[5])); err == nil {
-				wp.Threads = t
-			}
-		}
-		if len(parts) > 6 && strings.TrimSpace(parts[6]) != "" {
-			wp.Greedy = strings.TrimSpace(parts[6]) != "false"
-		}
-		return wp
+		return parseLocalWhisperSpec(wp, parts)
 	}
-	if len(parts) > 2 {
-		wp.URL = strings.TrimSpace(parts[2])
+	return parseServerWhisperSpec(wp, parts, engine)
+}
+
+// specField is the trimmed positional field, or empty when the spec is
+// shorter than that. Positional specs are written by hand and routinely stop
+// early, so "absent" and "left blank" mean the same thing: keep the default.
+func specField(parts []string, i int) string {
+	if i >= len(parts) {
+		return ""
 	}
-	if len(parts) > 3 && strings.TrimSpace(parts[3]) != "" {
-		if sf, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64); err == nil {
-			wp.SpeedFactor = sf
-		}
+	return strings.TrimSpace(parts[i])
+}
+
+// parseLocalWhisperSpec reads name:engine:model:speed:processors:threads:greedy.
+func parseLocalWhisperSpec(wp WhisperProfile, parts []string) WhisperProfile {
+	wp.SpeedFactor = 70.0
+	wp.Model = "tiny.en"
+	wp.CliBinary = "whisper-cli"
+	wp.Processors = 4
+	wp.Threads = 4
+	wp.Greedy = true
+
+	if v := specField(parts, 2); v != "" {
+		wp.Model = v
 	}
-	if engine == WhisperEngineDocker {
-		if len(parts) > 4 {
-			wp.DockerContainer = strings.TrimSpace(parts[4])
-		}
-		if len(parts) > 5 {
-			wp.Language = strings.TrimSpace(parts[5])
-		}
-		if len(parts) > 6 {
-			wp.Prompt = strings.TrimSpace(parts[6])
-		}
-	} else {
-		if len(parts) > 4 {
-			wp.WakeCommand = strings.TrimSpace(parts[4])
-		}
-		if len(parts) > 5 {
-			wp.Language = strings.TrimSpace(parts[5])
-		}
-		if len(parts) > 6 {
-			wp.Prompt = strings.TrimSpace(parts[6])
-		}
+	if sf, ok := specFloat(parts, 3); ok {
+		wp.SpeedFactor = sf
+	}
+	if p, ok := specInt(parts, 4); ok {
+		wp.Processors = p
+	}
+	if t, ok := specInt(parts, 5); ok {
+		wp.Threads = t
+	}
+	if v := specField(parts, 6); v != "" {
+		wp.Greedy = v != "false"
 	}
 	return wp
+}
+
+// parseServerWhisperSpec reads name:engine:url:speed then either
+// container:language:prompt for docker, or wake:language:prompt otherwise.
+func parseServerWhisperSpec(wp WhisperProfile, parts []string, engine WhisperEngine) WhisperProfile {
+	wp.URL = specField(parts, 2)
+	if sf, ok := specFloat(parts, 3); ok {
+		wp.SpeedFactor = sf
+	}
+	if engine == WhisperEngineDocker {
+		wp.DockerContainer = specField(parts, 4)
+	} else {
+		wp.WakeCommand = specField(parts, 4)
+	}
+	wp.Language = specField(parts, 5)
+	wp.Prompt = specField(parts, 6)
+	return wp
+}
+
+func specFloat(parts []string, i int) (float64, bool) {
+	v := specField(parts, i)
+	if v == "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	return f, err == nil
+}
+
+func specInt(parts []string, i int) (int, bool) {
+	v := specField(parts, i)
+	if v == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(v)
+	return n, err == nil
 }
 
 func parseURLFirstSpec(parts []string, nextID int, name, url string) WhisperProfile {

@@ -272,62 +272,68 @@ func resolveMatchingEpisodeAudioFile(podDir string, ep backend.Episode) (string,
 	if ep.AudioFile == nil || ep.AudioFile.Metadata == nil {
 		return "", false
 	}
-	podBase := filepath.Base(podDir)
-	podRoot := filepath.Dir(podDir)
-
-	checkCandidatePath := func(raw string) string {
-		if raw == "" {
-			return ""
+	meta := ep.AudioFile.Metadata
+	for _, raw := range []string{meta.Path, meta.RelPath} {
+		if p := locateEpisodeAudio(podDir, raw); p != "" {
+			return p, true
 		}
-		if util.FileExists(raw) {
-			return raw
-		}
-		if p := filepath.Join(podDir, raw); util.FileExists(p) {
-			return p
-		}
-		if p := filepath.Join(podDir, filepath.Base(raw)); util.FileExists(p) {
-			return p
-		}
-		epDirName := filepath.Base(filepath.Dir(raw))
-		if epDirName != "." && epDirName != "/" && epDirName != "" && epDirName != podBase {
-			if p := filepath.Join(podDir, epDirName, filepath.Base(raw)); util.FileExists(p) {
-				return p
-			}
-		}
-
-		if p := filepath.Join(podRoot, raw); util.FileExists(p) {
-			return p
-		}
-		trimmed := strings.TrimPrefix(raw, "/podcasts/")
-		trimmed = strings.TrimPrefix(trimmed, "podcasts/")
-		trimmed = strings.TrimPrefix(trimmed, "/")
-		if p := filepath.Join(podRoot, trimmed); util.FileExists(p) {
-			return p
-		}
-		if p := filepath.Join(podDir, trimmed); util.FileExists(p) {
-			return p
-		}
-		if strings.HasPrefix(trimmed, podBase+"/") {
-			rel := strings.TrimPrefix(trimmed, podBase+"/")
-			if p := filepath.Join(podDir, rel); util.FileExists(p) {
-				return p
-			}
-		}
-		return ""
 	}
-
-	if p := checkCandidatePath(ep.AudioFile.Metadata.Path); p != "" {
-		return p, true
-	}
-	if p := checkCandidatePath(ep.AudioFile.Metadata.RelPath); p != "" {
-		return p, true
-	}
-	if ep.AudioFile.Metadata.Filename != "" {
-		if p := filepath.Join(podDir, ep.AudioFile.Metadata.Filename); util.FileExists(p) {
+	if meta.Filename != "" {
+		if p := filepath.Join(podDir, meta.Filename); util.FileExists(p) {
 			return p, true
 		}
 	}
 	return "", false
+}
+
+// locateEpisodeAudio finds the local file a backend path refers to.
+//
+// The path may be absolute, relative to the podcast, relative to the library,
+// or carry a "/podcasts/" prefix from the server that recorded it, so each
+// interpretation is tried in turn and the first that exists wins.
+func locateEpisodeAudio(podDir, raw string) string {
+	if raw == "" {
+		return ""
+	}
+	for _, candidate := range episodeAudioCandidates(podDir, raw) {
+		if util.FileExists(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// episodeAudioCandidates lists every place a recorded path might mean, in
+// order of preference.
+func episodeAudioCandidates(podDir, raw string) []string {
+	podBase := filepath.Base(podDir)
+	podRoot := filepath.Dir(podDir)
+
+	candidates := []string{
+		raw,
+		filepath.Join(podDir, raw),
+		filepath.Join(podDir, filepath.Base(raw)),
+	}
+
+	// A path recorded as "<episode dir>/<file>" keeps its own directory, but
+	// only when that directory is not the podcast itself.
+	if epDir := filepath.Base(filepath.Dir(raw)); epDir != "." && epDir != "/" && epDir != "" && epDir != podBase {
+		candidates = append(candidates, filepath.Join(podDir, epDir, filepath.Base(raw)))
+	}
+
+	candidates = append(candidates, filepath.Join(podRoot, raw))
+
+	trimmed := strings.TrimPrefix(raw, "/podcasts/")
+	trimmed = strings.TrimPrefix(trimmed, "podcasts/")
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	candidates = append(candidates,
+		filepath.Join(podRoot, trimmed),
+		filepath.Join(podDir, trimmed))
+
+	if strings.HasPrefix(trimmed, podBase+"/") {
+		candidates = append(candidates, filepath.Join(podDir, strings.TrimPrefix(trimmed, podBase+"/")))
+	}
+	return candidates
 }
 
 func findLocalPathForFeedEpisode(podDir string, fe backend.FeedEpisode, item *backend.Podcast) (string, bool) {

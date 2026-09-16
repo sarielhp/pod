@@ -21,6 +21,41 @@ import (
 	"pod/pkg/util"
 )
 
+// markTranscriptionStarted records that this episode is being transcribed,
+// along with what the source audio was before anything was cut from it.
+func markTranscriptionStarted(mainMP3File, sourceAudioFile string, totalDuration float64, verbose bool) {
+	err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+		st.Status = types.StateTranscribingLocally
+		st.Original.DurationSec = totalDuration
+		if fi, err := os.Stat(sourceAudioFile); err == nil {
+			st.Original.SizeBytes = fi.Size()
+		}
+	})
+	if err != nil && verbose {
+		fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
+	}
+}
+
+// applyPreviewLimit truncates the audio when only the first few minutes were
+// asked for, returning the duration actually being transcribed.
+func applyPreviewLimit(sourceAudioFile *string, totalDuration float64, opts types.ProcOptions) float64 {
+	if opts.TranscribeMin == "" {
+		return totalDuration
+	}
+	limited, err := pipeline.HandleTranscribeMin(sourceAudioFile, totalDuration, opts.TranscribeMin)
+	if err != nil && !opts.Quiet {
+		fmt.Fprintf(os.Stderr, "Warning: failed to truncate preview audio: %v\n", err)
+	}
+	return limited
+}
+
+// discardTruncatedPreview removes the temporary audio a preview limit made.
+func discardTruncatedPreview(sourceAudioFile string) {
+	if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
+		os.Remove(sourceAudioFile)
+	}
+}
+
 func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, action string, batchStartTime time.Time, selectedProfile types.LLMProfile) (hasError bool, processed bool, stop bool) {
 	fileStartTime := time.Now()
 
@@ -45,43 +80,23 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	processed = true
 
 	totalDuration := audio.GetAudioDuration(sourceAudioFile)
-	if err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
-		st.Status = types.StateTranscribingLocally
-		st.Original.DurationSec = totalDuration
-		if fi, err := os.Stat(sourceAudioFile); err == nil {
-			st.Original.SizeBytes = fi.Size()
-		}
-	}); err != nil && opts.Verbose {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
-	}
-
-	if opts.TranscribeMin != "" {
-		var err error
-		totalDuration, err = pipeline.HandleTranscribeMin(&sourceAudioFile, totalDuration, opts.TranscribeMin)
-		if err != nil && !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: failed to truncate preview audio: %v\n", err)
-		}
-	}
+	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
+	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
 	if opts.Recut {
 		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime)
 		return err != nil, processed, false
 	}
 
-	needsTranscription := !util.FileExists(jsonFile) || opts.ForceTranscribe
-	if needsTranscription && canRunSpeculativeRace(config, opts) {
-		success, handled := handleSpeculativeStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
-		if handled {
-			if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
-				os.Remove(sourceAudioFile)
-			}
-			return !success, processed, false
+	if needsTranscription := !util.FileExists(jsonFile) || opts.ForceTranscribe; needsTranscription {
+		var success, handled bool
+		switch {
+		case canRunSpeculativeRace(config, opts):
+			success, handled = handleSpeculativeStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
+		case isGeminiEngine(config, opts):
+			success, handled = handleGeminiStepWithFallback(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
 		}
-	} else if needsTranscription && isGeminiEngine(config, opts) {
-		success, handled := handleGeminiStepWithFallback(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
 		if handled {
-			if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
-				os.Remove(sourceAudioFile)
-			}
+			discardTruncatedPreview(sourceAudioFile)
 			return !success, processed, false
 		}
 	}

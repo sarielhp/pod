@@ -190,6 +190,34 @@ func renderEpisodeDetailLeftPane(m *tuiModel, fullTitle, dateStr, badgeLeft, des
 	return leftLines
 }
 
+// adCutTimelineLines renders the ad-cut timeline for an episode, or nothing
+// when it has no cuts recorded or the timeline does not fit.
+func adCutTimelineLines(ep tuiEpisode, rightW int) []string {
+	data, err := os.ReadFile(strings.TrimSuffix(ep.path, ".mp3") + ".cuts.json")
+	if err != nil {
+		return nil
+	}
+	var cd types.CutsData
+	if json.Unmarshal(data, &cd) != nil || len(cd.CutIntervals) == 0 {
+		return nil
+	}
+	dur := ep.duration
+	if dur <= 0 {
+		dur = cd.OriginalDurationSec
+	}
+	timelineStr := renderVisualAdCutTimeline(dur, cd.CutIntervals, rightW-4)
+	if timelineStr == "" {
+		return nil
+	}
+	var out []string
+	for _, tl := range strings.Split(timelineStr, "\n") {
+		if strings.TrimSpace(tl) != "" {
+			out = append(out, tl)
+		}
+	}
+	return append(out, "")
+}
+
 func renderEpisodeDetailPlayerPane(ep tuiEpisode, totalDurStr string, rightW int) []string {
 	var rightLines []string
 	rightLines = append(rightLines, tuiSectionTitle.Render(" AUDIO PLAYER (F4 to hide) "))
@@ -209,25 +237,7 @@ func renderEpisodeDetailPlayerPane(ep tuiEpisode, totalDurStr string, rightW int
 	}
 	rightLines = append(rightLines, "")
 
-	basePath := strings.TrimSuffix(ep.path, ".mp3")
-	cutsFile := basePath + ".cuts.json"
-	if data, err := os.ReadFile(cutsFile); err == nil {
-		var cd types.CutsData
-		if json.Unmarshal(data, &cd) == nil && len(cd.CutIntervals) > 0 {
-			dur := ep.duration
-			if dur <= 0 {
-				dur = cd.OriginalDurationSec
-			}
-			if timelineStr := renderVisualAdCutTimeline(dur, cd.CutIntervals, rightW-4); timelineStr != "" {
-				for _, tl := range strings.Split(timelineStr, "\n") {
-					if strings.TrimSpace(tl) != "" {
-						rightLines = append(rightLines, tl)
-					}
-				}
-				rightLines = append(rightLines, "")
-			}
-		}
-	}
+	rightLines = append(rightLines, adCutTimelineLines(ep, rightW)...)
 
 	speaker := pv.CurrentSpeaker
 	if speaker == "" {

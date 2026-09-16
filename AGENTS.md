@@ -123,10 +123,13 @@ tiers above and files land in the 300–700 range on their own.
 
 `tools/check` runs `go-audit --quiet .` and compares against
 `tools/go-audit-baseline.txt`, the same pattern used for staticcheck. **New findings
-fail the gate; pre-existing ones do not.** Never regenerate the baseline to silence a
-finding you introduced — fix it, as `pkg/gemini` was fixed when it first ran.
-Regenerate only when findings are genuinely resolved, or for a deliberate exception
-explained in the commit message.
+fail the gate; baselined ones do not.**
+
+**The baseline is currently empty, and should stay that way.** Every finding it once
+carried has been fixed, so any entry appearing in it now is a regression rather than
+inherited debt. Never add to it to silence a finding you introduced — fix the code.
+The file survives only so that a future wholesale change has somewhere to record
+deliberate, explained exceptions.
 
 Install the tooling once per machine:
 

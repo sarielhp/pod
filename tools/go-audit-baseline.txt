@@ -1,5 +1,0 @@
-pkg/adremoval/batch_proc_file.go processSingleAudioFile() [16 branches (limit 15)]
-pkg/adremoval/rmads_audit.go RunTranscriptAudit() [16 branches (limit 15)]
-pkg/adremoval/rm_ads_podcast.go resolveMatchingEpisodeAudioFile() [16 branches (limit 15)]
-pkg/cli/config_whisper.go parseEngineFirstSpec() [19 branches (limit 15)]
-pkg/tui/tui_episode_view.go renderEpisodeDetailPlayerPane() [depth 5 (limit 4)]

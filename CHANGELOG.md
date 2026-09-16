@@ -7,6 +7,16 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Changed
+- **The complexity baseline is empty: the codebase has no outstanding
+  findings.** All 21 inherited violations are fixed — seven `else` blocks
+  after a terminal statement, one naked return, five functions nested five
+  deep, and eight carrying 16 to 22 decision points against a limit of 15.
+  Three of the branch-heavy ones shared the same inline logic, so extracting
+  it (`maxIndex`, `missingAfter`, `fetchableAfter`, `reverseEpisodes`,
+  `trimToCount`) fixed all three at once. Anything the auditor reports from
+  here is a regression rather than inherited debt.
+
 ### Added
 - **`pod info check --models`** compares the Gemini model chain against the
   models the key can actually reach. The chain is hand-written and rots

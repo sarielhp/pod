@@ -158,10 +158,7 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 	}
 
 	resultCh := make(chan SpeculativeCandidateResult, len(racers))
-	chunkDur := gemini.DefaultGeminiChunkSec
-	if cfg.ChunkDurationSec > 0 {
-		chunkDur = float64(cfg.ChunkDurationSec)
-	}
+	chunkDur := cfg.GeminiChunkSecCapped(cfg.ChunkDurationSec)
 
 	for _, racer := range racers {
 		if racer.IsGemini {

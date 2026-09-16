@@ -205,10 +205,7 @@ func runGeminiPipelineStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, o
 	ctx := context.Background()
 	t0Step1 := time.Now()
 
-	chunkDur := gemini.DefaultGeminiChunkSec
-	if cfg.ChunkDurationSec > 0 {
-		chunkDur = float64(cfg.ChunkDurationSec)
-	}
+	chunkDur := cfg.GeminiChunkSecCapped(cfg.ChunkDurationSec)
 	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, sourceAudioFile, cfg, chunkDur)
 	transcribe.StampBackend(td, types.WhisperEngineGemini, cfg.GetGeminiModel())
 	if err != nil {

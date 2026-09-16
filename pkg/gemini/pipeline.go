@@ -18,7 +18,9 @@ import (
 	"pod/pkg/util"
 )
 
-const DefaultGeminiChunkSec = 1800.0
+// DefaultGeminiChunkSec is re-exported so callers in this package's
+// vocabulary need not reach into pkg/types for it.
+const DefaultGeminiChunkSec = types.DefaultGeminiChunkSec
 
 func ConvertGeminiToAbsTypes(payload *types.GeminiResponsePayload) (*types.TranscriptionData, []types.AdSegment) {
 	td := &types.TranscriptionData{}
@@ -143,6 +145,10 @@ func PrepareGeminiChunks(audioPath string, chunks []types.GeminiChunkInfo) ([]ty
 }
 
 func ProcessSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg types.Config) (*types.GeminiChunkResult, error) {
+	return processSingleGeminiChunk(ctx, ch, cfg, newModelSelector(GeminiModelChain(&cfg)))
+}
+
+func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg types.Config, sel *modelSelector) (*types.GeminiChunkResult, error) {
 	apiKey := config.ResolveGeminiAPIKey(&cfg)
 	if apiKey != "" {
 		fileURI, fileName, err := UploadAudioToGeminiStudio(ctx, apiKey, ch.FilePath)
@@ -151,7 +157,7 @@ func ProcessSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg
 		}
 		defer DeleteGeminiStudioFile(ctx, apiKey, fileName)
 
-		payload, err := CallGeminiStudioProcessor(ctx, apiKey, cfg.GetGeminiModel(), fileURI)
+		payload, err := callStudioAcrossModels(ctx, apiKey, fileURI, sel)
 		if err != nil {
 			return nil, fmt.Errorf("chunk %d studio processing failed:\n   %w", ch.Index, err)
 		}
@@ -191,6 +197,10 @@ func ProcessGeminiChunksParallel(ctx context.Context, chunks []types.GeminiChunk
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// One selector for the whole file: see modelSelector on why the chunks
+	// must agree on a model rather than each discovering an exhausted one.
+	sel := newModelSelector(GeminiModelChain(&cfg))
+
 	results := make([]*types.GeminiChunkResult, len(chunks))
 	var wg util.WaitGroup
 	var mu util.Mutex
@@ -223,7 +233,7 @@ func ProcessGeminiChunksParallel(ctx context.Context, chunks []types.GeminiChunk
 				mu.Unlock()
 				return
 			}
-			res, err := ProcessSingleGeminiChunk(ctx, chunk, cfg)
+			res, err := processSingleGeminiChunk(ctx, chunk, cfg, sel)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil && firstErr == nil {
@@ -307,8 +317,9 @@ func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Co
 	defer cleanup()
 
 	if len(prepared) > 1 {
-		fmt.Printf("Splitting '%s' (%s) into %d parallel 30-min chunks for Gemini [%s]...\n",
-			filepath.Base(audioPath), format.FormatTime(totDur), len(prepared), backendLabel)
+		fmt.Printf("Splitting '%s' (%s) into %d parallel chunks of %s for Gemini [%s]...\n",
+			filepath.Base(audioPath), format.FormatTime(totDur), len(prepared),
+			format.FormatMinutes(chunkDurSec), backendLabel)
 	} else {
 		fmt.Printf("Processing '%s' with Gemini [%s]...\n", filepath.Base(audioPath), backendLabel)
 	}
@@ -323,5 +334,24 @@ func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Co
 
 	merged := MergeGeminiChunkResults(results)
 	td, ads := ConvertGeminiToAbsTypes(merged)
+	// Record the model the API says answered, rather than the one that was
+	// asked for. With a chain the two routinely differ, and an alias never
+	// named a real model in the first place.
+	if v := resolvedModelVersion(results); v != "" && td != nil {
+		td.Model = v
+	}
 	return td, ads, nil
+}
+
+// resolvedModelVersion is the model that produced these chunks. The chunks of
+// one file share a selector, so they agree except across a mid-run switch, in
+// which case the last one is the model that finished the work.
+func resolvedModelVersion(results []*types.GeminiChunkResult) string {
+	version := ""
+	for _, r := range results {
+		if r != nil && r.Payload != nil && r.Payload.ModelVersion != "" {
+			version = r.Payload.ModelVersion
+		}
+	}
+	return version
 }

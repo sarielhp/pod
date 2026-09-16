@@ -194,9 +194,16 @@ func TestComputeGeminiChunks(t *testing.T) {
 		t.Errorf("unexpected chunk 2: %+v", c3[2])
 	}
 
-	c4 := ComputeGeminiChunks(2000.0, 0)
-	if len(c4) != 2 {
-		t.Fatalf("expected 2 chunks with default chunk size, got %d", len(c4))
+	// A zero chunk length means "use the default", whatever it currently is.
+	// Deriving the expectation from the constant keeps this test about the
+	// fallback rather than about the value.
+	total := DefaultGeminiChunkSec*2 + 200
+	c4 := ComputeGeminiChunks(total, 0)
+	if len(c4) != 3 {
+		t.Fatalf("expected 3 chunks for %.0fs at the default chunk size, got %d", total, len(c4))
+	}
+	if c4[0].DurSec != DefaultGeminiChunkSec {
+		t.Errorf("default chunk length not applied: %+v", c4[0])
 	}
 }
 

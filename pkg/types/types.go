@@ -90,6 +90,10 @@ const (
 	WhisperEngineGemini WhisperEngine = "gemini"
 )
 
+// DefaultGeminiChunkSec is the audio per Gemini request when nothing overrides
+// it. See Config.GetGeminiChunkSec for why it is not larger.
+const DefaultGeminiChunkSec = 900.0
+
 type WhisperProfile struct {
 	ID              int           `json:"id"`
 	Name            string        `json:"name"`
@@ -221,6 +225,13 @@ type CLIOptions struct {
 	Latest         bool
 	ShowExamples   bool
 
+	// DetectRaw and DetectWriteCuts belong to `pod detect`. Raw reports the
+	// model's own intervals rather than the merged ones the cutter would use,
+	// which is what you want when judging the model instead of the cut.
+	DetectRaw       bool
+	DetectWriteCuts bool
+	DetectRepeat    int
+
 	// Out and Err are where this invocation's output goes. Both nil means the
 	// process streams, which is what a real command line wants. Tests supply
 	// buffers instead, so that checking what a command printed does not mean
@@ -269,6 +280,7 @@ type GeminiConfig struct {
 	GeminiAPIKey            string `json:"gemini_api_key,omitempty"`
 	GeminiAPIKeyFile        string `json:"gemini_api_key_file,omitempty"`
 	GeminiModel             string `json:"gemini_model,omitempty"`
+	GeminiChunkSec          int    `json:"gemini_chunk_sec,omitempty"`
 	GeminiAPIKeyEnabled     *bool  `json:"gemini_api_key_enabled,omitempty"`
 	OpenRouterAPIKeyEnabled *bool  `json:"openrouter_api_key_enabled,omitempty"`
 }
@@ -343,6 +355,32 @@ func (c *Config) GetGeminiModel() string {
 		return c.GeminiModel
 	}
 	return "gemini-flash-latest"
+}
+
+// GetGeminiChunkSec is how much audio is sent to Gemini in one request.
+//
+// The ceiling is the length of the reply, not the upload: a chunk of 30
+// minutes comes back as an empty candidate with blockReason "OTHER", because
+// the verbatim transcript of it does not fit in one response. Twenty minutes
+// answers reliably, so the default leaves a margin below that. Chunks are
+// transcribed in parallel, so a smaller value is not slower.
+func (c *Config) GetGeminiChunkSec() float64 {
+	if c != nil && c.GeminiChunkSec > 0 {
+		return float64(c.GeminiChunkSec)
+	}
+	return DefaultGeminiChunkSec
+}
+
+// GeminiChunkSecCapped honours chunk_duration_sec when it asks for chunks
+// shorter than Gemini can answer, and ignores it otherwise. That setting is a
+// whisper.cpp knob; letting a large value reach Gemini is exactly what makes
+// it return an empty candidate, so it may shrink the chunk but never grow it.
+func (c *Config) GeminiChunkSecCapped(whisperChunkSec int) float64 {
+	limit := c.GetGeminiChunkSec()
+	if whisperChunkSec > 0 && float64(whisperChunkSec) < limit {
+		return float64(whisperChunkSec)
+	}
+	return limit
 }
 
 func (c *Config) GetGeminiProjectID() string {

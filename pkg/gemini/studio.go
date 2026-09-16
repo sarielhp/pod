@@ -39,7 +39,27 @@ type geminiStudioGenerateResponse struct {
 			} `json:"parts"`
 		} `json:"content"`
 	} `json:"candidates"`
+	// ModelVersion is the model that actually answered. It matters because
+	// the model we ask for may be an alias: "gemini-flash-latest" resolves to
+	// a different model over time, so recording the alias on a transcript
+	// says nothing about what produced it.
+	ModelVersion string `json:"modelVersion"`
 }
+
+// ModelUnavailableError means this particular model cannot serve the request
+// now — its quota is spent, or it has been retired — while another model
+// might. The free tier meters requests per model, so trying the next one is
+// usually the difference between a transcript and a fallback to whisper.
+type ModelUnavailableError struct {
+	Model  string
+	Status int
+	Body   []byte
+	Daily  bool
+	Err    error
+}
+
+func (e *ModelUnavailableError) Error() string { return e.Err.Error() }
+func (e *ModelUnavailableError) Unwrap() error { return e.Err }
 
 func validateKey(apiKey string) (string, error) {
 	if apiKey == "" || util.IsZeroedKey(apiKey) {
@@ -176,7 +196,19 @@ type geminiErrorResponse struct {
 	} `json:"error"`
 }
 
+// CallGeminiStudioProcessor transcribes one uploaded file with one model,
+// waiting out a rate limit rather than giving up on it.
 func CallGeminiStudioProcessor(ctx context.Context, apiKey, modelName, fileURI string) (*types.GeminiResponsePayload, error) {
+	return callGeminiStudioModel(ctx, apiKey, modelName, fileURI, true)
+}
+
+// callGeminiStudioModel transcribes one uploaded file with one model.
+//
+// waitOutRateLimit says whether a 429 is worth sitting through. It is only
+// true for the last model in the chain: while another model remains, waiting
+// the minute the server asks for is a minute spent not transcribing, when a
+// model with its own untouched quota would answer immediately.
+func callGeminiStudioModel(ctx context.Context, apiKey, modelName, fileURI string, waitOutRateLimit bool) (*types.GeminiResponsePayload, error) {
 	var err error
 	apiKey, err = validateKey(apiKey)
 	if err != nil {
@@ -193,49 +225,105 @@ func CallGeminiStudioProcessor(ctx context.Context, apiKey, modelName, fileURI s
 	}
 
 	client := &http.Client{Timeout: 5 * time.Minute}
+	// Rate limiting and capacity are different problems and get different
+	// budgets. A 429 means this key is asking for too much, so retrying
+	// harder makes it worse; a 503 means the model is momentarily
+	// oversubscribed, which no amount of restraint on our side fixes and
+	// which usually clears in well under a minute. Three attempts over six
+	// seconds is not long enough to ride out a demand spike, and the cost of
+	// giving up is a whole transcript silently produced by a weaker engine.
 	const maxAttempts = 3
+	const maxOverloadAttempts = 6
 	var lastErr error
+	overloaded := false
+	budget := func() int {
+		if overloaded {
+			return maxOverloadAttempts
+		}
+		return maxAttempts
+	}
 
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for attempt := 1; attempt <= budget(); attempt++ {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
-		body, statusCode, err := executeStudioRequest(ctx, client, url, apiKey, reqBytes)
-		if err != nil {
-			lastErr = fmt.Errorf("gemini studio request failed: %w", err)
-		} else if statusCode == http.StatusOK {
+		body, statusCode, reqErr := executeStudioRequest(ctx, client, url, apiKey, reqBytes)
+		switch {
+		case reqErr != nil:
+			lastErr = fmt.Errorf("gemini studio request failed: %w", reqErr)
+		case statusCode == http.StatusOK:
 			return ParseGeminiStudioResponse(body)
-		} else {
-			errMsg := FormatGeminiErrorBody(body)
-			lastErr = fmt.Errorf("gemini studio generateContent HTTP %d: %s", statusCode, errMsg)
-			if statusCode == http.StatusTooManyRequests {
-				if IsGeminiDailyQuotaExhausted(body) {
-					TripCircuitBreaker(errMsg, DefaultDailyQuotaCooldown)
-					return nil, lastErr
-				}
-				if attempt == maxAttempts {
-					TripCircuitBreaker(errMsg, DefaultRateLimitCooldown)
-				}
-			} else if statusCode != http.StatusServiceUnavailable && statusCode != http.StatusGatewayTimeout {
+		default:
+			lastErr = studioHTTPError(statusCode, body)
+			giveUpOnRateLimit := !waitOutRateLimit || attempt == maxAttempts
+			if unavailable := studioModelUnavailable(modelName, statusCode, body, giveUpOnRateLimit); unavailable != nil {
+				return nil, unavailable
+			}
+			if !studioIsOverload(statusCode) {
 				return nil, lastErr
 			}
+			overloaded = true
 		}
 
-		if attempt < maxAttempts {
-			delay := time.Duration(attempt*2) * time.Second
-			if requested := ExtractGeminiRetryDelay(body); requested > 0 && requested <= 60*time.Second {
-				delay = requested
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(delay):
-			}
+		if attempt >= budget() {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(studioRetryDelay(attempt, overloaded, body)):
 		}
 	}
 
 	return nil, lastErr
+}
+
+func studioHTTPError(statusCode int, body []byte) error {
+	return fmt.Errorf("gemini studio generateContent HTTP %d: %s", statusCode, FormatGeminiErrorBody(body))
+}
+
+func studioIsOverload(statusCode int) bool {
+	return statusCode == http.StatusServiceUnavailable || statusCode == http.StatusGatewayTimeout
+}
+
+// studioModelUnavailable reports whether a failed response means this model
+// cannot serve the request at all, as opposed to a transient failure worth
+// retrying. Whether to stop calling Gemini altogether is deliberately not
+// decided here: another model may still have quota, and only the caller knows
+// whether one remains.
+func studioModelUnavailable(modelName string, statusCode int, body []byte, giveUpOnRateLimit bool) *ModelUnavailableError {
+	err := studioHTTPError(statusCode, body)
+	// Retired models answer 404 ("no longer available to new users"), which is
+	// permanent, and pinning a model makes it inevitable eventually.
+	if statusCode == http.StatusNotFound {
+		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Err: err}
+	}
+	if statusCode != http.StatusTooManyRequests {
+		return nil
+	}
+	if IsGeminiDailyQuotaExhausted(body) {
+		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Daily: true, Err: err}
+	}
+	if giveUpOnRateLimit {
+		return &ModelUnavailableError{Model: modelName, Status: statusCode, Body: body, Err: err}
+	}
+	return nil
+}
+
+// studioRetryDelay is how long to wait before the next attempt. A delay the
+// server asked for beats any guess of ours.
+func studioRetryDelay(attempt int, overloaded bool, body []byte) time.Duration {
+	if requested := ExtractGeminiRetryDelay(body); requested > 0 && requested <= 60*time.Second {
+		return requested
+	}
+	if overloaded {
+		// 2s, 4s, 8s, 16s, 32s: about a minute in total, which is the
+		// timescale Google's own "spikes are usually temporary" message
+		// refers to.
+		return time.Duration(1<<attempt) * time.Second
+	}
+	return time.Duration(attempt*2) * time.Second
 }
 
 func buildStudioGeneratePayload(fileURI string) ([]byte, error) {
@@ -393,5 +481,9 @@ func ParseGeminiStudioResponse(body []byte) (*types.GeminiResponsePayload, error
 	for _, part := range res.Candidates[0].Content.Parts {
 		sb.WriteString(part.Text)
 	}
-	return ParseGeminiJSONString(sb.String())
+	payload, err := ParseGeminiJSONString(sb.String())
+	if payload != nil {
+		payload.ModelVersion = res.ModelVersion
+	}
+	return payload, err
 }

@@ -322,14 +322,35 @@ func resolveWhisperRoutingProfile(cfg *types.Config, sourceAudioFile string, opt
 	}
 	if opts.WhisperModel != "" {
 		wp.Model = opts.WhisperModel
+		// Gemini takes its model from the config rather than the profile, so
+		// without this --whisper-model is silently ignored whenever the engine
+		// is Gemini. It matters because the free tier's request quota is per
+		// model: when one model is exhausted, naming another is the difference
+		// between a transcript and a fallback to whisper.
+		if wp.Engine == types.WhisperEngineGemini {
+			cfg.GeminiModel = opts.WhisperModel
+		}
 	}
 	return wp
 }
 
-func handleGeminiWhisperFallback(ctx context.Context, sourceAudioFile string, cfg types.Config, opts types.ProcOptions, whisperPrompt, whisperLang string) (*types.TranscriptionData, types.WhisperProfile, types.Config, error) {
-	td, _, err := gemini.ProcessWithGeminiConfig(ctx, sourceAudioFile, cfg, gemini.DefaultGeminiChunkSec)
+// handleGeminiWhisperFallback runs the Gemini transcription and, when it
+// fails, the local whisper fallback. It returns the transcript together with
+// the profile and config that produced it, so the caller can record the
+// backend that did the work rather than the one that was asked for. A nil
+// transcript means neither path produced one and the caller should go on to
+// the whisper server, using the returned fallback profile.
+func handleGeminiWhisperFallback(ctx context.Context, sourceAudioFile string, cfg types.Config, opts types.ProcOptions, whisperPrompt, whisperLang string, geminiWp types.WhisperProfile) (*types.TranscriptionData, types.WhisperProfile, types.Config) {
+	td, _, err := gemini.ProcessWithGeminiConfig(ctx, sourceAudioFile, cfg, cfg.GetGeminiChunkSec())
 	if err == nil {
-		return td, types.WhisperProfile{}, cfg, nil
+		// Prefer the model Gemini reports as having answered: a chain may have
+		// moved past the configured one, and the configured one may be an
+		// alias that names no particular model.
+		geminiWp.Model = cfg.GetGeminiModel()
+		if td != nil && td.Model != "" {
+			geminiWp.Model = td.Model
+		}
+		return td, geminiWp, cfg
 	}
 	if !opts.Quiet {
 		fmt.Printf("\n%s\n   %s\n   ➔ %s\n\n",
@@ -342,9 +363,12 @@ func handleGeminiWhisperFallback(ctx context.Context, sourceAudioFile string, cf
 	fallbackWp := config.GetActiveWhisperProfile(&fallbackCfg)
 	if fallbackWp.Engine == types.WhisperEngineLocal {
 		res, runErr := transcribe.RunWhisperCLITranscription(sourceAudioFile, fallbackWp, opts.Quiet, opts.Verbose, whisperPrompt, whisperLang)
-		return res, fallbackWp, fallbackCfg, runErr
+		if runErr != nil {
+			res = nil
+		}
+		return res, fallbackWp, fallbackCfg
 	}
-	return nil, fallbackWp, fallbackCfg, err
+	return nil, fallbackWp, fallbackCfg
 }
 
 func transcribeWhisperServerWithChunkFallback(sourceAudioFile string, cfg types.Config, opts types.ProcOptions, wp types.WhisperProfile, totalDuration, speedFactor float64, dockerContainer, whisperPrompt, whisperLang string) (*types.TranscriptionData, error) {
@@ -398,11 +422,16 @@ func runWhisperTranscription(sourceAudioFile string, cfg types.Config, opts type
 		return transcribe.RunWhisperCLITranscription(sourceAudioFile, wp, opts.Quiet, opts.Verbose, whisperPrompt, whisperLang)
 	}
 	if wp.Engine == types.WhisperEngineGemini {
-		res, fallbackWp, fallbackCfg, err := handleGeminiWhisperFallback(context.Background(), sourceAudioFile, cfg, opts, whisperPrompt, whisperLang)
-		if res != nil || err == nil {
+		// usedWp is the profile that actually produced res, which is not
+		// necessarily the Gemini one: a failed Gemini call falls back to
+		// whisper. Adopting it before returning is what keeps the deferred
+		// StampBackend honest — otherwise a fallback transcript is labelled
+		// "Gemini", and with a flaky API key that is the common case.
+		res, usedWp, usedCfg := handleGeminiWhisperFallback(context.Background(), sourceAudioFile, cfg, opts, whisperPrompt, whisperLang, wp)
+		wp, cfg = usedWp, usedCfg
+		if res != nil {
 			return res, nil
 		}
-		wp, cfg = fallbackWp, fallbackCfg
 	}
 
 	return transcribeWhisperServerWithChunkFallback(sourceAudioFile, cfg, opts, wp, totalDuration, speedFactor, dockerContainer, whisperPrompt, whisperLang)

@@ -34,6 +34,12 @@ type GeminiSegmentItem struct {
 type GeminiResponsePayload struct {
 	Cuts     []GeminiCutItem     `json:"cuts"`
 	Segments []GeminiSegmentItem `json:"segments"`
+
+	// ModelVersion is the model the API reports as having answered, which is
+	// not necessarily the one that was requested: an alias such as
+	// "gemini-flash-latest" resolves to whatever is current. It is carried so
+	// the transcript can record what actually produced it.
+	ModelVersion string `json:"-"`
 }
 
 type GeminiChunkInfo struct {

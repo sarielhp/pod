@@ -5,6 +5,21 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Added
+- **`pod gen_rss N`** — fetch, ad-strip and publish the N most recently
+  published episodes across the library in one command. Doing it by hand meant
+  `server download`, then `rm_ads` per episode, then `gen_rss`, and forgetting
+  the last step left the site describing audio that had changed underneath it.
+  Each podcast's download policy is deliberately ignored: the policy governs
+  unattended downloading, while this is an explicit request for the newest N
+  whatever their shows are configured to do, and favourite status is not
+  consulted either. Hourly news bulletins are skipped unless `--hourly` is
+  given, since one of them publishes enough episodes to take every slot.
+  Episodes already downloaded but never cleaned are included, because that is
+  exactly what such a request means to catch.
+
 ## [0.5.0] - 2026-09-16
 
 ### Added

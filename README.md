@@ -146,6 +146,7 @@ pod info check              # Test external services (Whisper, ABS, Kitty)
 # Feed sync & server operations (all under `server`)
 pod server feeds            # Check upstream RSS feeds for new episodes (reads remote)
 pod gen_rss          # Generate local feed.xml + index.html (writes local)
+pod gen_rss 10       # Fetch, ad-strip and publish the 10 newest episodes
 pod server download         # Download pending episodes according to podcast policy
 pod server download p0001 -k 3 # Download up to 3 missing episodes for a podcast
 pod server flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts

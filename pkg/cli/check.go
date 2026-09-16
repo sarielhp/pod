@@ -41,8 +41,10 @@ func reportModelChain(w io.Writer, cfg *Config) error {
 			fmt.Fprintf(w, "  %s\n", m)
 		}
 		fmt.Fprintln(w, "\n  Each carries its own daily allowance, so adding one is extra")
-		fmt.Fprintln(w, "  capacity as well as a possible upgrade. Ordering them is a quality")
-		fmt.Fprintln(w, "  judgement — measure with `pod detect --repeat` before promoting one.")
+		fmt.Fprintln(w, "  capacity as well as a possible upgrade. Two caveats: being listed is")
+		fmt.Fprintln(w, "  not the same as being callable — a model withdrawn from new users")
+		fmt.Fprintln(w, "  still appears here and answers 404 — and ordering models is a quality")
+		fmt.Fprintln(w, "  judgement. Measure with `pod detect --repeat` before promoting one.")
 	}
 
 	if audit.Stale() {
@@ -53,17 +55,17 @@ func reportModelChain(w io.Writer, cfg *Config) error {
 }
 
 func runCheckCommand(config Config, cli CLIOptions) error {
-	if cli.TestModels {
+	switch {
+	case cli.TestModels:
 		return reportModelChain(outFor(cli), &config)
-	}
-	if cli.TestKitty {
-		testKittyImage(outFor(cli), cli.Args)
-	} else if cli.TestGemini {
+	case cli.TestGemini:
 		return testGeminiAPI(outFor(cli), &config, cli.Quiet)
-	} else {
-		if !testWhisperServer(outFor(cli), config.WhisperURL, config.WhisperWakeCommand, cli.Quiet) {
-			return fmt.Errorf("whisper test failed")
-		}
+	case cli.TestKitty:
+		testKittyImage(outFor(cli), cli.Args)
+		return nil
+	}
+	if !testWhisperServer(outFor(cli), config.WhisperURL, config.WhisperWakeCommand, cli.Quiet) {
+		return fmt.Errorf("whisper test failed")
 	}
 	return nil
 }

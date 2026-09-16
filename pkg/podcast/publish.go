@@ -45,6 +45,7 @@ func siteEpisodes(podDir string, episodes []LocalEpisodeMeta) []podsite.Episode 
 	out := make([]podsite.Episode, 0, len(episodes))
 	for _, ep := range episodes {
 		out = append(out, podsite.Episode{
+			PublishedAt: ep.PublishedAt,
 			Filename:    ep.Filename,
 			Title:       ep.Title,
 			GUID:        ep.GUID,
@@ -96,6 +97,7 @@ func appendRemoteEpisodes(local []podsite.Episode, localMeta []LocalEpisodeMeta,
 			guid = "pod:remote:" + remoteEpisodeKey(fe.Title)
 		}
 		out = append(out, podsite.Episode{
+			PublishedAt: pubMs,
 			Title:       fe.Title,
 			GUID:        guid,
 			PubDate:     time.UnixMilli(pubMs).UTC().Format(time.RFC1123Z),
@@ -105,7 +107,11 @@ func appendRemoteEpisodes(local []podsite.Episode, localMeta []LocalEpisodeMeta,
 		})
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].PubDate > out[j].PubDate })
+	// Newest first, by instant rather than by the formatted string: RSS dates
+	// begin with a weekday and carry a textual month, so comparing them as
+	// text interleaves the years and leaves a client no way to find the most
+	// recent episode.
+	sort.SliceStable(out, func(i, j int) bool { return out[i].PublishedAt > out[j].PublishedAt })
 	return out
 }
 

@@ -43,6 +43,12 @@ type Episode struct {
 	SizeBytes   int64
 	ReportHref  string
 
+	// PublishedAt is the publication time in milliseconds, used to order the
+	// feed. PubDate carries the same instant formatted for RSS, but ordering
+	// on that string sorts "Wed, 29 Apr" above "Wed, 16 Sep" — the month is
+	// text, so the comparison is alphabetical rather than chronological.
+	PublishedAt int64
+
 	// RemoteURL is where the audio lives when it is not held locally. A
 	// listener subscribing to this feed should get the show's whole run, not
 	// only the part that happens to have been downloaded, so an episode that

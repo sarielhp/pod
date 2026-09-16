@@ -76,6 +76,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return handleServerCommand(*config, cli)
 	case "transcribe":
 		return runTranscribeCommand(*config, cli)
+	case "detect":
+		return runDetectCommand(*config, cli)
 	case "tui":
 		return tui.RunTUI(config, cli.PodcastsDir)
 	}

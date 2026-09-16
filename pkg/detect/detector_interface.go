@@ -32,7 +32,15 @@ func NewLLMAdDetector(profile types.LLMProfile, apiKey string, timeout time.Dura
 }
 
 func (d *LLMAdDetector) DetectAds(ctx context.Context, transcriptText string) ([]types.AdSegment, error) {
-	return DetectAdsLLMTimeout(transcriptText, d.Profile, d.APIKey, d.Timeout)
+	segs, _, err := d.DetectAdsUsage(ctx, transcriptText)
+	return segs, err
+}
+
+// DetectAdsUsage is DetectAds, additionally reporting what the call consumed.
+// It is a separate method rather than a change to the AdDetector interface
+// because not every detector has a token bill.
+func (d *LLMAdDetector) DetectAdsUsage(ctx context.Context, transcriptText string) ([]types.AdSegment, LLMUsage, error) {
+	return DetectAdsLLMTimeoutUsage(transcriptText, d.Profile, d.APIKey, d.Timeout)
 }
 
 // ConfirmingDetector wraps an AdDetector and confirms empty results before accepting them.

@@ -48,6 +48,34 @@ type LLMMessage struct {
 
 type LLMResponse struct {
 	Choices []LLMChoice `json:"choices"`
+	Usage   LLMUsage    `json:"usage"`
+}
+
+// LLMUsage is what a call consumed. Providers report it on every response and
+// pod discarded it, which left no way to see what detection costs, nor to
+// tell a cached call from a full-price one — the difference that decides
+// whether two identical answers mean the model is reproducible or merely that
+// nothing was recomputed.
+type LLMUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+
+	PromptTokensDetails struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details"`
+}
+
+// CachedTokens is how much of the prompt the provider served from its cache.
+func (u LLMUsage) CachedTokens() int { return u.PromptTokensDetails.CachedTokens }
+
+// Add accumulates another call's usage, so a detection that asked several
+// times reports what the whole detection cost rather than the last request.
+func (u *LLMUsage) Add(other LLMUsage) {
+	u.PromptTokens += other.PromptTokens
+	u.CompletionTokens += other.CompletionTokens
+	u.TotalTokens += other.TotalTokens
+	u.PromptTokensDetails.CachedTokens += other.PromptTokensDetails.CachedTokens
 }
 
 type LLMChoice struct {
@@ -60,7 +88,14 @@ var sharedLLMClient = &http.Client{
 
 var DefaultLLMTimeout = 120 * time.Second
 
+// CallLLMChat sends one chat completion request and returns its content.
 func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxTokens int, timeout time.Duration, apiKey string) (string, error) {
+	content, _, err := CallLLMChatUsage(profile, sysPrompt, userPrompt, maxTokens, timeout, apiKey)
+	return content, err
+}
+
+// CallLLMChatUsage is CallLLMChat, additionally reporting what the call cost.
+func CallLLMChatUsage(profile types.LLMProfile, sysPrompt, userPrompt string, maxTokens int, timeout time.Duration, apiKey string) (string, LLMUsage, error) {
 	payload := LLMRequest{
 		Model: profile.Model,
 		Messages: []LLMMessage{
@@ -73,7 +108,7 @@ func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxToke
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return "", LLMUsage{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	client := sharedLLMClient
@@ -90,7 +125,7 @@ func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxToke
 		}
 		req, err := http.NewRequest("POST", profile.URL, bytes.NewReader(body))
 		if err != nil {
-			return "", fmt.Errorf("failed to create request: %w", err)
+			return "", LLMUsage{}, fmt.Errorf("failed to create request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 
@@ -114,27 +149,27 @@ func CallLLMChat(profile types.LLMProfile, sysPrompt, userPrompt string, maxToke
 		if resp.StatusCode != http.StatusOK {
 			respBody, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return "", fmt.Errorf("server returned status code %d: %s", resp.StatusCode, string(respBody))
+			return "", LLMUsage{}, fmt.Errorf("server returned status code %d: %s", resp.StatusCode, string(respBody))
 		}
 
 		respBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return "", fmt.Errorf("failed to read response: %w", err)
+			return "", LLMUsage{}, fmt.Errorf("failed to read response: %w", err)
 		}
 
 		var llmResp LLMResponse
 		if err := json.Unmarshal(respBody, &llmResp); err != nil {
-			return "", fmt.Errorf("failed to unmarshal response: %w", err)
+			return "", LLMUsage{}, fmt.Errorf("failed to unmarshal response: %w", err)
 		}
 
 		if len(llmResp.Choices) == 0 {
-			return "", fmt.Errorf("no choices in response")
+			return "", LLMUsage{}, fmt.Errorf("no choices in response")
 		}
 
-		return llmResp.Choices[0].Message.Content, nil
+		return llmResp.Choices[0].Message.Content, llmResp.Usage, nil
 	}
-	return "", lastErr
+	return "", LLMUsage{}, lastErr
 }
 
 func DetectAdsLLM(transcriptText string, profile types.LLMProfile, apiKey string) ([]types.AdSegment, error) {
@@ -166,34 +201,52 @@ func adUserPrompt(transcriptText string) string {
 }
 
 func DetectAdsLLMTimeout(transcriptText string, profile types.LLMProfile, apiKey string, timeout time.Duration) ([]types.AdSegment, error) {
+	segs, _, err := DetectAdsLLMTimeoutUsage(transcriptText, profile, apiKey, timeout)
+	return segs, err
+}
+
+// DetectAdsLLMTimeoutUsage is DetectAdsLLMTimeout, additionally reporting what
+// the detection cost. The total covers the confirmation re-asks as well as the
+// first request, because an empty first answer silently triples the cost of a
+// detection and that is worth being able to see.
+func DetectAdsLLMTimeoutUsage(transcriptText string, profile types.LLMProfile, apiKey string, timeout time.Duration) ([]types.AdSegment, LLMUsage, error) {
+	var total LLMUsage
 	if profile.URL == "" {
-		return nil, nil
+		return nil, total, nil
 	}
 	userPrompt := adUserPrompt(transcriptText)
-	segs, err := askForAdSegments(profile, userPrompt, timeout, apiKey)
+	segs, usage, err := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
+	total.Add(usage)
 	if err != nil || len(segs) > 0 {
-		return segs, err
+		return segs, total, err
 	}
 	// Empty answer: re-ask before accepting it. Any confirmation run that
 	// does find ads wins, because a miss is what an empty answer looks like.
 	for i := 0; i < EmptyResultConfirmations; i++ {
-		retry, retryErr := askForAdSegments(profile, userPrompt, timeout, apiKey)
+		retry, retryUsage, retryErr := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
+		total.Add(retryUsage)
 		if retryErr != nil {
-			return nil, fmt.Errorf("ad detection confirmation failed: %w", retryErr)
+			return nil, total, fmt.Errorf("ad detection confirmation failed: %w", retryErr)
 		}
 		if len(retry) > 0 {
-			return retry, nil
+			return retry, total, nil
 		}
 	}
-	return segs, nil
+	return segs, total, nil
 }
 
 func askForAdSegments(profile types.LLMProfile, userPrompt string, timeout time.Duration, apiKey string) ([]types.AdSegment, error) {
-	content, err := CallLLMChat(profile, SystemPrompt, userPrompt, 0, timeout, apiKey)
+	segs, _, err := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
+	return segs, err
+}
+
+func askForAdSegmentsUsage(profile types.LLMProfile, userPrompt string, timeout time.Duration, apiKey string) ([]types.AdSegment, LLMUsage, error) {
+	content, usage, err := CallLLMChatUsage(profile, SystemPrompt, userPrompt, 0, timeout, apiKey)
 	if err != nil {
-		return nil, fmt.Errorf("LLM ad detection failed: %w", err)
+		return nil, usage, fmt.Errorf("LLM ad detection failed: %w", err)
 	}
-	return ExtractJSONArray(content)
+	segs, err := ExtractJSONArray(content)
+	return segs, usage, err
 }
 
 func ExtractJSONArray(content string) ([]types.AdSegment, error) {

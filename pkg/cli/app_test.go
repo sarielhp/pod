@@ -82,8 +82,17 @@ func TestNoTopLevelCommandIsAPrefixOfAnother(t *testing.T) {
 			}
 		}
 	}
-	if len(app.Commands) != 8 {
-		t.Errorf("expected 8 canonical top-level commands, got %d", len(app.Commands))
+	// A count guard, so that adding or removing a top-level command is a
+	// deliberate edit rather than something that happens quietly. Listing the
+	// names makes a failure say what changed instead of only that it did.
+	const wantCommands = 9
+	if len(app.Commands) != wantCommands {
+		var names []string
+		for _, c := range app.Commands {
+			names = append(names, c.Name)
+		}
+		t.Errorf("expected %d canonical top-level commands, got %d: %s",
+			wantCommands, len(app.Commands), strings.Join(names, ", "))
 	}
 }
 

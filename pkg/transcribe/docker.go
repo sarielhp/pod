@@ -43,11 +43,15 @@ func PollWhisperDockerProgress(containerName string) interface{} {
 	for _, line := range util.SplitLines(logText) {
 		if matchFailedDecode(line) {
 			hasFailed = true
-		} else if h, m, s, ok := matchProgressHMS(line); ok {
+			continue
+		}
+		if h, m, s, ok := matchProgressHMS(line); ok {
 			return float64(h*3600 + m*60 + s)
-		} else if m, s, ok := matchProgressMS(line); ok {
+		}
+		if m, s, ok := matchProgressMS(line); ok {
 			return float64(m*60 + s)
-		} else if pct, ok := matchProgressPercent(line); ok {
+		}
+		if pct, ok := matchProgressPercent(line); ok {
 			return pct / 100.0
 		}
 	}

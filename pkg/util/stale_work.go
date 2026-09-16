@@ -103,9 +103,11 @@ func lockWorkDirAudio(root, dir string) (func(), error) {
 	for parent := dir; ; parent = filepath.Dir(parent) {
 		for _, name := range []string{".worker", ".collect"} {
 			target := filepath.Join(parent, name)
-			if _, err := os.Lstat(target + ".lock"); os.IsNotExist(err) {
+			_, err := os.Lstat(target + ".lock")
+			if os.IsNotExist(err) {
 				continue
-			} else if err != nil {
+			}
+			if err != nil {
 				release()
 				return nil, err
 			}

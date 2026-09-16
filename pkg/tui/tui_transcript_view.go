@@ -30,7 +30,8 @@ func parseTimestampSec(s string) float64 {
 		_, _ = fmt.Sscanf(parts[0], "%f", &m)
 		_, _ = fmt.Sscanf(parts[1], "%f", &sec)
 		return m*60 + sec
-	} else if len(parts) == 3 {
+	}
+	if len(parts) == 3 {
 		var h, m, sec float64
 		_, _ = fmt.Sscanf(parts[0], "%f", &h)
 		_, _ = fmt.Sscanf(parts[1], "%f", &m)
@@ -125,7 +126,8 @@ func parseTimestampSeconds(ts string) float64 {
 		fmt.Sscanf(parts[0], "%f", &mins)
 		fmt.Sscanf(parts[1], "%f", &secs)
 		return mins*60 + secs
-	} else if len(parts) == 3 {
+	}
+	if len(parts) == 3 {
 		var hrs, mins, secs float64
 		fmt.Sscanf(parts[0], "%f", &hrs)
 		fmt.Sscanf(parts[1], "%f", &mins)

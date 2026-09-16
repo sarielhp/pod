@@ -265,7 +265,8 @@ func handleQueueClear(w io.Writer, lib *podcast.Library, target string) error {
 			}
 			fmt.Fprintf(w, "Queue cleared for %s [%s]\n", util.Bold(util.DisplayName(res.Podcast.Title)), util.BoldCyan(res.Podcast.ShortID))
 			return nil
-		} else if res.IsEpisode() {
+		}
+		if res.IsEpisode() {
 			if _, err := pipeline.RemoveQueuedAudio(res.Episode.PodcastDir, res.Episode.Path); err != nil {
 				return err
 			}

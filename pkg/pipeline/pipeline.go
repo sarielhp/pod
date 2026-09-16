@@ -22,25 +22,23 @@ import (
 )
 
 func ResolveAudioFiles(inputFile string, verbose bool) (mainMP3File, precutFile, sourceAudioFile string) {
+	mainMP3File, precutFile = inputFile, inputFile+".precut"
 	if strings.HasSuffix(inputFile, ".precut") {
-		precutFile = inputFile
-		mainMP3File = strings.TrimSuffix(inputFile, ".precut")
-	} else {
-		mainMP3File = inputFile
-		precutFile = inputFile + ".precut"
+		mainMP3File, precutFile = strings.TrimSuffix(inputFile, ".precut"), inputFile
 	}
 
-	if util.FileExists(precutFile) {
+	switch {
+	case util.FileExists(precutFile):
 		sourceAudioFile = precutFile
 		if verbose {
 			fmt.Printf("Found existing pre-cut audio source: '%s'\n", precutFile)
 		}
-	} else if util.FileExists(mainMP3File) {
+	case util.FileExists(mainMP3File):
 		sourceAudioFile = mainMP3File
-	} else {
+	default:
 		sourceAudioFile = inputFile
 	}
-	return
+	return mainMP3File, precutFile, sourceAudioFile
 }
 
 func ResolveOutputFile(mainMP3File string, output string, totalFiles int) string {

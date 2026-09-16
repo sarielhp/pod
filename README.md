@@ -191,9 +191,10 @@ Every canonical command begins with a distinct letter (`c`, `i`, `o`, `p`, `q`, 
 | `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts breakdown, transcripts, and status diagnostics |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
 | `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue (`list`, `add`, `remove`, `clear`) |
-| `rm_ads` | `r` | `pod rm_ads [command] [paths...]` | Process audio files for ad removal (`recut`, `export`, `collect`, `clear`) |
-| `sync` | `s` | `pod sync [command] [options]` | Podcast RSS feed sync, episode downloads, and retention policies |
-| `tui` | `t` | `pod tui [directory]` | Interactive TUI browser for podcasts and episodes |
+| `rm_ads` | `r` | `pod rm_ads [command] [paths...]` | Process audio files for ad removal (`recut`, `export`, `audit`) |
+| `server` | `s` | `pod server [command] [options]` | Podcast RSS feed sync, episode downloads, and retention policies |
+| `transcribe` | `tr` | `pod transcribe <path...>` | Transcribe an audio or video file; extracts the audio track from video |
+| `tui` | `tu` | `pod tui [directory]` | Interactive TUI browser for podcasts and episodes |
 
 ### Chunked Transcription
 

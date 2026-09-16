@@ -5,6 +5,24 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Added
+- **`pod transcribe <path...>`** — transcribe an audio *or video* file without
+  ad removal. A video has its audio track extracted automatically; any
+  container ffmpeg can read works. Directories are scanned for media.
+  `--format json,srt,txt` selects outputs, `-o` redirects them, `-t N` takes
+  only the first N minutes, and `--keep-audio` preserves the extracted 16 kHz
+  mono audio beside the transcript.
+- Transcripts are written beside the input, and nothing about the podcast
+  library is touched: no status file, no queue entry, no short ID. A lecture
+  recording is not an episode.
+
+### Changed
+- `pod t` is now ambiguous between `transcribe` and `tui` and reports both.
+  Use `pod tr` or `pod tu`; the full names are unaffected. `pod t` was never a
+  documented shortcut, only a side effect of prefix matching.
+
 ## [0.3.3] - 2026-09-15
 
 ### Changed

@@ -61,25 +61,29 @@ func TestSelectProfile(t *testing.T) {
 	}
 }
 
-func TestTopLevelCommandsUniqueFirstLetters(t *testing.T) {
+// clihelp resolves a unique prefix to a command and reports an ambiguous one
+// with the candidates, so commands do not need distinct first letters — they
+// need that no command name is a prefix of another, which would make the
+// shorter one unreachable by abbreviation. `pod t` is ambiguous between
+// transcribe and tui by design; `pod tr` and `pod tu` both resolve.
+func TestNoTopLevelCommandIsAPrefixOfAnother(t *testing.T) {
 	t.Parallel()
 	var action string
 	var opts CLIOptions
 	app := buildCLIApp(&action, &opts)
 
-	seen := make(map[byte]string)
-	for _, cmd := range app.Commands {
-		if cmd.Name == "" {
-			continue
+	for _, a := range app.Commands {
+		for _, b := range app.Commands {
+			if a.Name == "" || b.Name == "" || a.Name == b.Name {
+				continue
+			}
+			if strings.HasPrefix(b.Name, a.Name) {
+				t.Errorf("command %q is a prefix of %q, so it cannot be abbreviated", a.Name, b.Name)
+			}
 		}
-		first := cmd.Name[0]
-		if existing, ok := seen[first]; ok {
-			t.Errorf("command %q has conflicting first letter '%c' with command %q", cmd.Name, first, existing)
-		}
-		seen[first] = cmd.Name
 	}
-	if len(app.Commands) != 7 {
-		t.Errorf("expected 7 canonical top-level commands, got %d", len(app.Commands))
+	if len(app.Commands) != 8 {
+		t.Errorf("expected 8 canonical top-level commands, got %d", len(app.Commands))
 	}
 }
 

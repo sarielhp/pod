@@ -96,6 +96,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 			buildQueueCommand(opts, action),
 			buildRmAdsCommand(opts, action),
 			buildServerCommand(opts, action, &countVal, &keepVal),
+			buildTranscribeCommand(opts, action),
 			buildTUICommand(opts, action),
 		},
 	}

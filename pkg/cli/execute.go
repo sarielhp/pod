@@ -74,6 +74,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runRmAdsCommand(*config, cli, action)
 	case "server", "sync":
 		return handleServerCommand(*config, cli)
+	case "transcribe":
+		return runTranscribeCommand(*config, cli)
 	case "tui":
 		return tui.RunTUI(config, cli.PodcastsDir)
 	}

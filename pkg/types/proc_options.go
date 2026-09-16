@@ -29,7 +29,10 @@ type ProcOptions struct {
 	ForceTranscribe bool
 	Recut           bool
 
-	// Transcription.
+	// Transcription. KeepAudio preserves the 16kHz mono audio extracted for
+	// the engine, which is otherwise discarded with the rest of the working
+	// files — useful when the source was a video and the audio is wanted too.
+	KeepAudio      bool
 	TranscribeMin  string
 	UseChunks      bool
 	WhisperEngine  string

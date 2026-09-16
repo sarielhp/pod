@@ -26,13 +26,14 @@ were written; they are not in version order.
   truncated description cannot end mid-tag.
 
 ### Changed
-- **`pod server feed` is now `pod server rss_gen`.** `feed` and `feeds`
+- **`pod server feed` is now the top-level `pod rss_gen`.** `feed` and `feeds`
   differed by one letter and did opposite things — one writes the local site,
   the other reads remote feeds — so reaching for the wrong one was easy and
-  the mistake was silent. There is no alias; keeping `feed` would preserve the
-  confusion the rename exists to remove. The old name is kept only to reject
-  it: removed outright it would prefix-match `feeds` and quietly run the
-  upstream check instead, which is the opposite action.
+  the mistake was silent. Generating the site is also not an operation on a
+  server, which is why it left the `server` group entirely. With no `feed`
+  subcommand remaining, `pod server feed` is simply an unambiguous prefix of
+  `feeds` and does what it looks like. Note `r` now abbreviates two commands:
+  use `rm` for `rm_ads` and `rs` for `rss_gen`.
 
 ### Fixed
 - **`pod server rss_gen <target>` silently did nothing when the target matched no

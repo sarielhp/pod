@@ -5,35 +5,52 @@ import (
 	"testing"
 )
 
-func TestRetiredFeedNameRefusesRatherThanRunningFeeds(t *testing.T) {
-	t.Parallel()
-	// Removing `feed` outright would leave it prefix-matching `feeds`, so the
-	// old name would quietly run the upstream check — the opposite action.
-	cmd := buildServerFeedRetiredSubcommand()
-	if cmd.Name != "feed" {
-		t.Fatalf("stub name = %q", cmd.Name)
-	}
-	if !cmd.Hidden {
-		t.Error("a retired name should not be advertised in help")
-	}
-	err := cmd.Run(nil)
-	if err == nil {
-		t.Fatal("the retired name succeeded")
-	}
-	if !strings.Contains(err.Error(), "rss_gen") {
-		t.Errorf("the error does not name the replacement: %v", err)
-	}
-}
-
-func TestRSSGenIsTheNameThatWorks(t *testing.T) {
+func TestRSSGenIsATopLevelCommand(t *testing.T) {
 	t.Parallel()
 	var action string
 	var opts CLIOptions
-	cmd := buildServerRSSGenSubcommand(&opts, &action)
-	if cmd.Name != "rss_gen" {
-		t.Errorf("name = %q, want rss_gen", cmd.Name)
+	app := buildCLIApp(&action, &opts)
+
+	var found bool
+	for _, c := range app.Commands {
+		if c.Name == "rss_gen" {
+			found = true
+		}
+		// Publishing the site should not also hide under `server`, or there
+		// are two names for one act.
+		if c.Name == "server" {
+			for _, sub := range c.Subcommands {
+				if sub.Name == "rss_gen" || sub.Name == "feed" {
+					t.Errorf("server still carries a %q subcommand", sub.Name)
+				}
+			}
+		}
 	}
-	if cmd.Hidden {
-		t.Error("the working command should appear in help")
+	if !found {
+		t.Error("rss_gen is not a top-level command")
+	}
+}
+
+func TestServerFeedPrefixReachesFeeds(t *testing.T) {
+	t.Parallel()
+	// With no `feed` subcommand of its own, `pod server feed` is an
+	// unambiguous prefix of `feeds`, which is the intended behaviour: the two
+	// are no longer separate commands one letter apart.
+	var action string
+	var opts CLIOptions
+	app := buildCLIApp(&action, &opts)
+	for _, c := range app.Commands {
+		if c.Name != "server" {
+			continue
+		}
+		var matches []string
+		for _, sub := range c.Subcommands {
+			if strings.HasPrefix(sub.Name, "feed") {
+				matches = append(matches, sub.Name)
+			}
+		}
+		if len(matches) != 1 || matches[0] != "feeds" {
+			t.Errorf("`server feed` is ambiguous or missing: %v", matches)
+		}
 	}
 }

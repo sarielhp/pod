@@ -92,7 +92,7 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 - **Subscriptions**: Stored locally in `~/.config/pod/podcasts.json` (or `~/.config/abs/podcasts.json`).
 - **Feed Checking**: `pod server feeds` checks upstream feeds directly with conditional HTTP GET (`ETag` / `If-Modified-Since`).
 - **Downloads**: `pod server download` downloads episodes directly over HTTP with resume support.
-- **Feeds & Web Players**: `pod server rss_gen` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
+- **Feeds & Web Players**: `pod rss_gen` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
 - **Mobile Sync**: Works with standard podcast clients (e.g. AntennaPod) over Tailscale/Caddy without proprietary server apps.
 
 ### Legacy Server Import (Optional)
@@ -145,7 +145,7 @@ pod info check              # Test external services (Whisper, ABS, Kitty)
 
 # Feed sync & server operations (all under `server`)
 pod server feeds            # Check upstream RSS feeds for new episodes (reads remote)
-pod server rss_gen          # Generate local feed.xml + index.html (writes local)
+pod rss_gen          # Generate local feed.xml + index.html (writes local)
 pod server download         # Download pending episodes according to podcast policy
 pod server download p0001 -k 3 # Download up to 3 missing episodes for a podcast
 pod server flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts
@@ -191,12 +191,13 @@ pod tui
 
 ### Commands Overview
 
-Every canonical command begins with a distinct letter (`c`, `d`, `i`, `p`, `q`, `r`, `s`, `t`), enabling unambiguous single-letter prefixes. The one exception is `t`, which is ambiguous between `transcribe` and `tui`; use `tr` or `tu`.
+Commands may be abbreviated to any unambiguous prefix. Two letters are shared: `r` between `rm_ads` and `rss_gen` (use `rm` or `rs`), and `t` between `transcribe` and `tui` (use `tr` or `tu`). Every other initial is unique.
 
 | Command | Prefix | Usage | Description |
 |---------|--------|-------|-------------|
 | `config` | `c` | `pod config [command]` | View and manage application configuration, profiles, and cache |
 | `detect` | `d` | `pod detect [options] <path...>` | Detect ad segments in an existing transcript, without re-transcribing or cutting |
+| `rss_gen` | `rs` | `pod rss_gen [id-or-title]` | Generate the RSS feed and web pages for local podcasts |
 | `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts breakdown, transcripts, and status diagnostics |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
 | `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue (`list`, `add`, `remove`, `clear`) |

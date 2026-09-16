@@ -85,7 +85,7 @@ func TestNoTopLevelCommandIsAPrefixOfAnother(t *testing.T) {
 	// A count guard, so that adding or removing a top-level command is a
 	// deliberate edit rather than something that happens quietly. Listing the
 	// names makes a failure say what changed instead of only that it did.
-	const wantCommands = 9
+	const wantCommands = 10
 	if len(app.Commands) != wantCommands {
 		var names []string
 		for _, c := range app.Commands {

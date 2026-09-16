@@ -54,48 +54,31 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	}
 }
 
-// buildServerFeedRetiredSubcommand refuses the old name.
+// buildRSSGenCommand generates the static site.
 //
-// Without it `pod server feed` prefix-matches `feeds` and quietly runs the
-// upstream check instead — the opposite action, with no sign anything is
-// wrong. A rename meant to stop a silent mistake must not create a worse one,
-// so the retired name is kept only to reject it.
-func buildServerFeedRetiredSubcommand() clihelp.Command {
-	return clihelp.Command{
-		Name:        "feed",
-		Description: "Renamed to rss_gen",
-		UsageLine:   "pod server rss_gen [id-or-title]",
-		Hidden:      true,
-		Args:        clihelp.RangeArgs(0, 1),
-		Run: func(*clihelp.Context) error {
-			return fmt.Errorf("`pod server feed` is now `pod server rss_gen` " +
-				"(`feeds`, which reads upstream RSS, is a different command)")
-		},
-	}
-}
-
-// buildServerRSSGenSubcommand publishes the static site.
-//
-// It is named rss_gen rather than feed because `feed` and `feeds` differ by
-// one letter and do opposite things: this one writes local output, the other
-// reads remote feeds. Typing the wrong one is easy and the mistake is quiet.
-func buildServerRSSGenSubcommand(opts *CLIOptions, action *string) clihelp.Command {
+// It is a top-level command rather than a subcommand of `server`, because
+// publishing the local site is a different kind of act from talking to
+// upstream feeds — and a `feed` sitting beside `feeds` invited running one
+// while meaning the other.
+func buildRSSGenCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "rss_gen",
-		Description: "Generate the RSS feed and web pages for local podcast(s)",
-		UsageLine:   "pod server rss_gen [id-or-title]",
+		Description: "Generate the RSS feed and web pages for local podcasts",
+		UsageLine:   "pod rss_gen [id-or-title]",
 		Parameters: []clihelp.Param{
 			{Name: "[id-or-title]", Description: "Optional podcast ID or title to regenerate"},
 		},
 		Args: clihelp.RangeArgs(0, 1),
+		Options: []clihelp.Option{
+			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
+			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
+		},
 		Examples: []clihelp.Example{
-			{Line: "pod server rss_gen", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
-			{Line: "pod server rss_gen p0001", Description: "Regenerate one show"},
+			{Line: "pod rss_gen", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
+			{Line: "pod rss_gen p0001", Description: "Regenerate one show"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
-			opts.ServerSubcmd = "rss_gen"
-			opts.SyncSubcmd = "rss_gen"
+			*action = "rss_gen"
 			opts.Args = ctx.Args
 			return nil
 		},

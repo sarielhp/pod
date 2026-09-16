@@ -22,6 +22,13 @@ were written; they are not in version order.
   those were exactly the episodes worth seeing. It now merges the feeds'
   publication history with the library, sorts by publication date, and marks
   each row downloaded or not. `--downloaded` restores the previous behaviour.
+- **`pod info latest` hides hourly news bulletins.** A rolling bulletin
+  publishes over a hundred episodes a week — one here runs at 169 — so a
+  listing of the most recent episodes across the library was mostly that one
+  show. `--hourly` includes them. This is the same judgement
+  `pod server disable-hourly` already makes about downloading them, and only
+  applies to podcasts whose analysed cadence is `hourly`; a podcast with no
+  cadence recorded is never hidden on a guess.
 
 ## [0.4.0] - 2026-09-16
 

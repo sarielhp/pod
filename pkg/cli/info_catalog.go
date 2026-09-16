@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"pod/pkg/backend"
+	"pod/pkg/config"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -38,7 +40,7 @@ type catalogEpisode struct {
 // Matching is by title, because that is all the publication history retains
 // and all a downloaded file's name preserves. A miss costs a duplicate row
 // rather than a wrong one.
-func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem) []catalogEpisode {
+func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem, includeHourly bool) []catalogEpisode {
 	downloaded := make(map[string]*lsEpisodeItem, len(onDisk))
 	for i := range onDisk {
 		downloaded[catalogKey(onDisk[i].podcastShortID, onDisk[i].episodeName)] = &onDisk[i]
@@ -56,7 +58,12 @@ func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem) []cata
 		feeds = feedURLsByPodcast(lib)
 	}
 
+	hidden := map[string]bool{}
 	for _, p := range podcasts {
+		if !includeHourly && isHourlyPodcast(p.Dir) {
+			hidden[p.ShortID] = true
+			continue
+		}
 		for _, ep := range cachedFeedEpisodes(lib, feeds[p.Dir]) {
 			if ep.Title == "" || ep.PublishedAt <= 0 {
 				continue
@@ -80,6 +87,9 @@ func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem) []cata
 	// Anything on disk the catalogue does not mention still belongs in the
 	// listing: the history is capped, and older downloads fall off it.
 	for i := range onDisk {
+		if hidden[onDisk[i].podcastShortID] {
+			continue
+		}
 		key := catalogKey(onDisk[i].podcastShortID, onDisk[i].episodeName)
 		if seen[key] {
 			continue
@@ -97,6 +107,18 @@ func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem) []cata
 
 	sort.Slice(out, func(i, j int) bool { return out[i].PublishedAt.After(out[j].PublishedAt) })
 	return out
+}
+
+// isHourlyPodcast reports a show that publishes roughly every hour.
+//
+// A rolling news bulletin puts out over a hundred episodes a week — one here
+// runs at 169 — so a listing of the most recent episodes across the library is
+// simply a list of that one show. They are excluded by default and restored by
+// --hourly, which is the same judgement `pod server disable-hourly` already
+// makes about downloading them.
+func isHourlyPodcast(podDir string) bool {
+	cfg := config.LoadPodcastConfig(podDir, config.PodcastConfig{})
+	return cfg.Frequency != nil && cfg.Frequency.Type == string(backend.CadenceHourly)
 }
 
 // cachedFeedEpisodes is the publication history retained for a podcast's feed.
@@ -139,10 +161,18 @@ func feedURLsByPodcast(lib *podcast.Library) map[string]string {
 	return out
 }
 
-// catalogKey identifies an episode within a podcast. Titles reach us from a
-// feed and from a filename that was derived from one, so both sides are
-// reduced to letters and digits before comparison.
+// datePrefix matches the publication date pod prefixes to a downloaded file.
+var datePrefix = regexp.MustCompile(`^\d{4}[-_]\d{2}[-_]\d{2}[-_ ]*`)
+
+// catalogKey identifies an episode within a podcast.
+//
+// Titles reach us from a feed and from a filename derived from one, so both
+// sides are reduced to letters and digits. Digits are kept, because episode
+// numbers distinguish otherwise identical titles — but the date pod prefixes
+// to a downloaded filename is stripped first, or every downloaded episode
+// fails to match its own catalogue entry and is listed twice.
 func catalogKey(podcastID, title string) string {
+	title = datePrefix.ReplaceAllString(strings.TrimSpace(title), "")
 	var b strings.Builder
 	b.WriteString(podcastID)
 	b.WriteByte(0)
@@ -158,7 +188,7 @@ func catalogKey(podcastID, title string) string {
 // whether or not they were downloaded.
 func listCatalogEpisodes(podcastsDir string, onDisk []lsEpisodeItem, limit int, cli CLIOptions) error {
 	lib := library(Config{PodcastsDir: podcastsDir}, cli, nil)
-	episodes := collectCatalogEpisodes(lib, onDisk)
+	episodes := collectCatalogEpisodes(lib, onDisk, cli.IncludeHourly)
 	if len(episodes) == 0 {
 		fmt.Fprintln(progressFor(cli), "No episodes known. Run `pod server feeds` to read the feeds.")
 		return nil

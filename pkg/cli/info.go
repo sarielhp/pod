@@ -86,6 +86,7 @@ func buildInfoCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Limit number of episodes to list"),
 			clihelp.Bool(&opts.Latest, "-l, --latest", false, "List latest episodes across library"),
 			clihelp.Bool(&opts.DownloadedOnly, "--downloaded", false, "List only episodes on disk, newest file first"),
+			clihelp.Bool(&opts.IncludeHourly, "--hourly", false, "Include hourly news bulletins, hidden by default"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress formatting/headers"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),
 			clihelp.String(&opts.Output, "-o, --output <path>", "", "Output destination for export"),
@@ -132,6 +133,7 @@ func buildInfoLatestSubcommand(opts *CLIOptions, action *string) clihelp.Command
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 10, "Number of latest episodes to list"),
 			clihelp.Bool(&opts.DownloadedOnly, "--downloaded", false, "Only episodes on disk, newest file first"),
+			clihelp.Bool(&opts.IncludeHourly, "--hourly", false, "Include hourly news bulletins, hidden by default"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Output results in JSON format"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),

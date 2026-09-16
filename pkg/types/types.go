@@ -261,6 +261,11 @@ type CLIOptions struct {
 	// when most podcasts are configured not to download automatically.
 	DownloadedOnly bool
 
+	// IncludeHourly keeps hourly news bulletins in `info latest`. They are
+	// hidden by default because one of them can publish more episodes in a
+	// week than the rest of the library combined.
+	IncludeHourly bool
+
 	// Out and Err are where this invocation's output goes. Both nil means the
 	// process streams, which is what a real command line wants. Tests supply
 	// buffers instead, so that checking what a command printed does not mean

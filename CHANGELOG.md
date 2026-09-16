@@ -26,17 +26,19 @@ were written; they are not in version order.
   truncated description cannot end mid-tag.
 
 ### Changed
-- **`pod server feed` is now the top-level `pod rss_gen`.** `feed` and `feeds`
+- **`pod tui` is now `pod ui`.** With `transcribe` the only other command
+  starting with `t`, and `gen_rss` freeing `r`, every command again abbreviates
+  to a single unique letter.
+- **`pod server feed` is now the top-level `pod gen_rss`.** `feed` and `feeds`
   differed by one letter and did opposite things — one writes the local site,
   the other reads remote feeds — so reaching for the wrong one was easy and
   the mistake was silent. Generating the site is also not an operation on a
   server, which is why it left the `server` group entirely. With no `feed`
   subcommand remaining, `pod server feed` is simply an unambiguous prefix of
-  `feeds` and does what it looks like. Note `r` now abbreviates two commands:
-  use `rm` for `rm_ads` and `rs` for `rss_gen`.
+  `feeds` and does what it looks like.
 
 ### Fixed
-- **`pod server rss_gen <target>` silently did nothing when the target matched no
+- **`pod gen_rss <target>` silently did nothing when the target matched no
   subscription** — no output, exit zero, the stale feed left in place. It now
   reports the mismatch and exits non-zero.
 - **Ad removal by file path or directory never republished the feed.** Only

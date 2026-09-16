@@ -54,17 +54,17 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	}
 }
 
-// buildRSSGenCommand generates the static site.
+// buildGenRSSCommand generates the static site.
 //
 // It is a top-level command rather than a subcommand of `server`, because
 // publishing the local site is a different kind of act from talking to
 // upstream feeds — and a `feed` sitting beside `feeds` invited running one
 // while meaning the other.
-func buildRSSGenCommand(opts *CLIOptions, action *string) clihelp.Command {
+func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
-		Name:        "rss_gen",
+		Name:        "gen_rss",
 		Description: "Generate the RSS feed and web pages for local podcasts",
-		UsageLine:   "pod rss_gen [id-or-title]",
+		UsageLine:   "pod gen_rss [id-or-title]",
 		Parameters: []clihelp.Param{
 			{Name: "[id-or-title]", Description: "Optional podcast ID or title to regenerate"},
 		},
@@ -74,11 +74,11 @@ func buildRSSGenCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
 		},
 		Examples: []clihelp.Example{
-			{Line: "pod rss_gen", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
-			{Line: "pod rss_gen p0001", Description: "Regenerate one show"},
+			{Line: "pod gen_rss", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
+			{Line: "pod gen_rss p0001", Description: "Regenerate one show"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "rss_gen"
+			*action = "gen_rss"
 			opts.Args = ctx.Args
 			return nil
 		},

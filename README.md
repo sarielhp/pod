@@ -92,7 +92,7 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 - **Subscriptions**: Stored locally in `~/.config/pod/podcasts.json` (or `~/.config/abs/podcasts.json`).
 - **Feed Checking**: `pod server feeds` checks upstream feeds directly with conditional HTTP GET (`ETag` / `If-Modified-Since`).
 - **Downloads**: `pod server download` downloads episodes directly over HTTP with resume support.
-- **Feeds & Web Players**: `pod rss_gen` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
+- **Feeds & Web Players**: `pod gen_rss` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
 - **Mobile Sync**: Works with standard podcast clients (e.g. AntennaPod) over Tailscale/Caddy without proprietary server apps.
 
 ### Legacy Server Import (Optional)
@@ -145,7 +145,7 @@ pod info check              # Test external services (Whisper, ABS, Kitty)
 
 # Feed sync & server operations (all under `server`)
 pod server feeds            # Check upstream RSS feeds for new episodes (reads remote)
-pod rss_gen          # Generate local feed.xml + index.html (writes local)
+pod gen_rss          # Generate local feed.xml + index.html (writes local)
 pod server download         # Download pending episodes according to podcast policy
 pod server download p0001 -k 3 # Download up to 3 missing episodes for a podcast
 pod server flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts
@@ -186,25 +186,25 @@ pod detect --raw episode.mp3            # Segments as the model returned them, u
 pod detect --write-cuts episode.mp3     # Also save a .cuts.json
 
 # Interactive TUI browser
-pod tui
+pod ui
 ```
 
 ### Commands Overview
 
-Commands may be abbreviated to any unambiguous prefix. Two letters are shared: `r` between `rm_ads` and `rss_gen` (use `rm` or `rs`), and `t` between `transcribe` and `tui` (use `tr` or `tu`). Every other initial is unique.
+Every canonical command begins with a distinct letter (`c`, `d`, `g`, `i`, `p`, `q`, `r`, `s`, `t`, `u`), so any command may be abbreviated to a single letter.
 
 | Command | Prefix | Usage | Description |
 |---------|--------|-------|-------------|
 | `config` | `c` | `pod config [command]` | View and manage application configuration, profiles, and cache |
 | `detect` | `d` | `pod detect [options] <path...>` | Detect ad segments in an existing transcript, without re-transcribing or cutting |
-| `rss_gen` | `rs` | `pod rss_gen [id-or-title]` | Generate the RSS feed and web pages for local podcasts |
+| `gen_rss` | `g` | `pod gen_rss [id-or-title]` | Generate the RSS feed and web pages for local podcasts |
 | `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts breakdown, transcripts, and status diagnostics |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
 | `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue (`list`, `add`, `remove`, `clear`) |
 | `rm_ads` | `r` | `pod rm_ads [command] [paths...]` | Process audio files for ad removal (`recut`, `export`, `audit`) |
 | `server` | `s` | `pod server [command] [options]` | Podcast RSS feed sync, episode downloads, and retention policies |
-| `transcribe` | `tr` | `pod transcribe <path...>` | Transcribe an audio or video file; extracts the audio track from video |
-| `tui` | `tu` | `pod tui [directory]` | Interactive TUI browser for podcasts and episodes |
+| `transcribe` | `t` | `pod transcribe <path...>` | Transcribe an audio or video file; extracts the audio track from video |
+| `ui` | `u` | `pod ui [directory]` | Interactive TUI browser for podcasts and episodes |
 
 ### Chunked Transcription
 

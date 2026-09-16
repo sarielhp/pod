@@ -77,7 +77,7 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 	case "transcribe":
 		return runTranscribeCommand(*config, cli)
 	case "gen_rss":
-		return handleServerFeed(*config, cli)
+		return handleGenRSS(*config, cli)
 	case "detect":
 		return runDetectCommand(*config, cli)
 	case "ui":

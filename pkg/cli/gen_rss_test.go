@@ -77,3 +77,27 @@ func TestEveryTopLevelCommandHasAUniqueInitial(t *testing.T) {
 		}
 	}
 }
+
+func TestGenRSSCountDistinguishesACountFromAPodcast(t *testing.T) {
+	t.Parallel()
+	// `gen_rss 10` asks for the ten newest episodes; `gen_rss p0001` asks to
+	// regenerate one show. Podcast ids are not bare integers, so a number is
+	// unambiguous.
+	for _, arg := range []string{"10", "1", "250"} {
+		if n, ok := genRSSCount([]string{arg}); !ok || n <= 0 {
+			t.Errorf("%q not read as a count", arg)
+		}
+	}
+	for _, arg := range []string{"p0001", "e12345", "The Daily", "0", "-3", "10x"} {
+		if _, ok := genRSSCount([]string{arg}); ok {
+			t.Errorf("%q wrongly read as a count", arg)
+		}
+	}
+	// No argument regenerates everything, and two are not a count either.
+	if _, ok := genRSSCount(nil); ok {
+		t.Error("an absent argument was read as a count")
+	}
+	if _, ok := genRSSCount([]string{"10", "20"}); ok {
+		t.Error("two arguments were read as a count")
+	}
+}

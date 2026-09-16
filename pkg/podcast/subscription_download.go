@@ -179,22 +179,46 @@ func subscriptionPodcastConfig(podDir string, sub Subscription, defaults config.
 // downloadedEpisodeChecker indexes the audio already in podDir, matching a feed
 // entry by its formatted filename and by its title both sanitised and raw.
 func downloadedEpisodeChecker(podDir string) func(backend.FeedEpisode) bool {
-	existing := make(map[string]bool)
+	locate := downloadedEpisodeLocator(podDir)
+	return func(ep backend.FeedEpisode) bool {
+		_, ok := locate(ep)
+		return ok
+	}
+}
+
+// downloadedEpisodeLocator answers where an episode already sits on disk.
+//
+// Filenames have changed shape over time — some carry an episode number, some
+// do not — so a feed episode is matched against several spellings of its own
+// name rather than only the one this version would write.
+func downloadedEpisodeLocator(podDir string) func(backend.FeedEpisode) (string, bool) {
+	existing := make(map[string]string)
 	for _, f := range util.FindMP3Files(podDir) {
 		name := strings.ToLower(strings.TrimSuffix(filepath.Base(f), ".mp3"))
-		existing[name] = true
-		existing[strings.ToLower(StripEpisodeFilenamePrefix(name))] = true
+		if _, seen := existing[name]; !seen {
+			existing[name] = f
+		}
+		stripped := strings.ToLower(StripEpisodeFilenamePrefix(name))
+		if _, seen := existing[stripped]; !seen {
+			existing[stripped] = f
+		}
 	}
-	return func(ep backend.FeedEpisode) bool {
+	return func(ep backend.FeedEpisode) (string, bool) {
 		pubMs := GetPubMS(ep)
 		var pubTime time.Time
 		if pubMs > 0 {
 			pubTime = time.UnixMilli(pubMs).UTC()
 		}
-		formatted := strings.ToLower(strings.TrimSuffix(FormatEpisodeFilename(pubTime, ep.Episode, ep.Title), ".mp3"))
-		return existing[formatted] ||
-			existing[strings.ToLower(SanitizeTitle(ep.Title))] ||
-			existing[strings.ToLower(strings.TrimSpace(ep.Title))]
+		for _, key := range []string{
+			strings.ToLower(strings.TrimSuffix(FormatEpisodeFilename(pubTime, ep.Episode, ep.Title), ".mp3")),
+			strings.ToLower(SanitizeTitle(ep.Title)),
+			strings.ToLower(strings.TrimSpace(ep.Title)),
+		} {
+			if path, ok := existing[key]; ok {
+				return path, true
+			}
+		}
+		return "", false
 	}
 }
 

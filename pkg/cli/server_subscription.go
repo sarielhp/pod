@@ -64,17 +64,20 @@ func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "gen_rss",
 		Description: "Generate the RSS feed and web pages for local podcasts",
-		UsageLine:   "pod gen_rss [id-or-title]",
+		UsageLine:   "pod gen_rss [N | id-or-title]",
 		Parameters: []clihelp.Param{
-			{Name: "[id-or-title]", Description: "Optional podcast ID or title to regenerate"},
+			{Name: "[N]", Description: "Fetch, clean and publish the N newest episodes across the library"},
+			{Name: "[id-or-title]", Description: "Regenerate one podcast instead of all"},
 		},
 		Args: clihelp.RangeArgs(0, 1),
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
+			clihelp.Bool(&opts.IncludeHourly, "--hourly", false, "Include hourly news bulletins, skipped by default"),
 		},
 		Examples: []clihelp.Example{
 			{Line: "pod gen_rss", Description: "Regenerate every show's feed.xml and index.html, and the catalog"},
+			{Line: "pod gen_rss 10", Description: "Download, ad-strip and publish the 10 newest episodes"},
 			{Line: "pod gen_rss p0001", Description: "Regenerate one show"},
 		},
 		Run: func(ctx *clihelp.Context) error {
@@ -175,6 +178,15 @@ func handleServerRemove(cfg Config, cli CLIOptions) error {
 
 	fmt.Fprintf(progressFor(cli), "Removed subscription: %s\n", query)
 	return nil
+}
+
+// handleGenRSS publishes the site, or with a count first fetches and cleans
+// that many of the newest episodes.
+func handleGenRSS(cfg Config, cli CLIOptions) error {
+	if count, ok := genRSSCount(cli.Args); ok {
+		return handleGenRSSLatest(cfg, cli, count)
+	}
+	return handleServerFeed(cfg, cli)
 }
 
 func handleServerFeed(cfg Config, cli CLIOptions) error {

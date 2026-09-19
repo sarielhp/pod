@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/sarielhp/clihelp"
 	"github.com/sarielhp/clihelp/tree"
 )
@@ -102,14 +101,14 @@ func parseFlags() (string, CLIOptions) {
 	return action, opts
 }
 
+// isExamplesFlag recognises pod's own spellings, including a bundled short such
+// as "-xE". clihelp answers "help examples"; these are the extra ways pod has
+// always accepted the request, kept so that no user's habit breaks.
 func isExamplesFlag(arg string) bool {
 	if arg == "-E" || arg == "--examples" {
 		return true
 	}
-	if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") && strings.Contains(arg, "E") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") && strings.Contains(arg, "E")
 }
 
 func isExamplesRequest(args []string) bool {
@@ -118,118 +117,30 @@ func isExamplesRequest(args []string) bool {
 			return true
 		}
 	}
-	if len(args) > 0 && args[0] == "examples" {
-		return true
-	}
-	if len(args) >= 2 && args[0] == "help" && args[1] == "examples" {
-		return true
-	}
-	return false
+	return len(args) > 0 && args[0] == "examples"
 }
 
-func extractCommandTokens(args []string) []string {
-	var tokens []string
-	for _, a := range args {
-		if isExamplesFlag(a) || a == "help" || a == "examples" || strings.HasPrefix(a, "-") {
-			continue
-		}
-		tokens = append(tokens, a)
-	}
-	return tokens
-}
-
-func resolveTargetCommand(app *clihelp.App, tokens []string) (*clihelp.Command, []string) {
-	for start := 0; start < len(tokens); start++ {
-		for end := len(tokens); end > start; end-- {
-			if cmd := app.LookupCommand(tokens[start:end]...); cmd != nil {
-				return cmd, tokens[start:end]
-			}
-		}
-	}
-	return nil, nil
-}
-
-func collectExamples(app *clihelp.App, cmd *clihelp.Command) []clihelp.Example {
-	if cmd != nil {
-		if len(cmd.Examples) > 0 {
-			return cmd.Examples
-		}
-		var subEx []clihelp.Example
-		for _, sub := range cmd.Subcommands {
-			subEx = append(subEx, collectExamples(app, &sub)...)
-		}
-		return subEx
-	}
-	if app != nil && len(app.Examples) > 0 {
-		return app.Examples
-	}
-	var appEx []clihelp.Example
-	for _, c := range app.Commands {
-		appEx = append(appEx, collectExamples(app, &c)...)
-	}
-	return appEx
-}
-
-func cliExampleTheme() clihelp.Theme {
-	return clihelp.Theme{
-		Hdr:            color.New(color.FgYellow, color.Bold),
-		Body:           color.New(color.FgWhite),
-		Accent:         color.New(color.FgCyan, color.Bold),
-		Subcommand:     color.New(color.FgGreen),
-		Flag:           color.New(color.FgCyan),
-		ExampleCmd:     color.New(color.FgGreen, color.Bold),
-		ExampleFlag:    color.New(color.FgCyan),
-		ExampleArg:     color.New(color.FgWhite),
-		ExampleComment: color.New(color.FgHiBlack),
-		ExampleDesc:    color.New(color.FgHiBlack),
-	}
-}
-
-func printCommandExamples(w io.Writer, app *clihelp.App, cmd *clihelp.Command, path []string) {
-	examples := collectExamples(app, cmd)
-	if len(examples) == 0 {
-		name := "pod"
-		if len(path) > 0 {
-			name = "pod " + strings.Join(path, " ")
-		}
-		fmt.Fprintf(w, "No examples available for %s.\nRun '%s --help' for usage.\n", name, name)
-		return
-	}
-
-	th := cliExampleTheme()
-	if th.Hdr != nil {
-		th.Hdr.Fprintln(w, "Examples:")
-	} else {
-		fmt.Fprintln(w, "Examples:")
-	}
-
-	for i, ex := range examples {
-		if i > 0 {
-			fmt.Fprintln(w)
-		}
-		for _, l := range strings.Split(ex.Line, "\n") {
-			colored := clihelp.ColorizeExampleLineWithApp(app, cmd, l, th)
-			fmt.Fprintf(w, "  %s\n", colored)
-		}
-		if ex.Description != "" {
-			if th.ExampleDesc != nil {
-				th.ExampleDesc.Fprintf(w, "    %s\n", ex.Description)
-			} else {
-				fmt.Fprintf(w, "    %s\n", ex.Description)
-			}
-		}
-	}
-}
-
+// handleExamplesCLI turns pod's spellings into clihelp's "help examples", which
+// collects the tree, groups by command, colours the lines and honours the pager.
+//
+// This used to be about a hundred and fifty lines here: the collection walk, a
+// brute-force command resolver, a theme, and the rendering. clihelp grew the
+// view in v0.3.35 and learned the per-command form in v0.3.36, so all of that
+// is gone and the two cannot drift apart.
 func handleExamplesCLI(w io.Writer, app *clihelp.App, args []string) bool {
 	if !isExamplesRequest(args) {
 		return false
 	}
-	if w == nil {
-		w = os.Stdout
+	help := []string{"help", "examples"}
+	for _, a := range args {
+		if isExamplesFlag(a) || a == "examples" || a == "help" || strings.HasPrefix(a, "-") {
+			continue
+		}
+		help = append(help, a)
 	}
-	tokens := extractCommandTokens(args)
-	cmd, path := resolveTargetCommand(app, tokens)
-	printCommandExamples(w, app, cmd, path)
+	if w != nil && w != os.Stdout {
+		app.Stdout = w
+	}
+	_ = app.Execute(help)
 	return true
 }

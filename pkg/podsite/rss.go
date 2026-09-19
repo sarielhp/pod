@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"pod/pkg/format"
 )
@@ -18,14 +19,16 @@ type rssDocument struct {
 }
 
 type rssChannel struct {
-	Title       string          `xml:"title"`
-	Link        string          `xml:"link"`
-	Description string          `xml:"description"`
-	Language    string          `xml:"language,omitempty"`
-	Author      string          `xml:"itunes:author,omitempty"`
-	Image       *rssFeedImage   `xml:"image,omitempty"`
-	ITunesImage *rssItunesImage `xml:"itunes:image,omitempty"`
-	Items       []rssItemXML    `xml:"item"`
+	Title         string          `xml:"title"`
+	Link          string          `xml:"link"`
+	Description   string          `xml:"description"`
+	Language      string          `xml:"language,omitempty"`
+	Author        string          `xml:"itunes:author,omitempty"`
+	LastBuildDate string          `xml:"lastBuildDate,omitempty"`
+	PubDate       string          `xml:"pubDate,omitempty"`
+	Image         *rssFeedImage   `xml:"image,omitempty"`
+	ITunesImage   *rssItunesImage `xml:"itunes:image,omitempty"`
+	Items         []rssItemXML    `xml:"item"`
 }
 
 type rssFeedImage struct {
@@ -76,12 +79,15 @@ func RenderFeed(show Show, episodes []Episode, baseURL string) ([]byte, error) {
 	if baseURL == "" {
 		channelURL = fmt.Sprintf("/%s/", folder)
 	}
+	lastBuild := feedLastBuildDate(episodes)
 	channel := rssChannel{
-		Title:       show.Title,
-		Link:        channelURL,
-		Description: fmt.Sprintf("Ad-free podcast feed for %s", show.Title),
-		Language:    "en",
-		Author:      "pod",
+		Title:         show.Title,
+		Link:          channelURL,
+		Description:   fmt.Sprintf("Ad-free podcast feed for %s", show.Title),
+		Language:      "en",
+		Author:        "pod",
+		LastBuildDate: lastBuild,
+		PubDate:       lastBuild,
 	}
 
 	coverURL := feedCoverURL(show, baseURL, folder)
@@ -151,4 +157,27 @@ func escapeRelPath(p string) string {
 		parts[i] = url.PathEscape(seg)
 	}
 	return strings.Join(parts, "/")
+}
+
+func feedLastBuildDate(episodes []Episode) string {
+	if len(episodes) == 0 {
+		return ""
+	}
+	var newest *Episode
+	for i := range episodes {
+		ep := &episodes[i]
+		if ep.PubDate == "" && ep.PublishedAt <= 0 {
+			continue
+		}
+		if newest == nil || ep.PublishedAt > newest.PublishedAt {
+			newest = ep
+		}
+	}
+	if newest == nil {
+		return ""
+	}
+	if newest.PubDate != "" {
+		return newest.PubDate
+	}
+	return time.UnixMilli(newest.PublishedAt).UTC().Format(time.RFC1123Z)
 }

@@ -101,3 +101,57 @@ func TestDisplayNameRTL(t *testing.T) {
 		t.Logf("In: %q -> Out: %q", tc, DisplayName(tc))
 	}
 }
+
+func TestWriteFileAtomicIfChanged(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "test.txt")
+
+	// 1. Initial write when file does not exist.
+	changed, err := WriteFileAtomicIfChanged(target, []byte("hello"), 0644)
+	if err != nil {
+		t.Fatalf("first write failed: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true on initial write")
+	}
+
+	info1, err := os.Stat(target)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+
+	// 2. Write identical content: should skip write and return changed=false.
+	changed, err = WriteFileAtomicIfChanged(target, []byte("hello"), 0644)
+	if err != nil {
+		t.Fatalf("second write failed: %v", err)
+	}
+	if changed {
+		t.Fatal("expected changed=false when content is identical")
+	}
+
+	info2, err := os.Stat(target)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if !info1.ModTime().Equal(info2.ModTime()) {
+		t.Errorf("modtime changed: %v -> %v", info1.ModTime(), info2.ModTime())
+	}
+
+	// 3. Write different content: should write and return changed=true.
+	changed, err = WriteFileAtomicIfChanged(target, []byte("world"), 0644)
+	if err != nil {
+		t.Fatalf("third write failed: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true when content changed")
+	}
+
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(data) != "world" {
+		t.Errorf("got %q, want 'world'", string(data))
+	}
+}

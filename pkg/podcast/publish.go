@@ -218,7 +218,7 @@ func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisode
 	if err != nil {
 		return err
 	}
-	if err := util.WriteFileAtomic(filepath.Join(podDir, "feed.xml"), feed, 0644); err != nil {
+	if _, err := util.WriteFileAtomicIfChanged(filepath.Join(podDir, "feed.xml"), feed, 0644); err != nil {
 		return err
 	}
 
@@ -226,7 +226,8 @@ func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisode
 	if err != nil {
 		return err
 	}
-	return util.WriteFileAtomic(filepath.Join(podDir, "index.html"), page, 0644)
+	_, err = util.WriteFileAtomicIfChanged(filepath.Join(podDir, "index.html"), page, 0644)
+	return err
 }
 
 // PublishCatalog regenerates the library index page across all podcasts.
@@ -238,5 +239,6 @@ func PublishCatalog(podcastsDir string, subs []Subscription) error {
 	if err != nil {
 		return err
 	}
-	return util.WriteFileAtomic(filepath.Join(podcastsDir, "index.html"), data, 0644)
+	_, err = util.WriteFileAtomicIfChanged(filepath.Join(podcastsDir, "index.html"), data, 0644)
+	return err
 }

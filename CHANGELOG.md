@@ -5,6 +5,20 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.4] - 2026-09-19
+
+### Added
+- **Generated RSS feeds now include `<lastBuildDate>` and `<pubDate>`.** The
+  channel timestamps reflect the most recent episode in the feed, allowing
+  podcast clients and aggregators to detect feed updates without re-parsing
+  all items.
+
+### Changed
+- **Published feeds and catalog pages are only rewritten when content changes.**
+  `PublishPodcast` and `PublishCatalog` now check file contents before writing,
+  preserving file modification times and avoiding unnecessary disk writes when
+  regenerating unchanged feeds or catalog pages.
+
 ## [0.5.3] - 2026-09-16
 
 ### Added

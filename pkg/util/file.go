@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -90,6 +91,20 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	return nil
+}
+
+// WriteFileAtomicIfChanged writes data to path atomically only if the file does
+// not already exist or its existing contents differ from data. It reports
+// whether the file was written.
+func WriteFileAtomicIfChanged(path string, data []byte, perm os.FileMode) (bool, error) {
+	existing, err := os.ReadFile(path)
+	if err == nil && bytes.Equal(existing, data) {
+		return false, nil
+	}
+	if err := WriteFileAtomic(path, data, perm); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func FileExists(path string) bool {

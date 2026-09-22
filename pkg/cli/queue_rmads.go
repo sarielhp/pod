@@ -1,53 +1,14 @@
 package cli
 
 import (
-	"pod/pkg/adremoval"
-
 	"github.com/sarielhp/clihelp"
 )
 
-func buildRmAdsCommand(opts *CLIOptions, action *string) clihelp.Command {
-	return clihelp.Command{
-		Name:        "rm_ads",
-		Hidden:      true,
-		Description: "Process audio files for ad removal",
-		UsageLine:   "pod rm_ads [command]",
-		Subcommands: []clihelp.Command{
-			buildRmAdsRecutSubcommand(opts, action),
-			buildRmAdsExportSubcommand(opts, action),
-			buildRmAdsAuditSubcommand(opts, action),
-		},
-		Options: getTranscriptionOptions(opts),
-		Run: func(ctx *clihelp.Context) error {
-			*action = "rm_ads"
-			if len(ctx.Args) > 0 {
-				switch ctx.Args[0] {
-				case "audit":
-					opts.ProcSubcmd = "audit"
-					opts.Args = ctx.Args[1:]
-					return nil
-				case "recut":
-					opts.ProcSubcmd = "recut"
-					opts.Recut = true
-					opts.Args = ctx.Args[1:]
-					return nil
-				case "export":
-					opts.ProcSubcmd = "export"
-					opts.Args = ctx.Args[1:]
-					return nil
-				}
-			}
-			opts.Args = ctx.Args
-			return nil
-		},
-	}
-}
-
-func buildRmAdsRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command {
+func buildQueueRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "recut",
 		Description: "Recut audio files using existing cuts metadata",
-		UsageLine:   "pod rm_ads recut [options] [path...]",
+		UsageLine:   "pod queue recut [options] [path...]",
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Output, "-o, --output <path>", "", "Output MP3 path or directory"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
@@ -55,7 +16,8 @@ func buildRmAdsRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Maximum number of episodes to recut"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "rm_ads"
+			*action = "queue"
+			opts.QueueSubcmd = "recut"
 			opts.ProcSubcmd = "recut"
 			opts.Recut = true
 			opts.Args = ctx.Args
@@ -64,16 +26,16 @@ func buildRmAdsRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command
 	}
 }
 
-func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Command {
+func buildQueueExportSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "export",
 		Description: "Export transcript JSON to SRT subtitles or text",
-		UsageLine:   "pod rm_ads export [command] [options] <path...>",
+		UsageLine:   "pod queue export [command] [options] <path...>",
 		Subcommands: []clihelp.Command{
 			{
 				Name:        "srt",
 				Description: "Export transcript to SubRip (.srt) subtitle format",
-				UsageLine:   "pod rm_ads export srt <path1> [path2 ...] [options]",
+				UsageLine:   "pod queue export srt <path1> [path2 ...] [options]",
 				Parameters: []clihelp.Param{
 					{Name: "<path1> [path2 ...]", Description: "Transcript JSON files or directories to export"},
 				},
@@ -83,7 +45,8 @@ func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 					clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 				},
 				Run: func(ctx *clihelp.Context) error {
-					*action = "rm_ads"
+					*action = "queue"
+					opts.QueueSubcmd = "export"
 					opts.ProcSubcmd = "export"
 					opts.ExportFormat = "srt"
 					opts.ExportSRT = true
@@ -94,7 +57,7 @@ func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 			{
 				Name:        "txt",
 				Description: "Export transcript to plain text (.txt) format",
-				UsageLine:   "pod rm_ads export txt <path1> [path2 ...] [options]",
+				UsageLine:   "pod queue export txt <path1> [path2 ...] [options]",
 				Parameters: []clihelp.Param{
 					{Name: "<path1> [path2 ...]", Description: "Transcript JSON files or directories to export"},
 				},
@@ -104,7 +67,8 @@ func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 					clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 				},
 				Run: func(ctx *clihelp.Context) error {
-					*action = "rm_ads"
+					*action = "queue"
+					opts.QueueSubcmd = "export"
 					opts.ProcSubcmd = "export"
 					opts.ExportFormat = "txt"
 					opts.ExportTXT = true
@@ -120,7 +84,8 @@ func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 		},
 		Args: clihelp.MinimumNArgs(1),
 		Run: func(ctx *clihelp.Context) error {
-			*action = "rm_ads"
+			*action = "queue"
+			opts.QueueSubcmd = "export"
 			opts.ProcSubcmd = "export"
 			opts.Args = ctx.Args
 			return nil
@@ -128,11 +93,11 @@ func buildRmAdsExportSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	}
 }
 
-func buildRmAdsAuditSubcommand(opts *CLIOptions, action *string) clihelp.Command {
+func buildQueueAuditSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "audit",
 		Description: "Scan and heal invalid clean states plus suspicious episode transcripts",
-		UsageLine:   "pod rm_ads audit [paths...] [options]",
+		UsageLine:   "pod queue audit [paths...] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[paths...]", Description: "Podcast directories or audio files to audit (defaults to configured podcasts_dir)"},
 		},
@@ -144,39 +109,11 @@ func buildRmAdsAuditSubcommand(opts *CLIOptions, action *string) clihelp.Command
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Print detailed inspection of every file"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "rm_ads"
+			*action = "queue"
+			opts.QueueSubcmd = "audit"
 			opts.ProcSubcmd = "audit"
 			opts.Args = ctx.Args
 			return nil
 		},
 	}
-}
-
-func runRmAdsCommand(config Config, cli CLIOptions, action string) error {
-	if cli.ProcSubcmd == "audit" {
-		return adremoval.RunTranscriptAudit(config, cli.Args, cli.ProcOptions)
-	}
-	if cli.ProcSubcmd == "recut" {
-		cli.Recut = true
-	}
-	if cli.ProcSubcmd == "export" {
-		runExportCommand(cli)
-		return nil
-	}
-	if handled, err := runUrgentEpisode(config, cli); handled {
-		return err
-	}
-	pod, err := resolvePodcastTarget(config.PodcastsDir, cli)
-	if err != nil {
-		return err
-	}
-	if pod != nil {
-		return adremoval.ProcessPodcast(pod, cli.ProcOptions, config, action)
-	}
-	targets, ok := resolveTargetAudioArgs(cli, config)
-	if !ok {
-		return nil
-	}
-	adremoval.ProcessFiles(targets, cli.ProcOptions, config, action)
-	return nil
 }

@@ -26,7 +26,7 @@ func resolveQueueSubcmdArgs(subcmd string, args []string) (string, []string) {
 		return "list", args
 	}
 	switch strings.ToLower(args[0]) {
-	case "priority", "list", "ls", "add", "today", "latest", "remove", "clear", "run":
+	case "priority", "list", "ls", "add", "today", "latest", "remove", "clear", "run", "recut", "export", "audit":
 		return strings.ToLower(args[0]), args[1:]
 	default:
 		return "list", args
@@ -91,8 +91,19 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 			target = args[0]
 		}
 		return handleQueueRun(lib, cfg, cli, target)
+	case "recut":
+		cli.Recut = true
+		cli.ProcSubcmd = "recut"
+		return runRmAdsCommand(cfg, cli, "queue")
+	case "export":
+		cli.ProcSubcmd = "export"
+		runExportCommand(cli)
+		return nil
+	case "audit":
+		cli.ProcSubcmd = "audit"
+		return adremoval.RunTranscriptAudit(cfg, args, cli.ProcOptions)
 	default:
-		return fmt.Errorf("unknown queue action %q (use list, add, today, latest, remove, clear, or run)", subcmd)
+		return fmt.Errorf("unknown queue action %q (use list, add, today, latest, remove, clear, run, recut, export, or audit)", subcmd)
 	}
 }
 
@@ -377,6 +388,9 @@ func buildQueueCommand(opts *CLIOptions, action *string) clihelp.Command {
 			buildQueueRemoveSubcommand(opts, action),
 			buildQueueClearSubcommand(opts, action),
 			buildQueueRunSubcommand(opts, action),
+			buildQueueRecutSubcommand(opts, action),
+			buildQueueExportSubcommand(opts, action),
+			buildQueueAuditSubcommand(opts, action),
 		},
 		Examples: []clihelp.Example{
 			{
@@ -399,6 +413,14 @@ func buildQueueCommand(opts *CLIOptions, action *string) clihelp.Command {
 				Line:        "pod queue run",
 				Description: "Process ad removal on all queued episodes",
 			},
+			{
+				Line:        "pod queue recut",
+				Description: "Recut audio files using existing cuts metadata",
+			},
+			{
+				Line:        "pod queue audit",
+				Description: "Audit episode transcripts for suspicious coverage",
+			},
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "queue"
@@ -406,6 +428,22 @@ func buildQueueCommand(opts *CLIOptions, action *string) clihelp.Command {
 				switch strings.ToLower(ctx.Args[0]) {
 				case "latest":
 					opts.QueueSubcmd = "latest"
+					opts.Args = ctx.Args[1:]
+					return nil
+				case "recut":
+					opts.QueueSubcmd = "recut"
+					opts.ProcSubcmd = "recut"
+					opts.Recut = true
+					opts.Args = ctx.Args[1:]
+					return nil
+				case "export":
+					opts.QueueSubcmd = "export"
+					opts.ProcSubcmd = "export"
+					opts.Args = ctx.Args[1:]
+					return nil
+				case "audit":
+					opts.QueueSubcmd = "audit"
+					opts.ProcSubcmd = "audit"
 					opts.Args = ctx.Args[1:]
 					return nil
 				}

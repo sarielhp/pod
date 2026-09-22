@@ -15,6 +15,7 @@ import (
 func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "transcribe",
+		Hidden:      true,
 		Description: "Transcribe an audio or video file",
 		UsageLine:   "pod transcribe [options] <path...>",
 		Parameters: []clihelp.Param{

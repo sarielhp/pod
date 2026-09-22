@@ -17,6 +17,7 @@ import (
 func buildDetectCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "detect",
+		Hidden:      true,
 		Description: "Detect ad segments in an existing transcript",
 		UsageLine:   "pod detect [options] <path...>",
 		Parameters: []clihelp.Param{

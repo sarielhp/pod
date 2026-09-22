@@ -284,6 +284,9 @@ type CLIOptions struct {
 	// when most podcasts are configured not to download automatically.
 	DownloadedOnly bool
 
+	// NoClean skips ad removal after downloading in `pod fetch`.
+	NoClean bool
+
 	// Temperature overrides the sampling temperature for one run, so that the
 	// effect of changing it can be measured with `pod detect --repeat`
 	// rather than argued about.

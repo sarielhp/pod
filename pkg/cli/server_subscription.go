@@ -63,6 +63,7 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "gen_rss",
+		Hidden:      true,
 		Description: "Generate the RSS feed and web pages for local podcasts",
 		UsageLine:   "pod gen_rss [podcast] [N]",
 		Parameters: []clihelp.Param{

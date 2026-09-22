@@ -50,6 +50,7 @@ func getVersion() string {
 func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 	keepVal := -1
 	countVal := -1
+	fetchCountVal := 1
 
 	return &clihelp.App{
 		Name:                "pod",
@@ -65,6 +66,14 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 		},
 		Examples: []clihelp.Example{
 			{
+				Line:        "pod fetch",
+				Description: "Fetch and clean the latest episode for each active subscription",
+			},
+			{
+				Line:        "pod queue run",
+				Description: "Process ad removal on queued episodes",
+			},
+			{
 				Line:        "pod server feeds",
 				Description: "Check podcast feeds directly for newly published episodes",
 			},
@@ -73,16 +82,8 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 				Description: "Download new episodes from server",
 			},
 			{
-				Line:        "pod server opml export podcasts.opml",
-				Description: "Export server podcast RSS feeds into an OPML file",
-			},
-			{
 				Line:        "pod queue latest 10",
 				Description: "Queue the 10 latest uncleaned episodes for ad removal",
-			},
-			{
-				Line:        "pod queue run",
-				Description: "Process ad removal on queued episodes",
 			},
 			{
 				Line:        "pod tui",
@@ -90,16 +91,17 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 			},
 		},
 		Commands: []clihelp.Command{
-			buildConfigCommand(opts, action),
-			buildInfoCommand(opts, action),
-			buildPlayerCommand(opts, action),
+			buildFetchCommand(opts, action, &fetchCountVal),
 			buildQueueCommand(opts, action),
-			buildRmAdsCommand(opts, action),
 			buildServerCommand(opts, action, &countVal, &keepVal),
+			buildPlayerCommand(opts, action),
+			buildInfoCommand(opts, action),
+			buildConfigCommand(opts, action),
+			buildUICommand(opts, action),
+			buildRmAdsCommand(opts, action),
 			buildDetectCommand(opts, action),
 			buildGenRSSCommand(opts, action),
 			buildTranscribeCommand(opts, action),
-			buildUICommand(opts, action),
 		},
 	}
 }

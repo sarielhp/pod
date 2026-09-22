@@ -33,7 +33,7 @@ func newPodcastEpisodeIndex(size int) *PodcastEpisodeIndex {
 // to the URL the parser reports today.
 func normalizeEnclosureURL(u string) string {
 	u = strings.TrimSpace(u)
-	if strings.HasPrefix(u, "http://") {
+	if strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "http://127.0.0.1") && !strings.HasPrefix(u, "http://localhost") {
 		return "https://" + strings.TrimPrefix(u, "http://")
 	}
 	return u

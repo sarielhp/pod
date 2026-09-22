@@ -5,6 +5,26 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.5] - 2026-09-21
+
+### Added
+- **`pod fetch` command**: Primary daily ingestion and cleaning command that
+  checks feeds of active subscriptions, inspects the latest published episode,
+  downloads it if not already on disk (never backfilling older archive
+  episodes), automatically enqueues newly downloaded episodes into `.queue`,
+  and executes ad removal on queued episodes (with `--no-clean` /
+  `--download-only` to skip ad removal). Skips hourly news podcasts by default
+  unless `--hourly` is specified.
+- **`queue` subcommands**: `pod queue recut`, `pod queue export`, and
+  `pod queue audit` absorbed into `queue`.
+
+### Changed
+- **Top-level command consolidation**: Consolidated visible top-level commands
+  down to 7 cohesive commands (`fetch`, `queue`, `server`, `player`, `info`,
+  `config`, `tui`). Diagnostic and legacy commands (`detect`, `transcribe`,
+  `gen_rss`, `rm_ads`) are hidden from `pod --help` while maintaining 100%
+  backward compatibility.
+
 ## [0.5.4] - 2026-09-19
 
 ### Added

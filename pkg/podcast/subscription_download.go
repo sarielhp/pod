@@ -33,6 +33,7 @@ type SubscriptionDownloadOptions struct {
 	// DownloadAll ignores the podcast's download policy and takes everything
 	// not already on disk.
 	DownloadAll bool
+	AlwaysQueue bool
 
 	// Defaults supply the download and ad-removal policy for podcasts that
 	// carry none of their own.
@@ -280,7 +281,7 @@ func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts Subscr
 		l.progress.Infof("  %d. %s", idx+1, ep.Title)
 	}
 
-	shouldQueue := shouldQueueForAdRemoval(plan.PodDir, plan.Sub, opts.Defaults)
+	shouldQueue := opts.AlwaysQueue || shouldQueueForAdRemoval(plan.PodDir, plan.Sub, opts.Defaults)
 	downloaded := 0
 	for _, ep := range plan.ToDownload {
 		if err := l.downloadEpisode(d, plan.PodDir, ep, shouldQueue); err != nil {

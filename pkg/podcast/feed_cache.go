@@ -686,7 +686,7 @@ func parseRSSFeed(data []byte) (*FeedDocument, error) {
 		}
 		if it.Enclosure != nil && it.Enclosure.URL != "" {
 			encURL := strings.TrimSpace(it.Enclosure.URL)
-			if strings.HasPrefix(encURL, "http://") {
+			if strings.HasPrefix(encURL, "http://") && !strings.HasPrefix(encURL, "http://127.0.0.1") && !strings.HasPrefix(encURL, "http://localhost") {
 				encURL = "https://" + strings.TrimPrefix(encURL, "http://")
 			}
 			ep.EnclosureURL = encURL

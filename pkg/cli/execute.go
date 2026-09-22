@@ -59,6 +59,8 @@ func Execute(args []string) int {
 // unrelated four of them.
 func dispatch(action string, config *Config, cli CLIOptions) error {
 	switch action {
+	case "fetch":
+		return runFetchCommand(*config, cli)
 	case "config":
 		return runConfigCommand(config, cli)
 	case "info":
@@ -80,7 +82,7 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return handleGenRSS(*config, cli)
 	case "detect":
 		return runDetectCommand(*config, cli)
-	case "ui":
+	case "ui", "tui":
 		return tui.RunTUI(config, cli.PodcastsDir)
 	}
 	return nil

@@ -25,6 +25,12 @@ were written; they are not in version order.
   `gen_rss`, `rm_ads`) are hidden from `pod --help` while maintaining 100%
   backward compatibility.
 
+### Fixed
+- **`pod info latest` duplicate episodes**: Stripped optional episode tag prefixes
+  (`ep<NNN>_`) and added Unicode support in `catalogKey` matching so downloaded
+  episodes with episode number tags or non-ASCII titles match their RSS catalog
+  entries instead of appearing twice.
+
 ## [0.5.4] - 2026-09-19
 
 ### Added

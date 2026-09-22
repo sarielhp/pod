@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
@@ -164,20 +165,27 @@ func feedURLsByPodcast(lib *podcast.Library) map[string]string {
 // datePrefix matches the publication date pod prefixes to a downloaded file.
 var datePrefix = regexp.MustCompile(`^\d{4}[-_]\d{2}[-_]\d{2}[-_ ]*`)
 
+// epPrefix matches the episode tag pod prefixes to a downloaded file.
+var epPrefix = regexp.MustCompile(`^(?i)ep\d+[-_ ]*`)
+
 // catalogKey identifies an episode within a podcast.
 //
 // Titles reach us from a feed and from a filename derived from one, so both
 // sides are reduced to letters and digits. Digits are kept, because episode
-// numbers distinguish otherwise identical titles — but the date pod prefixes
-// to a downloaded filename is stripped first, or every downloaded episode
-// fails to match its own catalogue entry and is listed twice.
+// numbers distinguish otherwise identical titles — but the date and episode
+// tag pod prefixes to a downloaded filename are stripped first, or every
+// downloaded episode fails to match its own catalogue entry and is listed
+// twice.
 func catalogKey(podcastID, title string) string {
 	title = datePrefix.ReplaceAllString(strings.TrimSpace(title), "")
+	if rem := epPrefix.ReplaceAllString(title, ""); strings.TrimSpace(rem) != "" {
+		title = rem
+	}
 	var b strings.Builder
 	b.WriteString(podcastID)
 	b.WriteByte(0)
 	for _, r := range strings.ToLower(title) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			b.WriteRune(r)
 		}
 	}

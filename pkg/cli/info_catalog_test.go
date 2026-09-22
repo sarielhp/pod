@@ -137,6 +137,45 @@ func TestCatalogKeyKeepsEpisodeNumbers(t *testing.T) {
 	}
 }
 
+func TestCatalogKeyStripsEpisodePrefixFromFilenames(t *testing.T) {
+	t.Parallel()
+	// FormatEpisodeFilename prefixes ep<NNN>_ when the feed item has an
+	// <itunes:episode> tag and the title does not already start with it.
+	// Without stripping it, downloaded files with episode tags fail to match
+	// their feed entries and produce duplicate rows in pod info latest.
+	feed := catalogKey("dsshh", "The Rise and Fall of the Ming Dynasty")
+	file := catalogKey("dsshh", "2026-09-21_ep1839_The_Rise_and_Fall_of_the_Ming_Dynasty")
+	if feed != file {
+		t.Errorf("episode prefix broke the match:\n  feed=%q\n  file=%q", feed, file)
+	}
+
+	feed2 := catalogKey("emprw", "397. Stalin: Killing Trotsky (Part 3)")
+	file2 := catalogKey("emprw", "2026-09-20_ep3_397_Stalin_Killing_Trotsky_Part_3")
+	if feed2 != file2 {
+		t.Errorf("episode prefix broke the match:\n  feed=%q\n  file=%q", feed2, file2)
+	}
+}
+
+func TestCatalogKeySupportsUnicode(t *testing.T) {
+	t.Parallel()
+	feed := catalogKey("p1", "הממשלה הבאה תיאלץ לפתוח ברזים | פרק 390")
+	file := catalogKey("p1", "2026-09-17_ep390_הממשלה_הבאה_תיאלץ_לפתוח_ברזים_פרק_390")
+	if feed != file {
+		t.Errorf("unicode title match failed:\n  feed=%q\n  file=%q", feed, file)
+	}
+
+	if catalogKey("p1", "שלום עולם") == catalogKey("p1", "להתראות עולם") {
+		t.Error("distinct Hebrew titles without digits collapsed to same key")
+	}
+}
+
+func TestCatalogKeyPreservesBareEpisodeNumbers(t *testing.T) {
+	t.Parallel()
+	if catalogKey("p1", "Ep219") == catalogKey("p1", "Ep220") {
+		t.Error("bare episode numbers collapsed to empty key")
+	}
+}
+
 func TestCatalogMarksConveyTheTwoFacts(t *testing.T) {
 	t.Parallel()
 	// Each glyph is one fact: headphones for "the audio is here", a tick for

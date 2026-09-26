@@ -26,8 +26,8 @@ func TestDefaultConfigNoUsername(t *testing.T) {
 func TestDefaultConfig(t *testing.T) {
 	t.Parallel()
 	cfg := DefaultConfig()
-	if cfg.ActiveProfileID != 3 {
-		t.Errorf("expected ActiveProfileID 3, got %d", cfg.ActiveProfileID)
+	if cfg.ActiveProfileID != 5 {
+		t.Errorf("expected ActiveProfileID 5, got %d", cfg.ActiveProfileID)
 	}
 	if len(cfg.Profiles) == 0 {
 		t.Error("expected default profiles to not be empty")

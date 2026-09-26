@@ -29,6 +29,10 @@ Return ONLY a raw JSON array of objects with the exact start and end seconds of 
   {"start": 1200.0, "end": 1290.0, "reason": "Midroll ad break"}
 ]
 
+Guidelines:
+1. If an episode opens immediately with an ad, sponsor pitch, or a dramatic/narrative setup hook before the actual podcast theme/intro, start the interval at 0.0.
+2. Include conversational or creative lead-in hooks as part of the ad segment rather than waiting for the brand name to be uttered.
+
 If NO ads or sponsor plugs are found, return an empty JSON array: []
 Do not include markdown formatting or commentary outside the JSON array.`
 

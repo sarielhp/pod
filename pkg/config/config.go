@@ -18,7 +18,7 @@ func DefaultConfig() types.Config {
 	return types.Config{
 		Instructions:     "Configuration file for pod. Select profiles by ID or set active_profile_id.",
 		ChunkDurationSec: 0,
-		ActiveProfileID:  3,
+		ActiveProfileID:  5,
 		Profiles:         DefaultLLMProfiles,
 
 		WhisperConfig: types.WhisperConfig{

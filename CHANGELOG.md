@@ -5,6 +5,14 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.6] - 2026-09-26
+
+### Added
+- **OpenRouter Gemini 2.5 Flash Lite default**: Configured `google/gemini-2.5-flash-lite` as the default LLM profile (ID 5) for podcast ad detection, providing sub-2-second latency and minimal token costs.
+
+### Changed
+- **Ad detection prompt guidelines**: Enhanced `SystemPrompt` in `pkg/detect` with explicit boundary rules for pre-roll narrative/storytelling hooks and conversational pivots, ensuring cold-open ad anecdotes are captured starting at 0.0s rather than waiting for the sponsor brand name.
+
 ## [0.5.5] - 2026-09-21
 
 ### Added

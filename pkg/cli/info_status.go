@@ -52,8 +52,8 @@ func renderLocalSummary(w io.Writer, cfg Config, quiet bool) (int, int, int) {
 			}
 			podcastsCount++
 			totalEpisodes += len(mp3s)
-			podCfg := config.LoadPodcastConfig(podPath, config.PodcastConfig{})
-			if podCfg.AdRemoval == AdRemovalNone {
+			podCfg := config.LoadPodcastConfig(podPath, config.DefaultDiscoveredPodcastConfig(&cfg))
+			if config.NormalizeAdRemovalMode(podCfg.AdRemoval) == AdRemovalNone {
 				continue
 			}
 			filtered := podcast.FilterByAdRemovalPolicy(mp3s, podPath, podCfg)
@@ -86,10 +86,10 @@ func renderLocalLibraryStatus(w io.Writer, cfg Config, quiet bool) {
 	if podcastsDir == "" {
 		podcastsDir = "."
 	}
-	renderLocalDiskPodcastStatus(w, podcastsDir, quiet)
+	renderLocalDiskPodcastStatus(w, podcastsDir, cfg, quiet)
 }
 
-func renderLocalDiskPodcastStatus(w io.Writer, podcastsDir string, quiet bool) {
+func renderLocalDiskPodcastStatus(w io.Writer, podcastsDir string, cfg Config, quiet bool) {
 	podEntries := podcast.ScanPodcastDirs(podcastsDir)
 	var entries []podcastStatusEntry
 	for _, pe := range podEntries {
@@ -98,8 +98,8 @@ func renderLocalDiskPodcastStatus(w io.Writer, podcastsDir string, quiet bool) {
 			continue
 		}
 		needsAd := 0
-		podCfg := config.LoadPodcastConfig(pe.Dir, config.PodcastConfig{})
-		if podCfg.AdRemoval != config.AdRemovalNone {
+		podCfg := config.LoadPodcastConfig(pe.Dir, config.DefaultDiscoveredPodcastConfig(&cfg))
+		if config.NormalizeAdRemovalMode(podCfg.AdRemoval) != config.AdRemovalNone {
 			filtered := podcast.FilterByAdRemovalPolicy(mp3s, pe.Dir, podCfg)
 			for _, mp3 := range filtered {
 				_ = pipeline.GetOrCreateEpisodeStatus(mp3)

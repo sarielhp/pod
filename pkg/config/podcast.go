@@ -217,6 +217,30 @@ func DefaultPodcastConfigFrom(d PolicyDefaults) PodcastConfig {
 	}
 }
 
+// DefaultDiscoveredPodcastConfig returns defaults for an unconfigured podcast
+// found on disk without its own podcast.json. Ad removal defaults to "all" (or
+// app default), download policy defaults to "none" (avoiding unintended downloads),
+// and keep policy defaults to "month" (30 days).
+func DefaultDiscoveredPodcastConfig(appCfg *types.Config) PodcastConfig {
+	var d PolicyDefaults
+	if appCfg != nil {
+		d = PolicyDefaults{
+			DownloadPolicy: DownloadPolicyNone,
+			DownloadK:      3,
+			AdRemoval:      appCfg.DefaultAdRemoval,
+			KeepPolicy:     appCfg.DefaultKeepPolicy,
+		}
+	} else {
+		d = PolicyDefaults{
+			DownloadPolicy: DownloadPolicyNone,
+			DownloadK:      3,
+			AdRemoval:      AdRemovalAll,
+			KeepPolicy:     KeepPolicyMonth,
+		}
+	}
+	return DefaultPodcastConfigFrom(d)
+}
+
 func NormalizeAdRemovalMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
 	case "latest", "last", "recent", "newest":

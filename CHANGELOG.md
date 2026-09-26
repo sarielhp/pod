@@ -21,6 +21,9 @@ were written; they are not in version order.
 ### Changed
 - **Ad detection prompt guidelines**: Enhanced `SystemPrompt` in `pkg/detect` with explicit boundary rules for pre-roll narrative/storytelling hooks and conversational pivots, ensuring cold-open ad anecdotes are captured starting at 0.0s rather than waiting for the sponsor brand name.
 
+### Fixed
+- **Unconfigured podcast defaults & status reporting** (`issues/001.md`): Introduced `DefaultDiscoveredPodcastConfig` so unconfigured local podcasts on disk default to `ad_removal: "all"` (matching the ad-removal engine) without accidentally enabling `auto_download`, and normalized ad-removal mode comparisons in `pod info status`.
+
 ## [0.5.5] - 2026-09-21
 
 ### Added

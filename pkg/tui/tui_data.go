@@ -43,7 +43,7 @@ func loadSingleTUIPodcast(podDir, name string) *tuiPodcast {
 	pod := tuiPodcast{
 		name:   name,
 		dir:    podDir,
-		config: config.LoadPodcastConfig(podDir, config.PodcastConfig{}),
+		config: config.LoadPodcastConfig(podDir, config.DefaultDiscoveredPodcastConfig(nil)),
 	}
 
 	cachedIdx, _ := podcast.LoadPodcastCache(podDir)

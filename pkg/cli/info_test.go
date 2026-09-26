@@ -230,3 +230,34 @@ func TestFormatEpisodeInfoHebrew(t *testing.T) {
 		t.Errorf("expected output to contain %q, got: %s", expectedTitle, out)
 	}
 }
+
+func TestInfoStatusDiscoveredPodcast(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	tempDir := t.TempDir()
+	podDir := filepath.Join(tempDir, "UnconfiguredPod")
+	_ = os.MkdirAll(podDir, 0755)
+
+	ep1 := filepath.Join(podDir, "ep1.mp3")
+	_ = os.WriteFile(ep1, []byte("audio"), 0644)
+
+	cfg := Config{PodcastsDir: tempDir}
+	podcastsCount, totalEpisodes, totalNeedsAd := renderLocalSummary(&buf, cfg, false)
+
+	if podcastsCount != 1 {
+		t.Errorf("expected 1 podcast, got %d", podcastsCount)
+	}
+	if totalEpisodes != 1 {
+		t.Errorf("expected 1 episode, got %d", totalEpisodes)
+	}
+	if totalNeedsAd != 1 {
+		t.Errorf("expected 1 episode needing AdR under default ad removal policy, got %d", totalNeedsAd)
+	}
+
+	buf.Reset()
+	renderLocalLibraryStatus(&buf, cfg, false)
+	out := buf.String()
+	if !strings.Contains(out, "UnconfiguredPod") || !strings.Contains(out, "1") {
+		t.Errorf("expected detailed status report to list UnconfiguredPod, got:\n%s", out)
+	}
+}

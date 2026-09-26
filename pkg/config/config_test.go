@@ -180,3 +180,35 @@ func TestPodcastConfigEffectiveKeepPolicy(t *testing.T) {
 		t.Errorf("expected custom 14d, got %s (%d)", custom.EffectiveKeepPolicy(), custom.EffectiveCleanupDays())
 	}
 }
+
+func TestDefaultDiscoveredPodcastConfig(t *testing.T) {
+	t.Parallel()
+
+	def := DefaultDiscoveredPodcastConfig(nil)
+	if def.AdRemoval != AdRemovalAll {
+		t.Errorf("expected AdRemoval to default to %q, got %q", AdRemovalAll, def.AdRemoval)
+	}
+	if def.DownloadPolicy != DownloadPolicyNone {
+		t.Errorf("expected DownloadPolicy to default to %q, got %q", DownloadPolicyNone, def.DownloadPolicy)
+	}
+	if def.IsAutoDownloadEnabled() {
+		t.Errorf("expected AutoDownload to be disabled for discovered podcasts")
+	}
+	if def.KeepPolicy != KeepPolicyMonth || def.AutoCleanupDays != 30 {
+		t.Errorf("expected KeepPolicy to default to month (30d), got %q (%d)", def.KeepPolicy, def.AutoCleanupDays)
+	}
+
+	customApp := &types.Config{
+		PolicyConfig: types.PolicyConfig{
+			DefaultAdRemoval:  AdRemovalLatest,
+			DefaultKeepPolicy: KeepPolicyAlways,
+		},
+	}
+	custom := DefaultDiscoveredPodcastConfig(customApp)
+	if custom.AdRemoval != AdRemovalLatest {
+		t.Errorf("expected AdRemoval %q, got %q", AdRemovalLatest, custom.AdRemoval)
+	}
+	if custom.KeepPolicy != KeepPolicyAlways {
+		t.Errorf("expected KeepPolicy %q, got %q", KeepPolicyAlways, custom.KeepPolicy)
+	}
+}

@@ -96,7 +96,7 @@ func collectPodcastListItems(entries []podcast.PodcastDirEntry) []lsPodcastItem 
 	var items []lsPodcastItem
 	for _, p := range entries {
 		mp3s := util.FindMP3Files(p.Dir)
-		cfg := config.LoadPodcastConfig(p.Dir, config.PodcastConfig{})
+		cfg := config.LoadPodcastConfig(p.Dir, config.DefaultDiscoveredPodcastConfig(nil))
 		cleanCount := 0
 		var newestTime time.Time
 

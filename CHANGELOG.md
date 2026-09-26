@@ -5,7 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [0.5.6] - 2026-09-26
+## [0.5.7] - 2026-09-26
 
 ### Added
 - **Podcast Keep Policies**: Added configurable retention policies per podcast (`always`, `month` [30 days, default], `favorite` [180 days / 6 months], `hourly` [1 day], or custom `Nd`), auto-pruning expired MP3 audio files while strictly preserving all transcripts (`.transcript.json`, `.transcript.txt`, `.srt`, `.txt`) and metadata.
@@ -16,13 +16,17 @@ were written; they are not in version order.
   - Configurable in the Podcast Policy modal (`d` or `K`), cycling presets (`always` -> `month` -> `favorite` -> `hourly`) with Space/Tab and adjusting days with `+/-`.
   - Immediate audio prune action (`x`/`X`) in policy modal, podcast list, and podcast detail view, with status toast reporting deleted audio count and freed megabytes.
   - Keep Policy badges and retention labels in podcast lists, detail panes, and status pills.
+
+### Fixed
+- **Unconfigured podcast defaults & status reporting** (`issues/001.md`): Introduced `DefaultDiscoveredPodcastConfig` so unconfigured local podcasts on disk default to `ad_removal: "all"` (matching the ad-removal engine) without accidentally enabling `auto_download`, and normalized ad-removal mode comparisons in `pod info status`.
+
+## [0.5.6] - 2026-09-26
+
+### Added
 - **OpenRouter Gemini 2.5 Flash Lite default**: Configured `google/gemini-2.5-flash-lite` as the default LLM profile (ID 5) for podcast ad detection, providing sub-2-second latency and minimal token costs.
 
 ### Changed
 - **Ad detection prompt guidelines**: Enhanced `SystemPrompt` in `pkg/detect` with explicit boundary rules for pre-roll narrative/storytelling hooks and conversational pivots, ensuring cold-open ad anecdotes are captured starting at 0.0s rather than waiting for the sponsor brand name.
-
-### Fixed
-- **Unconfigured podcast defaults & status reporting** (`issues/001.md`): Introduced `DefaultDiscoveredPodcastConfig` so unconfigured local podcasts on disk default to `ad_removal: "all"` (matching the ad-removal engine) without accidentally enabling `auto_download`, and normalized ad-removal mode comparisons in `pod info status`.
 
 ## [0.5.5] - 2026-09-21
 

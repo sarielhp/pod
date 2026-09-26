@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,11 @@ const (
 	DownloadPolicyLatestK = "latest_k"
 	DownloadPolicyAll     = "all"
 	DownloadPolicyNew     = "new"
+
+	KeepPolicyAlways   = "always"
+	KeepPolicyMonth    = "month"
+	KeepPolicyFavorite = "favorite"
+	KeepPolicyHourly   = "hourly"
 )
 
 type PodcastConfig struct {
@@ -36,6 +42,7 @@ type PodcastConfig struct {
 	AutoDownload    *bool                       `json:"auto_download,omitempty"`
 	AutoCleanup     *bool                       `json:"auto_cleanup,omitempty"`
 	AutoCleanupDays int                         `json:"auto_cleanup_days,omitempty"`
+	KeepPolicy      string                      `json:"keep_policy,omitempty"`
 	Frequency       *types.PodcastFrequencyInfo `json:"frequency,omitempty"`
 	UpdatedAt       time.Time                   `json:"updated_at,omitempty"`
 }
@@ -51,10 +58,16 @@ func (c *PodcastConfig) SetFavorite(fav bool) {
 		c.AutoDownload = &autoDl
 		c.AdRemoval = AdRemovalAll
 		c.DownloadPolicy = DownloadPolicyNew
+		if c.KeepPolicy == "" || c.KeepPolicy == KeepPolicyMonth {
+			c.SetKeepPolicy(KeepPolicyFavorite)
+		}
 	} else {
 		c.FavoriteSince = nil
 		if c.DownloadPolicy == DownloadPolicyNew {
 			c.DownloadPolicy = DownloadPolicyNone
+		}
+		if c.KeepPolicy == KeepPolicyFavorite {
+			c.SetKeepPolicy(KeepPolicyMonth)
 		}
 	}
 }
@@ -86,19 +99,72 @@ func (c *PodcastConfig) SetAutoCleanup(enabled bool) {
 	c.AutoCleanup = &enabled
 	if !enabled {
 		c.AutoCleanupDays = -1
+		c.KeepPolicy = KeepPolicyAlways
 	} else if c.AutoCleanupDays <= 0 {
 		c.AutoCleanupDays = 30
+		c.KeepPolicy = KeepPolicyMonth
 	}
 }
 
-// PolicyDefaults are the three application-wide settings that shape a
-// podcast's own configuration when it has none of its own. Callers that hold
-// only these — the podcast library, for one — pass them directly instead of
-// synthesising a whole types.Config around them.
+func (c *PodcastConfig) EffectiveKeepPolicy() string {
+	if c.KeepPolicy != "" {
+		return NormalizeKeepPolicy(c.KeepPolicy)
+	}
+	if c.AutoCleanup != nil && !*c.AutoCleanup && c.AutoCleanupDays < 0 {
+		return KeepPolicyAlways
+	}
+	if c.AutoCleanupDays > 0 {
+		switch c.AutoCleanupDays {
+		case 30:
+			return KeepPolicyMonth
+		case 180:
+			return KeepPolicyFavorite
+		case 1:
+			return KeepPolicyHourly
+		default:
+			return fmt.Sprintf("%dd", c.AutoCleanupDays)
+		}
+	}
+	if c.Favorite {
+		return KeepPolicyFavorite
+	}
+	if c.Frequency != nil && c.Frequency.Type == "hourly" {
+		return KeepPolicyHourly
+	}
+	return KeepPolicyMonth
+}
+
+func (c *PodcastConfig) EffectiveCleanupDays() int {
+	days, ok := ParseKeepPolicyDays(c.EffectiveKeepPolicy())
+	if ok {
+		return days
+	}
+	if c.AutoCleanupDays > 0 {
+		return c.AutoCleanupDays
+	}
+	return -1
+}
+
+func (c *PodcastConfig) SetKeepPolicy(policy string) {
+	norm := NormalizeKeepPolicy(policy)
+	c.KeepPolicy = norm
+	days, ok := ParseKeepPolicyDays(norm)
+	if !ok || days <= 0 {
+		c.SetAutoCleanup(false)
+	} else {
+		c.AutoCleanupDays = days
+		autoCl := true
+		c.AutoCleanup = &autoCl
+	}
+}
+
+// PolicyDefaults are the application-wide settings that shape a
+// podcast's own configuration when it has none of its own.
 type PolicyDefaults struct {
 	DownloadPolicy string
 	DownloadK      int
 	AdRemoval      string
+	KeepPolicy     string
 }
 
 func DefaultPodcastConfig(appCfg *types.Config) PodcastConfig {
@@ -108,6 +174,7 @@ func DefaultPodcastConfig(appCfg *types.Config) PodcastConfig {
 			DownloadPolicy: appCfg.DefaultDownloadPolicy,
 			DownloadK:      appCfg.DefaultDownloadK,
 			AdRemoval:      appCfg.DefaultAdRemoval,
+			KeepPolicy:     appCfg.DefaultKeepPolicy,
 		}
 	}
 	return DefaultPodcastConfigFrom(d)
@@ -117,6 +184,7 @@ func DefaultPodcastConfigFrom(d PolicyDefaults) PodcastConfig {
 	dlPolicy := "latest"
 	dlK := 3
 	adPolicy := "all"
+	keepPolicy := KeepPolicyMonth
 	if d.DownloadPolicy != "" {
 		dlPolicy = d.DownloadPolicy
 	}
@@ -126,15 +194,26 @@ func DefaultPodcastConfigFrom(d PolicyDefaults) PodcastConfig {
 	if d.AdRemoval != "" {
 		adPolicy = d.AdRemoval
 	}
+	if d.KeepPolicy != "" {
+		keepPolicy = d.KeepPolicy
+	}
 	autoDl := NormalizeDownloadPolicy(dlPolicy) != DownloadPolicyNone
-	autoCl := false
+	autoCl := true
+	days := 30
+	if NormalizeKeepPolicy(keepPolicy) == KeepPolicyAlways {
+		autoCl = false
+		days = -1
+	} else if pDays, ok := ParseKeepPolicyDays(keepPolicy); ok {
+		days = pDays
+	}
 	return PodcastConfig{
 		AdRemoval:       NormalizeAdRemovalMode(adPolicy),
 		DownloadPolicy:  NormalizeDownloadPolicy(dlPolicy),
 		DownloadK:       dlK,
 		AutoDownload:    &autoDl,
 		AutoCleanup:     &autoCl,
-		AutoCleanupDays: -1,
+		AutoCleanupDays: days,
+		KeepPolicy:      NormalizeKeepPolicy(keepPolicy),
 	}
 }
 
@@ -237,6 +316,103 @@ func DownloadPolicyBadge(policy string, k int) string {
 	}
 }
 
+func NormalizeKeepPolicy(policy string) string {
+	s := strings.ToLower(strings.TrimSpace(policy))
+	switch s {
+	case "always", "forever", "infinite", "none", "keep-always", "keep_always", "never", "all", "keep-all", "keep_all":
+		return KeepPolicyAlways
+	case "month", "regular", "30d", "30days", "30", "monthly", "1m", "1month":
+		return KeepPolicyMonth
+	case "favorite", "6months", "6month", "6m", "180d", "180days", "180", "half-year":
+		return KeepPolicyFavorite
+	case "hourly", "news", "day", "daily", "1d", "1day", "24h", "1":
+		return KeepPolicyHourly
+	}
+	s = strings.TrimSuffix(s, "days")
+	s = strings.TrimSuffix(s, "day")
+	s = strings.TrimSuffix(s, "d")
+	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n > 0 {
+		return fmt.Sprintf("%dd", n)
+	}
+	return s
+}
+
+func ParseKeepPolicyDays(policy string) (int, bool) {
+	norm := NormalizeKeepPolicy(policy)
+	switch norm {
+	case KeepPolicyAlways:
+		return -1, true
+	case KeepPolicyMonth:
+		return 30, true
+	case KeepPolicyFavorite:
+		return 180, true
+	case KeepPolicyHourly:
+		return 1, true
+	}
+	s := strings.TrimSuffix(norm, "d")
+	if n, err := strconv.Atoi(s); err == nil && n > 0 {
+		return n, true
+	}
+	return 0, false
+}
+
+func CycleKeepPolicy(current string) string {
+	switch NormalizeKeepPolicy(current) {
+	case KeepPolicyAlways:
+		return KeepPolicyMonth
+	case KeepPolicyMonth:
+		return KeepPolicyFavorite
+	case KeepPolicyFavorite:
+		return KeepPolicyHourly
+	case KeepPolicyHourly:
+		return KeepPolicyAlways
+	default:
+		return KeepPolicyAlways
+	}
+}
+
+func KeepPolicyLabel(policy string, days int) string {
+	switch NormalizeKeepPolicy(policy) {
+	case KeepPolicyAlways:
+		return "Keep always (forever)"
+	case KeepPolicyMonth:
+		return "Regular (1 month / 30 days)"
+	case KeepPolicyFavorite:
+		return "Favorite (6 months / 180 days)"
+	case KeepPolicyHourly:
+		return "Hourly news (1 day)"
+	default:
+		if days > 0 {
+			return fmt.Sprintf("Custom (%d days)", days)
+		}
+		if n, ok := ParseKeepPolicyDays(policy); ok && n > 0 {
+			return fmt.Sprintf("Custom (%d days)", n)
+		}
+		return "Keep always (forever)"
+	}
+}
+
+func KeepPolicyBadge(policy string, days int) string {
+	switch NormalizeKeepPolicy(policy) {
+	case KeepPolicyAlways:
+		return "[Keep: Always]"
+	case KeepPolicyMonth:
+		return "[Keep: 1mo]"
+	case KeepPolicyFavorite:
+		return "[Keep: 6mo]"
+	case KeepPolicyHourly:
+		return "[Keep: 1d]"
+	default:
+		if days > 0 {
+			return fmt.Sprintf("[Keep: %dd]", days)
+		}
+		if n, ok := ParseKeepPolicyDays(policy); ok && n > 0 {
+			return fmt.Sprintf("[Keep: %dd]", n)
+		}
+		return "[Keep: Always]"
+	}
+}
+
 func LoadPodcastConfig(dir string, def PodcastConfig) PodcastConfig {
 	cfgPath := filepath.Join(dir, PodcastConfigFileName)
 	data, err := os.ReadFile(cfgPath)
@@ -318,6 +494,9 @@ func normalizeLoadedPodcastConfig(cfg *PodcastConfig, def PodcastConfig) {
 			cfg.AutoCleanupDays = -1
 		}
 	}
+	if cfg.KeepPolicy != "" {
+		cfg.KeepPolicy = NormalizeKeepPolicy(cfg.KeepPolicy)
+	}
 }
 
 func SavePodcastConfig(dir string, cfg PodcastConfig) error {
@@ -345,6 +524,12 @@ func SavePodcastConfig(dir string, cfg PodcastConfig) error {
 	} else {
 		autoCl := true
 		cfg.AutoCleanup = &autoCl
+	}
+
+	if cfg.KeepPolicy != "" {
+		cfg.KeepPolicy = NormalizeKeepPolicy(cfg.KeepPolicy)
+	} else {
+		cfg.KeepPolicy = cfg.EffectiveKeepPolicy()
 	}
 
 	if cfg.DownloadK <= 0 {

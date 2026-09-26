@@ -15,7 +15,7 @@ func TestPolicyUpdateIsEmpty(t *testing.T) {
 	}
 	for _, u := range []PolicyUpdate{
 		{Favorite: "true"}, {AutoDownload: "false"}, {DownloadPolicy: "latest"},
-		{DownloadK: 1}, {AutoCleanup: "true"}, {CleanupDays: 7}, {AdRemoval: "all"},
+		{DownloadK: 1}, {AutoCleanup: "true"}, {CleanupDays: 7}, {KeepPolicy: "month"}, {AdRemoval: "all"},
 	} {
 		if u.IsEmpty() {
 			t.Errorf("%+v should not be empty", u)

@@ -260,6 +260,7 @@ func (l *Library) ExecuteSubscriptionDownloads(plans []SubscriptionPlan, store *
 				res.Podcasts++
 			}
 		} else {
+			l.autoCleanupPodcast(plan, opts.Defaults)
 			_ = PublishPodcast(plan.PodDir, plan.Sub, l.cfg.ServerBaseURL, plan.FeedEpisodes)
 		}
 		l.refreshSubscriptionCover(&plan, store)
@@ -269,6 +270,17 @@ func (l *Library) ExecuteSubscriptionDownloads(plans []SubscriptionPlan, store *
 		_ = PublishCatalog(l.cfg.PodcastsDir, store.List())
 	}
 	return res
+}
+
+func (l *Library) autoCleanupPodcast(plan SubscriptionPlan, defaults config.PolicyDefaults) {
+	podCfg := subscriptionPodcastConfig(plan.PodDir, plan.Sub, defaults)
+	if podCfg.EffectiveKeepPolicy() == config.KeepPolicyAlways {
+		return
+	}
+	pruneRes, _ := ApplyPodcastKeepPolicy(plan.PodDir, plan.Sub.Title, podCfg, time.Now(), false)
+	if pruneRes.DeletedEpisodes > 0 {
+		l.progress.Infof("%s: auto-cleanup pruned %d expired episode(s) (transcripts kept)", plan.Sub.Title, pruneRes.DeletedEpisodes)
+	}
 }
 
 func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts SubscriptionDownloadOptions) (int, error) {
@@ -290,6 +302,7 @@ func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts Subscr
 		}
 		downloaded++
 	}
+	l.autoCleanupPodcast(plan, opts.Defaults)
 	_ = PublishPodcast(plan.PodDir, plan.Sub, l.cfg.ServerBaseURL, plan.FeedEpisodes)
 	return downloaded, nil
 }

@@ -84,6 +84,7 @@ type tuiModel struct {
 	policyAutoDownload      bool
 	policyAutoCleanup       bool
 	policyCleanupDays       int
+	policyKeepPolicy        string
 	policyAdRemoval         string
 	selectedEpisodes        map[string]bool
 	showEpisodePlayerPane   bool

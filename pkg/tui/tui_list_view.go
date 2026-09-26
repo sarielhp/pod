@@ -134,6 +134,8 @@ func renderPodcastDetailPaneLines(m *tuiModel, selPod tuiPodcast, rightW, maxVis
 	rightLines = append(rightLines, tuiBadgePolicy.Render(truncate(policyLine, rightW-2)))
 	dlPolicyLine := fmt.Sprintf("Download: %s ('d' change)", config.DownloadPolicyLabel(selPod.config.DownloadPolicy, selPod.config.DownloadK))
 	rightLines = append(rightLines, tuiBadgePolicy.Render(truncate(dlPolicyLine, rightW-2)))
+	keepPolicyLine := fmt.Sprintf("Keep Policy: %s ('d' change)", config.KeepPolicyLabel(selPod.config.EffectiveKeepPolicy(), selPod.config.EffectiveCleanupDays()))
+	rightLines = append(rightLines, tuiBadgePolicy.Render(truncate(keepPolicyLine, rightW-2)))
 
 	if !newestDate.IsZero() {
 		dateInfo := fmt.Sprintf("Timeline: %s", newestDate.Format("2006-01-02"))
@@ -277,7 +279,7 @@ func renderPodcastsNarrowView(m *tuiModel, pods []tuiPodcast, start, end int, ou
 }
 
 func renderPodcastsListFooter(m *tuiModel, totalPods, maxVis, dividerWidth int, out *strings.Builder) {
-	helpText := "↑↓ navigate │ Enter select │ F fetch-feed │ D dl-all │ L latest │ c ad-policy │ d dl-policy │ ? help"
+	helpText := "↑↓ navigate │ Enter select │ F fetch-feed │ D dl-all │ L latest │ c ad-policy │ d policy │ x prune │ ? help"
 	if m.searchMode {
 		helpText = fmt.Sprintf("Search: %s█  (Enter: Apply, Esc: Cancel)", m.searchQuery)
 	} else if totalPods > maxVis {

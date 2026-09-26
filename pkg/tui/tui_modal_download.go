@@ -6,9 +6,11 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
+	"pod/pkg/podcast"
 	"pod/pkg/util"
 
 	"github.com/charmbracelet/lipgloss"
@@ -54,9 +56,18 @@ func (m *tuiModel) drawDownloadPolicyModal() string {
 		clVal = "[ Enabled ]"
 	}
 
-	daysVal := "[ Keep All (∞) ]"
+	daysVal := "[ Keep Always (∞) ]"
 	if m.policyAutoCleanup && m.policyCleanupDays > 0 {
-		daysVal = fmt.Sprintf("[ %d days ]", m.policyCleanupDays)
+		switch m.policyCleanupDays {
+		case 30:
+			daysVal = "[ Regular (30 days) ]"
+		case 180:
+			daysVal = "[ Favorite (6 months) ]"
+		case 1:
+			daysVal = "[ Hourly News (1 day) ]"
+		default:
+			daysVal = fmt.Sprintf("[ %d days ]", m.policyCleanupDays)
+		}
 	}
 
 	adVal := "[ None ]"
@@ -75,7 +86,7 @@ func (m *tuiModel) drawDownloadPolicyModal() string {
 	}{
 		{1, "Auto-Download", dlVal, "Fetch new episodes automatically from feed"},
 		{2, "Auto-Cleanup", clVal, "Delete older episodes past retention period"},
-		{3, "Cleanup Days", daysVal, "Days to keep (Press + / - or ← / → to adjust)"},
+		{3, "Cleanup Days", daysVal, "Days to keep: Always (∞), Regular (30d), Favorite (180d), Hourly (1d) (+/-)"},
 		{4, "Ad Removal", adVal, "Commercial ad detection & removal (all, latest, none)"},
 	}
 
@@ -96,7 +107,7 @@ func (m *tuiModel) drawDownloadPolicyModal() string {
 	}
 
 	lines = append(lines, tuiDividerStyle.Render(strings.Repeat("─", boxWidth-4)))
-	lines = append(lines, tuiDimStyle.Render("↑/↓ Select │ Space/1-4 Toggle │ +/- Adjust Days │ Enter Apply │ Esc Cancel"))
+	lines = append(lines, tuiDimStyle.Render("↑/↓ Select │ Space/1-4 Toggle │ +/- Adjust Days │ x Prune Expired │ Enter Apply │ Esc Cancel"))
 
 	content := strings.Join(lines, "\n")
 	return lipgloss.NewStyle().
@@ -113,11 +124,10 @@ func (m *tuiModel) openDownloadPolicyModal() {
 	}
 	pod := &m.podcasts[m.podIdx]
 	m.policyAutoDownload = pod.config.IsAutoDownloadEnabled()
-	m.policyAutoCleanup = pod.config.IsAutoCleanupEnabled()
-	m.policyCleanupDays = pod.config.AutoCleanupDays
-	if m.policyAutoCleanup && m.policyCleanupDays <= 0 {
-		m.policyCleanupDays = 30
-	} else if !m.policyAutoCleanup {
+	m.policyKeepPolicy = pod.config.EffectiveKeepPolicy()
+	m.policyCleanupDays = pod.config.EffectiveCleanupDays()
+	m.policyAutoCleanup = (m.policyKeepPolicy != config.KeepPolicyAlways && m.policyCleanupDays > 0)
+	if !m.policyAutoCleanup {
 		m.policyCleanupDays = -1
 	}
 	m.policyAdRemoval = config.NormalizeAdRemovalMode(pod.config.AdRemoval)
@@ -137,19 +147,36 @@ func (m *tuiModel) togglePolicyModalField(idx int) {
 		m.policyAutoCleanup = !m.policyAutoCleanup
 		if m.policyAutoCleanup && m.policyCleanupDays <= 0 {
 			m.policyCleanupDays = 30
+			m.policyKeepPolicy = config.KeepPolicyMonth
 		} else if !m.policyAutoCleanup {
 			m.policyCleanupDays = -1
+			m.policyKeepPolicy = config.KeepPolicyAlways
 		}
 	case 2:
-		if m.policyCleanupDays <= 0 {
-			m.policyAutoCleanup = true
-			m.policyCleanupDays = 30
-		} else {
-			m.policyAutoCleanup = false
-			m.policyCleanupDays = -1
-		}
+		m.cycleKeepPolicyPreset()
 	case 3:
 		m.policyAdRemoval = config.CycleAdRemovalMode(m.policyAdRemoval)
+	}
+}
+
+func (m *tuiModel) cycleKeepPolicyPreset() {
+	if !m.policyAutoCleanup || m.policyCleanupDays <= 0 {
+		m.policyAutoCleanup = true
+		m.policyCleanupDays = 30
+		m.policyKeepPolicy = config.KeepPolicyMonth
+		return
+	}
+	switch m.policyCleanupDays {
+	case 30:
+		m.policyCleanupDays = 180
+		m.policyKeepPolicy = config.KeepPolicyFavorite
+	case 180:
+		m.policyCleanupDays = 1
+		m.policyKeepPolicy = config.KeepPolicyHourly
+	default:
+		m.policyAutoCleanup = false
+		m.policyCleanupDays = -1
+		m.policyKeepPolicy = config.KeepPolicyAlways
 	}
 }
 
@@ -161,8 +188,10 @@ func (m *tuiModel) adjustPolicyModalField(delta int) {
 		m.policyAutoCleanup = (delta > 0)
 		if m.policyAutoCleanup && m.policyCleanupDays <= 0 {
 			m.policyCleanupDays = 30
+			m.policyKeepPolicy = config.KeepPolicyMonth
 		} else if !m.policyAutoCleanup {
 			m.policyCleanupDays = -1
+			m.policyKeepPolicy = config.KeepPolicyAlways
 		}
 	case 2:
 		m.adjustCleanupDaysField(delta)
@@ -187,6 +216,24 @@ func (m *tuiModel) adjustCleanupDaysField(delta int) {
 			m.policyAutoCleanup = false
 		}
 	}
+	m.updateKeepPolicyFromDays()
+}
+
+func (m *tuiModel) updateKeepPolicyFromDays() {
+	if !m.policyAutoCleanup || m.policyCleanupDays <= 0 {
+		m.policyKeepPolicy = config.KeepPolicyAlways
+		return
+	}
+	switch m.policyCleanupDays {
+	case 30:
+		m.policyKeepPolicy = config.KeepPolicyMonth
+	case 180:
+		m.policyKeepPolicy = config.KeepPolicyFavorite
+	case 1:
+		m.policyKeepPolicy = config.KeepPolicyHourly
+	default:
+		m.policyKeepPolicy = fmt.Sprintf("%dd", m.policyCleanupDays)
+	}
 }
 
 func (m *tuiModel) applyDownloadPolicyModal() {
@@ -196,11 +243,19 @@ func (m *tuiModel) applyDownloadPolicyModal() {
 	}
 	pod := &m.podcasts[m.podIdx]
 	pod.config.SetAutoDownload(m.policyAutoDownload)
-	pod.config.SetAutoCleanup(m.policyAutoCleanup)
-	if m.policyAutoCleanup && m.policyCleanupDays > 0 {
-		pod.config.AutoCleanupDays = m.policyCleanupDays
-	} else {
+	if !m.policyAutoCleanup || m.policyCleanupDays <= 0 {
+		pod.config.SetAutoCleanup(false)
 		pod.config.AutoCleanupDays = -1
+		pod.config.SetKeepPolicy(config.KeepPolicyAlways)
+	} else {
+		pod.config.SetAutoCleanup(true)
+		pod.config.AutoCleanupDays = m.policyCleanupDays
+		if m.policyKeepPolicy != "" {
+			pod.config.SetKeepPolicy(m.policyKeepPolicy)
+		} else {
+			m.updateKeepPolicyFromDays()
+			pod.config.SetKeepPolicy(m.policyKeepPolicy)
+		}
 	}
 	pod.config.AdRemoval = m.policyAdRemoval
 	if m.downloadPolicyModalK > 0 {
@@ -210,7 +265,8 @@ func (m *tuiModel) applyDownloadPolicyModal() {
 	if err := config.SavePodcastConfig(pod.dir, pod.config); err != nil {
 		m.showToast("Failed to save config: "+err.Error(), ToastError)
 	} else {
-		m.showToast("Policy saved: DL="+boolStatus(m.policyAutoDownload)+", Cleanup="+boolStatus(m.policyAutoCleanup)+", Ads="+m.policyAdRemoval, ToastSuccess)
+		keepDesc := config.KeepPolicyLabel(pod.config.EffectiveKeepPolicy(), pod.config.EffectiveCleanupDays())
+		m.showToast("Policy saved: DL="+boolStatus(m.policyAutoDownload)+", Keep="+keepDesc+", Ads="+m.policyAdRemoval, ToastSuccess)
 	}
 
 	autoDownload := m.policyAutoDownload
@@ -225,6 +281,30 @@ func (m *tuiModel) applyDownloadPolicyModal() {
 		syncPolicyToBackend(m.lib.Backend(), pod, autoDownload, autoCleanup, cleanupDays)
 	}()
 	m.showDownloadPolicyModal = false
+}
+
+func (m *tuiModel) pruneSelectedPodcastKeepPolicy() {
+	if m.podIdx >= len(m.podcasts) {
+		return
+	}
+	pod := &m.podcasts[m.podIdx]
+	res, err := podcast.ApplyPodcastKeepPolicy(pod.dir, pod.name, pod.config, time.Now(), false)
+	if err != nil {
+		m.showToast("Prune error: "+err.Error(), ToastError)
+		return
+	}
+	if res.DeletedEpisodes == 0 {
+		m.showToast("No expired episodes to prune (all within keep policy)", ToastInfo)
+		return
+	}
+	if refreshed := loadSingleTUIPodcast(pod.dir, pod.name); refreshed != nil {
+		pod.episodes = refreshed.episodes
+	} else {
+		pod.episodes = nil
+	}
+	savePodcastToCache(pod)
+	freedMB := float64(res.FreedBytes) / (1024 * 1024)
+	m.showToast(fmt.Sprintf("Pruned %d expired episode(s), freed %.1f MB (transcripts kept)", res.DeletedEpisodes, freedMB), ToastSuccess)
 }
 
 func syncPolicyToBackend(b backend.Backend, pod *tuiPodcast, autoDownload, autoCleanup bool, autoCleanupDays int) {

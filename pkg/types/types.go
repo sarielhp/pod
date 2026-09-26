@@ -193,6 +193,8 @@ type PolicyOptions struct {
 	DownloadK        int
 	AutoCleanupStr   string
 	CleanupDays      int
+	KeepPolicy       string
+	PolicyApply      bool
 	AdRemovalMode    string
 	FavoriteStr      string
 	PolicyAll        bool
@@ -336,6 +338,7 @@ type PolicyConfig struct {
 	DefaultDownloadPolicy string `json:"default_download_policy,omitempty"`
 	DefaultDownloadK      int    `json:"default_download_k,omitempty"`
 	DefaultAdRemoval      string `json:"default_ad_policy,omitempty"`
+	DefaultKeepPolicy     string `json:"default_keep_policy,omitempty"`
 }
 
 type GeminiConfig struct {

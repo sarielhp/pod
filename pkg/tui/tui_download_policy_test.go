@@ -1,11 +1,14 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"pod/pkg/config"
+	"pod/pkg/util"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -171,4 +174,87 @@ func TestSyncPolicyToBackend_PanicRecovery(t *testing.T) {
 		}
 	}()
 	syncPolicyToBackend(nil, &m.podcasts[0], true, false, 0)
+}
+
+func TestTUIDownloadPolicyKeepPolicyCycling(t *testing.T) {
+	tempDir := t.TempDir()
+	m := makeTestModel()
+	m.podcasts[0].dir = tempDir
+	m.podIdx = 0
+	m.openDownloadPolicyModal()
+
+	m.downloadPolicyModalIdx = 2
+	m.policyAutoCleanup = false
+	m.policyCleanupDays = -1
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if !m.policyAutoCleanup || m.policyCleanupDays != 30 || m.policyKeepPolicy != config.KeepPolicyMonth {
+		t.Fatalf("expected cycle to month (30d), got cleanup=%v days=%d policy=%s", m.policyAutoCleanup, m.policyCleanupDays, m.policyKeepPolicy)
+	}
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if !m.policyAutoCleanup || m.policyCleanupDays != 180 || m.policyKeepPolicy != config.KeepPolicyFavorite {
+		t.Fatalf("expected cycle to favorite (180d), got cleanup=%v days=%d policy=%s", m.policyAutoCleanup, m.policyCleanupDays, m.policyKeepPolicy)
+	}
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if !m.policyAutoCleanup || m.policyCleanupDays != 1 || m.policyKeepPolicy != config.KeepPolicyHourly {
+		t.Fatalf("expected cycle to hourly (1d), got cleanup=%v days=%d policy=%s", m.policyAutoCleanup, m.policyCleanupDays, m.policyKeepPolicy)
+	}
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	if m.policyAutoCleanup || m.policyCleanupDays != -1 || m.policyKeepPolicy != config.KeepPolicyAlways {
+		t.Fatalf("expected cycle to always (-1), got cleanup=%v days=%d policy=%s", m.policyAutoCleanup, m.policyCleanupDays, m.policyKeepPolicy)
+	}
+}
+
+func TestTUIDownloadPolicyModalPruneExpired(t *testing.T) {
+	tempDir := t.TempDir()
+	m := makeTestModel()
+	m.podcasts[0].dir = tempDir
+	m.podcasts[0].name = "Test Pod"
+	m.podIdx = 0
+
+	mp3Path := filepath.Join(tempDir, "ep1.mp3")
+	txPath := filepath.Join(tempDir, "ep1.transcript.json")
+	_ = os.WriteFile(mp3Path, []byte("fake mp3 data"), 0644)
+	_ = os.WriteFile(txPath, []byte(`{"text":"hello"}`), 0644)
+	oldTime := time.Now().AddDate(0, 0, -40)
+	_ = os.Chtimes(mp3Path, oldTime, oldTime)
+
+	m.openDownloadPolicyModal()
+	m.downloadPolicyModalIdx = 2
+	m.policyAutoCleanup = true
+	m.policyCleanupDays = 30
+	m.policyKeepPolicy = config.KeepPolicyMonth
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+
+	if util.FileExists(mp3Path) {
+		t.Errorf("expected expired mp3 to be deleted by 'x'")
+	}
+	if !util.FileExists(txPath) {
+		t.Errorf("expected transcript file to be preserved")
+	}
+	if m.toast == nil || !strings.Contains(m.toast.Message, "Pruned 1 expired episode") {
+		t.Errorf("expected prune toast message, got %+v", m.toast)
+	}
+}
+
+func TestTUIKeepPolicyShortcutKeys(t *testing.T) {
+	m := makeTestModel()
+	m.screen = screenPodcasts
+	m.podIdx = 0
+
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'K'}})
+	if !m.showDownloadPolicyModal {
+		t.Errorf("expected 'K' on screenPodcasts to open download policy modal")
+	}
+	m.showDownloadPolicyModal = false
+
+	m.screen = screenPodcastDetail
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'K'}})
+	if !m.showDownloadPolicyModal {
+		t.Errorf("expected 'K' on screenPodcastDetail to open download policy modal")
+	}
 }

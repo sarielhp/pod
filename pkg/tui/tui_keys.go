@@ -136,6 +136,9 @@ func handleDownloadPolicyModalKey(m *tuiModel, s string) {
 		m.adjustPolicyModalField(-1)
 	case "enter":
 		m.applyDownloadPolicyModal()
+	case "x", "X":
+		m.applyDownloadPolicyModal()
+		m.pruneSelectedPodcastKeepPolicy()
 	case "esc", "q", "d", "D":
 		m.showDownloadPolicyModal = false
 	}

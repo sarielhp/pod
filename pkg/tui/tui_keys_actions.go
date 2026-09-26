@@ -129,6 +129,16 @@ func handleActionModalOrTriggerKey(m *tuiModel, s string) bool {
 			m.openTimelineViewer()
 		}
 		return true
+	case "K":
+		if m.screen == screenPodcasts || m.screen == screenPodcastDetail {
+			m.openDownloadPolicyModal()
+		}
+		return true
+	case "x", "X":
+		if m.screen == screenPodcasts || m.screen == screenPodcastDetail {
+			m.pruneSelectedPodcastKeepPolicy()
+		}
+		return true
 	}
 	return false
 }

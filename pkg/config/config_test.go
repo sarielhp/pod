@@ -94,3 +94,89 @@ func TestSubscriptionsFilePath(t *testing.T) {
 		t.Errorf("expected /tmp/my_subs.json, got %s", got)
 	}
 }
+
+func TestKeepPolicyNormalizationAndCycle(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input string
+		want  string
+		days  int
+	}{
+		{"always", KeepPolicyAlways, -1},
+		{"forever", KeepPolicyAlways, -1},
+		{"never", KeepPolicyAlways, -1},
+		{"month", KeepPolicyMonth, 30},
+		{"regular", KeepPolicyMonth, 30},
+		{"30d", KeepPolicyMonth, 30},
+		{"favorite", KeepPolicyFavorite, 180},
+		{"6months", KeepPolicyFavorite, 180},
+		{"hourly", KeepPolicyHourly, 1},
+		{"day", KeepPolicyHourly, 1},
+		{"1d", KeepPolicyHourly, 1},
+		{"14d", "14d", 14},
+		{"14", "14d", 14},
+	}
+	for _, tc := range cases {
+		norm := NormalizeKeepPolicy(tc.input)
+		if norm != tc.want {
+			t.Errorf("NormalizeKeepPolicy(%q) = %q, want %q", tc.input, norm, tc.want)
+		}
+		days, ok := ParseKeepPolicyDays(tc.input)
+		if !ok || days != tc.days {
+			t.Errorf("ParseKeepPolicyDays(%q) = (%d, %v), want (%d, true)", tc.input, days, ok, tc.days)
+		}
+	}
+
+	p := KeepPolicyAlways
+	p = CycleKeepPolicy(p)
+	if p != KeepPolicyMonth {
+		t.Errorf("expected KeepPolicyMonth, got %s", p)
+	}
+	p = CycleKeepPolicy(p)
+	if p != KeepPolicyFavorite {
+		t.Errorf("expected KeepPolicyFavorite, got %s", p)
+	}
+	p = CycleKeepPolicy(p)
+	if p != KeepPolicyHourly {
+		t.Errorf("expected KeepPolicyHourly, got %s", p)
+	}
+	p = CycleKeepPolicy(p)
+	if p != KeepPolicyAlways {
+		t.Errorf("expected KeepPolicyAlways, got %s", p)
+	}
+}
+
+func TestPodcastConfigEffectiveKeepPolicy(t *testing.T) {
+	t.Parallel()
+	// Regular podcast defaults to month (30 days)
+	regular := PodcastConfig{}
+	if regular.EffectiveKeepPolicy() != KeepPolicyMonth || regular.EffectiveCleanupDays() != 30 {
+		t.Errorf("expected regular to be month (30d), got %s (%d)", regular.EffectiveKeepPolicy(), regular.EffectiveCleanupDays())
+	}
+
+	// Favorite podcast defaults to favorite (180 days / 6 months)
+	fav := PodcastConfig{Favorite: true}
+	if fav.EffectiveKeepPolicy() != KeepPolicyFavorite || fav.EffectiveCleanupDays() != 180 {
+		t.Errorf("expected fav to be favorite (180d), got %s (%d)", fav.EffectiveKeepPolicy(), fav.EffectiveCleanupDays())
+	}
+
+	// Hourly news podcast defaults to hourly (1 day)
+	hourly := PodcastConfig{Frequency: &types.PodcastFrequencyInfo{Type: "hourly"}}
+	if hourly.EffectiveKeepPolicy() != KeepPolicyHourly || hourly.EffectiveCleanupDays() != 1 {
+		t.Errorf("expected hourly to be hourly (1d), got %s (%d)", hourly.EffectiveKeepPolicy(), hourly.EffectiveCleanupDays())
+	}
+
+	// Explicit keep always
+	always := PodcastConfig{}
+	always.SetKeepPolicy("always")
+	if always.EffectiveKeepPolicy() != KeepPolicyAlways || always.EffectiveCleanupDays() != -1 {
+		t.Errorf("expected always to be always (-1d), got %s (%d)", always.EffectiveKeepPolicy(), always.EffectiveCleanupDays())
+	}
+
+	// Custom days
+	custom := PodcastConfig{}
+	custom.SetKeepPolicy("14d")
+	if custom.EffectiveKeepPolicy() != "14d" || custom.EffectiveCleanupDays() != 14 {
+		t.Errorf("expected custom 14d, got %s (%d)", custom.EffectiveKeepPolicy(), custom.EffectiveCleanupDays())
+	}
+}

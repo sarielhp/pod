@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"pod/pkg/config"
 	"pod/pkg/podcast"
+	"pod/pkg/util"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPolicyDisplayAndJSON(t *testing.T) {
@@ -348,5 +350,83 @@ func TestPolicyAllWithSetDefault(t *testing.T) {
 	}
 	if savedCfg.DefaultDownloadPolicy != DownloadPolicyNone {
 		t.Errorf("expected default_download_policy 'none', got %q", savedCfg.DefaultDownloadPolicy)
+	}
+}
+
+func TestPolicyKeepPolicy(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	tempDir := t.TempDir()
+	podDir := filepath.Join(tempDir, "Keep_Show")
+	_ = os.MkdirAll(podDir, 0755)
+
+	podID := podcast.GetOrSetPodcastShortID(podDir, "Keep Show")
+	cfg := Config{PodcastsDir: tempDir}
+
+	// 1. Set to month
+	cli := CLIOptions{
+		Args: []string{podID},
+		PolicyOptions: PolicyOptions{
+			KeepPolicy: "month",
+		},
+	}
+	cli.Out = &buf
+	cli.Err = &buf
+
+	if err := runPolicyCommand(cfg, cli); err != nil {
+		t.Fatalf("runPolicyCommand failed: %v", err)
+	}
+	podCfg := config.LoadPodcastConfig(podDir, config.PodcastConfig{})
+	if podCfg.EffectiveKeepPolicy() != config.KeepPolicyMonth || podCfg.AutoCleanupDays != 30 {
+		t.Errorf("expected keep policy month (30d), got %s (%d)", podCfg.EffectiveKeepPolicy(), podCfg.AutoCleanupDays)
+	}
+
+	// 2. Set to always
+	buf.Reset()
+	cli = CLIOptions{
+		Args: []string{podID},
+		PolicyOptions: PolicyOptions{
+			KeepPolicy: "always",
+		},
+	}
+	cli.Out = &buf
+	cli.Err = &buf
+	if err := runPolicyCommand(cfg, cli); err != nil {
+		t.Fatalf("runPolicyCommand always failed: %v", err)
+	}
+	podCfg = config.LoadPodcastConfig(podDir, config.PodcastConfig{})
+	if podCfg.EffectiveKeepPolicy() != config.KeepPolicyAlways || podCfg.IsAutoCleanupEnabled() {
+		t.Errorf("expected keep policy always, got %s (enabled: %v)", podCfg.EffectiveKeepPolicy(), podCfg.IsAutoCleanupEnabled())
+	}
+
+	// 3. Create an old episode and test --apply with month
+	oldMP3 := filepath.Join(podDir, "old.mp3")
+	oldTx := filepath.Join(podDir, "old.transcript.json")
+	_ = os.WriteFile(oldMP3, []byte("old mp3 bytes"), 0644)
+	_ = os.WriteFile(oldTx, []byte(`{"text":"kept transcript"}`), 0644)
+	oldTime := time.Now().AddDate(0, 0, -45)
+	_ = os.Chtimes(oldMP3, oldTime, oldTime)
+
+	buf.Reset()
+	cli = CLIOptions{
+		Args: []string{podID},
+		PolicyOptions: PolicyOptions{
+			KeepPolicy:  "month",
+			PolicyApply: true,
+		},
+	}
+	cli.Out = &buf
+	cli.Err = &buf
+	if err := runPolicyCommand(cfg, cli); err != nil {
+		t.Fatalf("runPolicyCommand apply failed: %v", err)
+	}
+	if !strings.Contains(buf.String(), "pruned 1 expired audio file") {
+		t.Errorf("expected prune message in output, got: %s", buf.String())
+	}
+	if util.FileExists(oldMP3) {
+		t.Errorf("expected oldMP3 to be deleted")
+	}
+	if !util.FileExists(oldTx) {
+		t.Errorf("expected oldTx transcript to be preserved")
 	}
 }

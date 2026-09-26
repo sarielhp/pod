@@ -23,6 +23,7 @@ type PodcastPolicyResult struct {
 	DownloadK       int    `json:"download_k"`
 	AutoCleanup     bool   `json:"auto_cleanup"`
 	AutoCleanupDays int    `json:"auto_cleanup_days"`
+	KeepPolicy      string `json:"keep_policy"`
 	AdRemoval       string `json:"ad_removal"`
 	BackendSync     string `json:"backend_sync"`
 }
@@ -36,6 +37,7 @@ func policyUpdate(cli CLIOptions) podcast.PolicyUpdate {
 		DownloadK:      cli.DownloadK,
 		AutoCleanup:    cli.AutoCleanupStr,
 		CleanupDays:    cli.CleanupDays,
+		KeepPolicy:     cli.KeepPolicy,
 		AdRemoval:      cli.AdRemovalMode,
 	}
 }
@@ -45,6 +47,7 @@ func policyDefaults(cfg Config) config.PolicyDefaults {
 		DownloadPolicy: cfg.DefaultDownloadPolicy,
 		DownloadK:      cfg.DefaultDownloadK,
 		AdRemoval:      cfg.DefaultAdRemoval,
+		KeepPolicy:     cfg.DefaultKeepPolicy,
 	}
 }
 
@@ -76,6 +79,7 @@ func policyResult(st podcast.PolicyState, sync string) PodcastPolicyResult {
 		DownloadK:       st.DownloadK,
 		AutoCleanup:     st.AutoCleanup,
 		AutoCleanupDays: st.AutoCleanupDays,
+		KeepPolicy:      st.KeepPolicy,
 		AdRemoval:       st.AdRemoval,
 		BackendSync:     sync,
 	}
@@ -132,6 +136,7 @@ func handleDefaultPolicy(cli CLIOptions) error {
 			"default_download_policy": globalCfg.DefaultDownloadPolicy,
 			"default_download_k":      globalCfg.DefaultDownloadK,
 			"default_ad_removal":      globalCfg.DefaultAdRemoval,
+			"default_keep_policy":     globalCfg.DefaultKeepPolicy,
 		}
 		data, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Fprintln(outFor(cli), string(data))
@@ -157,6 +162,9 @@ func applyDefaultPolicyChanges(cfg *Config, cli CLIOptions) {
 	}
 	if cli.DownloadK > 0 {
 		cfg.DefaultDownloadK = cli.DownloadK
+	}
+	if cli.KeepPolicy != "" {
+		cfg.DefaultKeepPolicy = config.NormalizeKeepPolicy(cli.KeepPolicy)
 	}
 	if cli.AdRemovalMode != "" {
 		cfg.DefaultAdRemoval = config.NormalizeAdRemovalMode(cli.AdRemovalMode)
@@ -218,6 +226,26 @@ func updatePodcastGroupPolicy(cfg Config, group *podcast.ResolvedPodcastGroup, c
 	adBadge := config.AdRemovalModeBadge(res.Applied.AdRemoval)
 	fmt.Fprintf(outFor(cli), "Policy updated for %d %s: AutoDownload=%v %s, AdRemoval=%s %s%s\n",
 		res.Updated, scope, res.Applied.IsAutoDownloadEnabled(), dlBadge, res.Applied.AdRemoval, adBadge, defaultMsg)
+	if cli.PolicyApply {
+		var totalPruned int
+		var totalFreed int64
+		var totalTx int
+		for _, e := range group.Entries {
+			pr, err := lib.PrunePodcastKeepPolicy(e.Dir, e.Title, cli.DryRun)
+			if err == nil {
+				totalPruned += pr.DeletedEpisodes
+				totalFreed += pr.FreedBytes
+				totalTx += pr.PreservedTranscripts
+			}
+		}
+		if cli.DryRun {
+			fmt.Fprintf(outFor(cli), "[dry-run] Prune across %d podcasts: would prune %d audio file(s) (%s; transcripts preserved)\n",
+				len(group.Entries), totalPruned, formatDiskSize(totalFreed))
+		} else {
+			fmt.Fprintf(outFor(cli), "✓ Pruned %d audio file(s) across %d podcasts (%s freed; %d transcript(s) preserved)\n",
+				totalPruned, len(group.Entries), formatDiskSize(totalFreed), totalTx)
+		}
+	}
 	return nil
 }
 
@@ -348,6 +376,8 @@ func printPodcastPolicyDetails(w io.Writer, res PodcastPolicyResult) {
 		retStr = fmt.Sprintf("%d days retention", res.AutoCleanupDays)
 	}
 	fmt.Fprintf(w, "  Auto Cleanup:     %-5v (%s)\n", res.AutoCleanup, retStr)
+	keepLabel := config.KeepPolicyLabel(res.KeepPolicy, res.AutoCleanupDays)
+	fmt.Fprintf(w, "  Keep Policy:      %-5s (%s)\n", res.KeepPolicy, keepLabel)
 	adBadge := config.AdRemovalModeBadge(res.AdRemoval)
 	fmt.Fprintf(w, "  Ad Removal:       %-8s %s\n", res.AdRemoval, adBadge)
 	fmt.Fprintf(w, "  Backend Sync:     %s\n", res.BackendSync)
@@ -374,10 +404,29 @@ func updatePodcastPolicy(cfg Config, cli CLIOptions, pod *ResolvedPodcast) error
 	if applied.Favorite {
 		favBadge = " ⭐ [Favorite]"
 	}
-	fmt.Fprintf(outFor(cli), "Policy updated for %s [%s]%s: DL=%v (%s), Cleanup=%v (%dd), Ads=%s (%s)\n",
+	fmt.Fprintf(outFor(cli), "Policy updated for %s [%s]%s: DL=%v (%s), Cleanup=%v (%dd), Keep=%s, Ads=%s (%s)\n",
 		util.Bold(util.DisplayName(pod.Title)), util.BoldCyan(pod.ShortID), favBadge,
 		res.AutoDownload, applied.DownloadPolicy, res.AutoCleanup, applied.AutoCleanupDays,
-		applied.AdRemoval, syncMsg)
+		applied.EffectiveKeepPolicy(), applied.AdRemoval, syncMsg)
+
+	if cli.PolicyApply {
+		return prunePodcastKeepPolicyOnCLI(lib, pod.Dir, pod.Title, cli)
+	}
+	return nil
+}
+
+func prunePodcastKeepPolicyOnCLI(lib *podcast.Library, dir, title string, cli CLIOptions) error {
+	pruneRes, pruneErr := lib.PrunePodcastKeepPolicy(dir, title, cli.DryRun)
+	if pruneErr != nil {
+		return pruneErr
+	}
+	if cli.DryRun {
+		fmt.Fprintf(outFor(cli), "[dry-run] %s: would prune %d expired audio file(s) (%s; transcripts preserved)\n",
+			title, pruneRes.DeletedEpisodes, formatDiskSize(pruneRes.FreedBytes))
+	} else {
+		fmt.Fprintf(outFor(cli), "✓ %s: pruned %d expired audio file(s) (%s freed; %d transcript(s) preserved)\n",
+			title, pruneRes.DeletedEpisodes, formatDiskSize(pruneRes.FreedBytes), pruneRes.PreservedTranscripts)
+	}
 	return nil
 }
 
@@ -401,6 +450,8 @@ func buildServerPolicySubcommand(opts *CLIOptions, action *string) clihelp.Comma
 			clihelp.Int(&opts.DownloadK, "--download-k <num>", 0, "Number of latest episodes to download"),
 			clihelp.String(&opts.AutoCleanupStr, "--auto-cleanup <bool>", "", "Enable automatic cleanup (true/false)"),
 			clihelp.Int(&opts.CleanupDays, "--cleanup-days <days>", 0, "Retention window in days"),
+			clihelp.String(&opts.KeepPolicy, "--keep-policy <policy>", "", "Keep policy: 'always' (forever), 'month' (30d regular), 'favorite' (180d 6mo), 'hourly' (1d news), or days (e.g. '14d')"),
+			clihelp.Bool(&opts.PolicyApply, "--apply", false, "Immediately prune expired MP3 files per keep policy (preserves transcripts)"),
 			clihelp.String(&opts.AdRemovalMode, "--ad-removal <mode>", "", "Ad removal policy mode ('none', 'latest', 'all')"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Output results in JSON format"),
 		},

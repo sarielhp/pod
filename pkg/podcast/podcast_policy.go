@@ -18,6 +18,7 @@ type PolicyUpdate struct {
 	DownloadK      int
 	AutoCleanup    string
 	CleanupDays    int
+	KeepPolicy     string
 	AdRemoval      string
 }
 
@@ -25,7 +26,8 @@ type PolicyUpdate struct {
 // command distinguishes "show me the policy" from "set the policy".
 func (u PolicyUpdate) IsEmpty() bool {
 	return u.Favorite == "" && u.AutoDownload == "" && u.DownloadPolicy == "" &&
-		u.DownloadK == 0 && u.AutoCleanup == "" && u.CleanupDays == 0 && u.AdRemoval == ""
+		u.DownloadK == 0 && u.AutoCleanup == "" && u.CleanupDays == 0 &&
+		u.KeepPolicy == "" && u.AdRemoval == ""
 }
 
 // ParsePolicyBool is how the library reads a boolean written on a command
@@ -69,6 +71,9 @@ func applyPolicyUpdate(cfg *config.PodcastConfig, u PolicyUpdate) {
 		autoCl := true
 		cfg.AutoCleanup = &autoCl
 	}
+	if u.KeepPolicy != "" {
+		cfg.SetKeepPolicy(u.KeepPolicy)
+	}
 	if u.AdRemoval != "" {
 		cfg.AdRemoval = config.NormalizeAdRemovalMode(u.AdRemoval)
 	}
@@ -84,6 +89,7 @@ type PolicyState struct {
 	DownloadK       int    `json:"download_k"`
 	AutoCleanup     bool   `json:"auto_cleanup"`
 	AutoCleanupDays int    `json:"auto_cleanup_days"`
+	KeepPolicy      string `json:"keep_policy"`
 	AdRemoval       string `json:"ad_removal"`
 }
 
@@ -98,6 +104,7 @@ func PolicyStateOf(id, title string, cfg config.PodcastConfig) PolicyState {
 		DownloadK:       cfg.DownloadK,
 		AutoCleanup:     cfg.IsAutoCleanupEnabled(),
 		AutoCleanupDays: cfg.AutoCleanupDays,
+		KeepPolicy:      cfg.EffectiveKeepPolicy(),
 		AdRemoval:       cfg.AdRemoval,
 	}
 }

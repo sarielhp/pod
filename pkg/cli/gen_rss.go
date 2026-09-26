@@ -114,7 +114,9 @@ func cleanAndPublish(cfg Config, cli CLIOptions, targets []string) error {
 		fmt.Fprintln(out, "Every episode is already ad-free.")
 	} else {
 		fmt.Fprintf(out, "Removing advertisements from %d episode(s)...\n", len(work))
-		adremoval.ProcessFiles(work, cli.ProcOptions, cfg, "rm_ads")
+		if _, err := adremoval.ProcessFiles(work, cli.ProcOptions, cfg); err != nil {
+			return err
+		}
 	}
 
 	// Republish unconditionally. Ad removal republishes the shows it touched,

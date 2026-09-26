@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"pod/pkg/audio"
-	"pod/pkg/backend"
 	"pod/pkg/config"
 	"pod/pkg/detect"
 	"pod/pkg/format"
@@ -30,9 +29,6 @@ func ResolveAudioFiles(inputFile string, verbose bool) (mainMP3File, precutFile,
 	switch {
 	case util.FileExists(precutFile):
 		sourceAudioFile = precutFile
-		if verbose {
-			fmt.Printf("Found existing pre-cut audio source: '%s'\n", precutFile)
-		}
 	case util.FileExists(mainMP3File):
 		sourceAudioFile = mainMP3File
 	default:
@@ -79,150 +75,17 @@ func HandleTranscribeMin(sourceAudioFile *string, totalDuration float64, transcr
 
 func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) error {
 	cutsFile := baseName + ".cuts.json"
-	if !util.FileExists(cutsFile) {
-		err := fmt.Errorf("cut metadata JSON file '%s' not found for recutting", cutsFile)
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		return err
-	}
-
-	keepSegments, _, ok := loadRecutKeepSegments(cutsFile, mainMP3File, totalDuration, selectedProfile, opts)
-	if !ok || len(keepSegments) == 0 {
-		return fmt.Errorf("no keep segments loaded from '%s'", cutsFile)
-	}
-
-	workDir := util.WorkDirFor(outputFile)
-	if err := os.MkdirAll(workDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating work directory '%s': %v\n", workDir, err)
-		return err
-	}
-	tempOutputFile := filepath.Join(workDir, filepath.Base(outputFile)+".tmp"+filepath.Ext(outputFile))
-	if err := util.VerifyTempFile(tempOutputFile); err != nil {
-		return err
-	}
-
-	return executeRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir, keepSegments, totalDuration, cfg, opts, fileStartTime)
-}
-
-func loadRecutKeepSegments(cutsFile, mainMP3File string, totalDuration float64, selectedProfile types.LLMProfile, opts types.ProcOptions) ([][2]float64, types.CutsData, bool) {
-	if !opts.Quiet {
-		fmt.Printf("Recutting audio using existing cut metadata: '%s'\n", cutsFile)
-	}
-
-	data, err := os.ReadFile(cutsFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading cuts file: %v\n", err)
-		return nil, types.CutsData{}, false
-	}
-	var cutsData types.CutsData
-	if err := json.Unmarshal(data, &cutsData); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing cuts file: %v\n", err)
-		return nil, types.CutsData{}, false
-	}
-
-	var existingAds []types.AdSegment
-	for _, c := range cutsData.CutIntervals {
-		existingAds = append(existingAds, types.AdSegment{Start: c.StartSec, End: c.EndSec, Reason: c.Reason})
-	}
-	if len(existingAds) > 0 {
-		existingAds = format.MergeIntervals(existingAds)
-	}
-
-	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, existingAds, &selectedProfile, opts.Quiet)
-	keepSegments := cutsResult.KeepSegments
-	if len(keepSegments) == 0 {
-		if !opts.Quiet {
-			fmt.Println("No keep segments found in cut metadata.")
-		}
-		return nil, cutsData, false
-	}
-
-	if opts.Verbose && !opts.Quiet && len(cutsData.MergedCutIntervals) > 0 {
-		fmt.Println("\nCUT INTERVALS TO REMOVE:")
-		for _, m := range cutsData.MergedCutIntervals {
-			fmt.Printf("  - [%s -> %s] (%.1fs)\n", format.FormatTime(m.Start), format.FormatTime(m.End), m.End-m.Start)
-		}
-		fmt.Println()
-	}
-	return keepSegments, cutsData, true
-}
-
-func executeRecutAudio(sourceAudioFile, precutFile, outputFile, tempOutputFile, mainMP3File, workDir string, keepSegments [][2]float64, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) error {
-	t0Recut := time.Now()
-	if !opts.Quiet {
-		fmt.Printf("Cutting ads with ffmpeg (%d non-ad clips)...\n", len(keepSegments))
-	}
-
-	if !audio.KeepFractionIsPlausible(sourceAudioFile, keepSegments) {
-		return fmt.Errorf("keep fraction not plausible for '%s'", sourceAudioFile)
-	}
-
-	if err := audio.DefaultProcessor.Cut(context.Background(), sourceAudioFile, keepSegments, tempOutputFile); err != nil {
-		_ = os.Remove(tempOutputFile)
-		_ = os.RemoveAll(workDir)
-		return fmt.Errorf("failed to cut audio for '%s': %w", mainMP3File, err)
-	}
-
-	if !opts.Quiet && opts.Verbose {
-		fmt.Printf("Audio Recutting finished in %s\n", format.FormatClock(time.Since(t0Recut).Seconds()))
-	}
-
-	if err := util.SafeMove(tempOutputFile, outputFile); err != nil {
-		_ = os.Remove(tempOutputFile)
-		_ = os.RemoveAll(workDir)
-		return fmt.Errorf("failed to install cut audio '%s': %w", outputFile, err)
-	}
-	_ = os.RemoveAll(workDir)
-	finishRecutStatusAndSummary(mainMP3File, precutFile, outputFile, totalDuration, cfg, opts, fileStartTime)
-	return nil
-}
-
-func finishRecutStatusAndSummary(mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) {
-	newDuration := audio.GetAudioDuration(outputFile)
-	actualCut := totalDuration - newDuration
-	pctCut := 0.0
-	if totalDuration > 0 {
-		pctCut = actualCut / totalDuration * 100
-	}
-
-	if err := UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
-		st.Status = types.StateDone
-		if util.FileExists(precutFile) {
-			st.Original.Filename = filepath.Base(precutFile)
-			if fi, err := os.Stat(precutFile); err == nil {
-				st.Original.SizeBytes = fi.Size()
-			}
-		}
-		st.Cleaned.Filename = filepath.Base(outputFile)
-		st.Cleaned.DurationSec = newDuration
-		st.Cleaned.AdDurationSec = actualCut
-		if fi, err := os.Stat(outputFile); err == nil {
-			st.Cleaned.SizeBytes = fi.Size()
-		}
-	}); err != nil && !opts.Quiet {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update status for '%s': %v\n", mainMP3File, err)
-	}
-
-	if err := backend.SyncEpisodeDuration(&cfg, outputFile, newDuration); err != nil && !opts.Quiet {
-		fmt.Fprintf(os.Stderr, "Warning: failed to sync duration for '%s': %v\n", outputFile, err)
-	}
-
-	if !opts.Quiet {
-		fmt.Println()
-		fmt.Println("DURATION & TIME SAVED SUMMARY (RECUT):")
-		fmt.Printf("  - Original Episode Length: %s (%.1fs)\n", format.FormatMinutes(totalDuration), totalDuration)
-		fmt.Printf("  - Total Ad Time Cut:       %s (%.1fs)\n", format.FormatTime(actualCut), actualCut)
-		fmt.Printf("  - New Episode Length:      %s (%.1fs)\n", format.FormatMinutes(newDuration), newDuration)
-		fmt.Printf("  - Reduction:               %.1f%% of episode trimmed\n", pctCut)
-		fmt.Printf("  - Total Recut Time:        %s\n", format.FormatClock(time.Since(fileStartTime).Seconds()))
-		fmt.Printf("Success! Recut ad-free episode saved to: '%s'\n", outputFile)
-	}
+	_, err := CutFile(CutRequest{
+		Path:     sourceAudioFile,
+		CutsPath: cutsFile,
+		Output:   outputFile,
+		DryRun:   opts.DryRun,
+	}, cfg, opts, nil)
+	return err
 }
 
 func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, totalDuration, speedFactor float64, whisperLanguage, whisperPrompt string, id3TagsOut map[string]string, isNewlyTranscribed *bool, t0Step1 *time.Time) (*types.TranscriptionData, error) {
 	if util.FileExists(jsonFile) && !opts.ForceTranscribe {
-		if !opts.Quiet {
-			fmt.Printf("Found existing transcript JSON file: '%s'. Reusing transcript...\n", jsonFile)
-		}
 		data, err := os.ReadFile(jsonFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read transcript file: %w", err)
@@ -230,9 +93,6 @@ func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts t
 		var td types.TranscriptionData
 		if err := json.Unmarshal(data, &td); err != nil {
 			return nil, fmt.Errorf("failed to parse transcript JSON: %w", err)
-		}
-		if !opts.Quiet && opts.Verbose {
-			fmt.Printf("\nStep 1/3 (Transcript Loaded) finished in %s\n", format.FormatClock(time.Since(*t0Step1).Seconds()))
 		}
 		return &td, nil
 	}
@@ -251,9 +111,6 @@ func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts t
 	dockerContainer := cfg.WhisperDockerContainer
 	if dockerContainer == "" {
 		dockerContainer = transcribe.DetectWhisperDockerContainer(cfg.WhisperURL)
-		if opts.Verbose && dockerContainer != "" {
-			fmt.Printf("   Auto-detected whisper Docker container: '%s'\n", dockerContainer)
-		}
 	}
 
 	transcriptionData, err := runWhisperTranscription(sourceAudioFile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLanguage, dockerContainer)
@@ -261,9 +118,6 @@ func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts t
 		return nil, err
 	}
 
-	if !opts.Quiet && opts.Verbose {
-		fmt.Printf("Step 1/3 (Transcription) finished in %s\n", format.FormatClock(time.Since(*t0Step1).Seconds()))
-	}
 	*isNewlyTranscribed = true
 	return transcriptionData, nil
 }
@@ -281,27 +135,10 @@ func ExtractMetadataPrompt(sourceAudioFile string, id3TagsOut map[string]string,
 	}
 	tagText := strings.Join(tagTexts, "\n")
 	if tagText == "" {
-		if !opts.Quiet {
-			fmt.Println("   No ID3 metadata found in file for keyword extraction.")
-		}
 		return ""
 	}
 
-	if !opts.Quiet {
-		if opts.Verbose {
-			keys := make([]string, 0, len(id3Tags))
-			for k := range id3Tags {
-				keys = append(keys, k)
-			}
-			fmt.Printf("   Extracted ID3 metadata: %s\n", strings.Join(keys, ", "))
-		}
-		fmt.Println("   Extracting keywords from metadata to improve transcription accuracy...")
-	}
-	extracted := detect.ExtractKeywordsLLM(tagText, selectedProfile, selectedProfile.APIKey, opts.Quiet)
-	if extracted != "" && opts.Verbose {
-		fmt.Printf("   Using keywords: %s\n", extracted)
-	}
-	return extracted
+	return detect.ExtractKeywordsLLM(tagText, selectedProfile, selectedProfile.APIKey, opts.Quiet)
 }
 
 func resolveWhisperRoutingProfile(cfg *types.Config, sourceAudioFile string, opts types.ProcOptions, whisperLang *string) types.WhisperProfile {
@@ -314,11 +151,7 @@ func resolveWhisperRoutingProfile(cfg *types.Config, sourceAudioFile string, opt
 		wp.Engine = types.WhisperEngine(opts.WhisperEngine)
 	} else if wp.Engine != types.WhisperEngineGemini {
 		lang := transcribe.WhisperTargetLanguage(*cfg, isHebrew, *whisperLang)
-		routed := transcribe.ResolveWhisperProfileForLanguage(*cfg, lang)
-		if routed.ID != wp.ID && !opts.Quiet {
-			fmt.Printf("   Language %s: routing to %s (%s)\n", strings.ToUpper(lang), routed.Name, config.WhisperEngineBadge(routed.Engine))
-		}
-		wp = routed
+		wp = transcribe.ResolveWhisperProfileForLanguage(*cfg, lang)
 		if wp.URL != "" {
 			cfg.WhisperURL = wp.URL
 		}
@@ -355,13 +188,6 @@ func handleGeminiWhisperFallback(ctx context.Context, sourceAudioFile string, cf
 		}
 		return td, geminiWp, cfg
 	}
-	if !opts.Quiet {
-		fmt.Printf("\n%s\n   %s\n   ➔ %s\n\n",
-			util.BoldYellow("Transcription: Gemini failed:"),
-			util.BoldYellow(strings.ReplaceAll(err.Error(), "\n", "\n   ")),
-			util.Bold("Falling back to Whisper..."),
-		)
-	}
 	fallbackCfg := config.PrepareWhisperFallbackConfig(cfg)
 	fallbackWp := config.GetActiveWhisperProfile(&fallbackCfg)
 	if fallbackWp.Engine == types.WhisperEngineLocal {
@@ -380,14 +206,6 @@ func transcribeWhisperServerWithChunkFallback(sourceAudioFile string, cfg types.
 	useChunks := opts.UseChunks || (chunkDuration > 0 && totalDuration > float64(chunkDuration)*1.5)
 
 	if useChunks {
-		if !opts.Quiet {
-			numChunks := int(totalDuration / float64(chunkDuration))
-			if numChunks < 1 {
-				numChunks = 1
-			}
-			fmt.Printf("   Audio is %s long - splitting into %d chunks of %s for reliability...\n",
-				format.FormatMinutes(totalDuration), numChunks, format.FormatMinutes(float64(chunkDuration)))
-		}
 		return transcribe.TranscribeChunks(
 			sourceAudioFile, cfg.WhisperURL, opts.Quiet, opts.Verbose,
 			totalDuration, speedFactor, chunkDuration,
@@ -401,9 +219,6 @@ func transcribeWhisperServerWithChunkFallback(sourceAudioFile string, cfg types.
 		whisperPrompt, whisperLang, nil,
 	)
 	if err != nil && strings.Contains(err.Error(), "failed to") && totalDuration > 300 {
-		if !opts.Quiet {
-			fmt.Println("\n" + util.BoldYellow("Transcription: full-file Whisper request failed; retrying on the same server in chunks...") + "\n")
-		}
 		chunkDur := cfg.ChunkDurationSec
 		if chunkDur <= 0 {
 			chunkDur = 900
@@ -455,12 +270,7 @@ func FormatTranscript(data *types.TranscriptionData, totalDuration float64) stri
 
 func ProcessJSONFile(inputFile string, opts types.ProcOptions) {
 	if !util.FileExists(inputFile) {
-		fmt.Fprintf(os.Stderr, "Error: Transcript JSON file '%s' not found.\n", inputFile)
 		return
-	}
-
-	if !opts.Quiet {
-		fmt.Printf("Processing transcript JSON file: '%s'\n", inputFile)
 	}
 
 	if !opts.ExportSRT && !opts.ExportTXT {

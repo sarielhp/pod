@@ -203,7 +203,7 @@ func TestReportAndHealInvalidCleanStateResetsCleanState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := repairAuditedEpisode(&transcriptAuditItem{audioPath: audioPath, cleanStateMsg: "duration mismatch"}, types.Config{PodcastsDir: filepath.Dir(audioPath)}, false, true); err != nil {
+	if err := repairAuditedEpisode(&transcriptAuditItem{audioPath: audioPath, cleanStateMsg: "duration mismatch"}, types.Config{PodcastsDir: filepath.Dir(audioPath)}, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	healed, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(audioPath))

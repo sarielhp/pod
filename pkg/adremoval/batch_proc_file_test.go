@@ -64,13 +64,13 @@ func TestTranscribeFailureReturnsInsteadOfPanicking(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hasError, _, _ := processSingleAudioFile(0, 1, 0, mp3,
+	_, err := processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, "proc", time.Now(), offlineProfile())
+		}, types.Config{}, time.Now(), offlineProfile())
 
-	if !hasError {
-		t.Errorf("expected hasError=true when the transcript cannot be parsed")
+	if err == nil {
+		t.Errorf("expected error when the transcript cannot be parsed")
 	}
 }
 
@@ -94,8 +94,8 @@ func TestRecutDoesNotFallThroughIntoTheFullPipeline(t *testing.T) {
 		Quiet: true,
 	}
 	optsRecut.Recut = true
-	processSingleAudioFile(0, 1, 0, mp3,
-		optsRecut, types.Config{}, "recut", time.Now(), offlineProfile())
+	_, _ = processSingleAudioFile(0, 1, 0, mp3,
+		optsRecut, types.Config{}, time.Now(), offlineProfile())
 }
 
 func TestTranscribeMinDoesNotWriteCutMetadata(t *testing.T) {
@@ -114,8 +114,8 @@ func TestTranscribeMinDoesNotWriteCutMetadata(t *testing.T) {
 		Quiet: true,
 	}
 	optsTMin.TranscribeMin = "1"
-	processSingleAudioFile(0, 1, 0, mp3,
-		optsTMin, types.Config{}, "proc", time.Now(), offlineProfile())
+	_, _ = processSingleAudioFile(0, 1, 0, mp3,
+		optsTMin, types.Config{}, time.Now(), offlineProfile())
 
 	if util.FileExists(filepath.Join(dir, "ep.cuts.json")) {
 		t.Errorf("--tminutes wrote ep.cuts.json; a preview run must not touch cut metadata")
@@ -144,10 +144,10 @@ func TestNoAdsDetectedDoesNotReEncodeOrCreatePrecut(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	processSingleAudioFile(0, 1, 0, mp3,
+	_, _ = processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, "proc", time.Now(), offlineProfile())
+		}, types.Config{}, time.Now(), offlineProfile())
 
 	if util.FileExists(mp3 + ".precut") {
 		t.Errorf("no ads were detected, but the original was moved to .precut")
@@ -177,13 +177,13 @@ func TestAdDetectionFailureDoesNotMarkEpisodeClean(t *testing.T) {
 		Model: "test-model",
 	}
 
-	hasError, _, _ := processSingleAudioFile(0, 1, 0, mp3,
+	_, err := processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, "proc", time.Now(), failingProfile)
+		}, types.Config{}, time.Now(), failingProfile)
 
-	if !hasError {
-		t.Errorf("expected hasError=true when LLM ad detection fails")
+	if err == nil {
+		t.Errorf("expected error when LLM ad detection fails")
 	}
 
 	cutsFile := filepath.Join(dir, "ep.cuts.json")

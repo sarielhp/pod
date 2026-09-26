@@ -72,7 +72,7 @@ func TestRmAdsEpisodeQueuesUrgentlyAndRetainsOnFailure(t *testing.T) {
 	cfg := Config{PodcastsDir: root}
 	cli := CLIOptions{Args: []string{id}, ProcOptions: ProcOptions{DryRun: true, Quiet: true}}
 	before := queueTree(t, root)
-	if err := runRmAdsCommand(cfg, cli, "rm_ads"); err != nil {
+	if err := runRmAdsCommand(cfg, cli); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(before, queueTree(t, root)) {
@@ -84,7 +84,7 @@ func TestRmAdsEpisodeQueuesUrgentlyAndRetainsOnFailure(t *testing.T) {
 	}
 	defer lock.Release()
 	cli.DryRun = false
-	if err := runRmAdsCommand(cfg, cli, "rm_ads"); err == nil {
+	if err := runRmAdsCommand(cfg, cli); err == nil {
 		t.Fatal("locked requested episode reported success")
 	}
 	entries, err := pipeline.ReadQueue(dir)

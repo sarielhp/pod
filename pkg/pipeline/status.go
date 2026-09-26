@@ -86,9 +86,7 @@ func GetOrCreateEpisodeStatus(audioPath string) *types.EpisodeStatusFile {
 	populatePrecutOrCutsMeta(st, audioPath, fname, dur, sz)
 	populateAdsFromCutsFile(st, util.StripExt(audioPath)+".cuts.json")
 
-	if err := SaveEpisodeStatus(statPath, st); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to initialize episode status file '%s': %v\n", statPath, err)
-	}
+	_ = SaveEpisodeStatus(statPath, st)
 	return st
 }
 

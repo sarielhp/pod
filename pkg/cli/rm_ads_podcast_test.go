@@ -1,4 +1,4 @@
-package adremoval
+package cli
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
@@ -19,48 +18,6 @@ import (
 
 func testLoadPodcastConfig(podDir string) config.PodcastConfig {
 	return config.LoadPodcastConfig(podDir, config.DefaultPodcastConfig(&types.Config{}))
-}
-
-func createTestPodcastWithEpisodes(t *testing.T, root, podName string, titles []string) (string, []string) {
-	podDir := filepath.Join(root, podName)
-	if err := os.MkdirAll(podDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	cfg := config.DefaultPodcastConfig(nil)
-	cfg.ID = podcast.GeneratePodcastShortID(podName)
-	if err := config.SavePodcastConfig(podDir, cfg); err != nil {
-		t.Fatal(err)
-	}
-
-	var paths []string
-	for i, title := range titles {
-		filename := podcast.SanitizeTitle(title) + ".mp3"
-		p := filepath.Join(podDir, filename)
-		if err := os.WriteFile(p, []byte("fake mp3 data "+title), 0644); err != nil {
-			t.Fatal(err)
-		}
-		st := pipeline.GetOrCreateEpisodeStatus(p)
-		st.PublicationSource = "source"
-		st.PublishedAt = time.Now().Add(-time.Duration(len(titles)-i) * 24 * time.Hour).Format(time.RFC3339)
-		if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(p), st); err != nil {
-			t.Fatal(err)
-		}
-		paths = append(paths, p)
-	}
-	return podDir, paths
-}
-
-func markEpisodeClean(t *testing.T, mp3Path string) {
-	if err := os.WriteFile(strings.TrimSuffix(mp3Path, filepath.Ext(mp3Path))+".transcript.json", []byte(`{"text":"This episode contains a complete discussion with enough meaningful transcript text."}`), 0644); err != nil {
-		t.Fatal(err)
-	}
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
-	st.Status = types.StateDone
-	st.Original.DurationSec = 60.0
-	st.Cleaned.DurationSec = 50.0
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestFindLatestUncleanedLocalEpisode(t *testing.T) {
@@ -123,7 +80,7 @@ func TestHandlePodcastRmAdsWorkflow_MultiItemQueueSkip(t *testing.T) {
 	}
 	config := types.Config{PodcastsDir: tmp}
 
-	err := ProcessPodcast(resolved, opts, config, "rm_ads")
+	err := ProcessPodcast(resolved, opts, config)
 	if err != nil {
 		t.Fatalf("ProcessPodcast failed: %v", err)
 	}
@@ -168,7 +125,7 @@ func TestHandlePodcastRmAdsWorkflow_DryRun(t *testing.T) {
 	}
 	config := types.Config{PodcastsDir: tmp}
 
-	err := ProcessPodcast(resolved, opts, config, "rm_ads")
+	err := ProcessPodcast(resolved, opts, config)
 	if err != nil {
 		t.Fatalf("dry run workflow failed: %v", err)
 	}
@@ -286,7 +243,7 @@ func TestProcessSingleQueuedTarget_LocalCompletion(t *testing.T) {
 	optsLocal := types.ProcOptions{
 		Quiet: true,
 	}
-	err := ProcessQueuedTarget(podDir, targetAudio, "rm_ads", optsLocal, types.Config{PodcastsDir: tmp})
+	err := ProcessQueuedTarget(podDir, targetAudio, optsLocal, types.Config{PodcastsDir: tmp})
 	if err != nil {
 		t.Fatalf("ProcessQueuedTarget failed: %v", err)
 	}
@@ -370,7 +327,7 @@ func TestHandlePodcastRmAdsWorkflow_QueueSingleAndRemove(t *testing.T) {
 
 	pipeline.AddToQueue(resolved.Dir, filepath.Base(paths[0]))
 
-	err := ProcessQueuedTarget(resolved.Dir, paths[0], "rm_ads", opts, config)
+	err := ProcessQueuedTarget(resolved.Dir, paths[0], opts, config)
 	if err != nil {
 		t.Fatalf("ProcessQueuedTarget failed: %v", err)
 	}

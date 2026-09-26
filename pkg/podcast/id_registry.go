@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"pod/pkg/config"
+	"pod/pkg/episode"
 	"pod/pkg/pipeline"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -70,16 +71,7 @@ func EpisodeTitleFromPath(audioPath string) string {
 }
 
 func DetectPodcastDirForAudio(audioPath string) string {
-	dir := filepath.Dir(audioPath)
-	base := filepath.Base(audioPath)
-	stem := util.StripExt(base)
-	if strings.EqualFold(stem, "podcast") {
-		parent := filepath.Dir(dir)
-		if fi, err := os.Stat(parent); err == nil && fi.IsDir() {
-			return parent
-		}
-	}
-	return dir
+	return episode.DetectPodcastDirForAudio(audioPath)
 }
 
 func episodeUniqueKey(podDir, audioPath string) string {

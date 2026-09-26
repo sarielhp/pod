@@ -46,7 +46,7 @@ func buildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegme
 		mergedAds = append(mergedAds, types.AdSegment{Start: b[0], End: b[1]})
 	}
 
-	keep := calculateKeepSegments(totalDuration, mergedAds)
+	keep := CalculateKeepSegments(totalDuration, mergedAds)
 	keepIntervals := make([]types.KeepSegment, 0, len(keep))
 	for _, k := range keep {
 		keepIntervals = append(keepIntervals, types.KeepSegment{

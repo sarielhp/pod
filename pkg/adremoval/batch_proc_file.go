@@ -56,12 +56,12 @@ func discardTruncatedPreview(sourceAudioFile string) {
 	}
 }
 
-func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, action string, batchStartTime time.Time, selectedProfile types.LLMProfile) (hasError bool, processed bool, stop bool) {
+func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, batchStartTime time.Time, selectedProfile types.LLMProfile) (Report, error) {
 	fileStartTime := time.Now()
 
 	if strings.HasSuffix(inputFile, ".json") {
 		pipeline.ProcessJSONFile(inputFile, opts)
-		return false, false, false
+		return Report{}, nil
 	}
 
 	mainMP3File, precutFile, sourceAudioFile := pipeline.ResolveAudioFiles(inputFile, opts.Verbose)
@@ -73,18 +73,20 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	outputFile := pipeline.ResolveOutputFile(mainMP3File, opts.Output, totalFiles)
 
 	fileLock, ok, shouldStop := checkSkipOrLockAudioFile(mainMP3File, inputFile, idx, totalFiles, processedCount, opts)
-	if !ok || shouldStop {
-		return false, false, shouldStop
+	if shouldStop {
+		return Report{}, errLimitReached
+	}
+	if !ok {
+		return Report{}, errSkipped
 	}
 	defer fileLock.Release()
-	processed = true
 
 	totalDuration := audio.GetAudioDuration(sourceAudioFile)
 	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
 	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
 	if opts.Recut {
 		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime)
-		return err != nil, processed, false
+		return Report{Processed: true}, err
 	}
 
 	if needsTranscription := !util.FileExists(jsonFile) || opts.ForceTranscribe; needsTranscription {
@@ -97,20 +99,29 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 		}
 		if handled {
 			discardTruncatedPreview(sourceAudioFile)
-			return !success, processed, false
+			if !success {
+				return Report{Processed: true}, fmt.Errorf("ad removal failed for %s", inputFile)
+			}
+			return Report{Processed: true}, nil
 		}
 	}
 
 	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File, totalDuration, config, opts, selectedProfile, fileStartTime)
-	if hasErr || !ok {
-		return hasErr, processed, false
+	if hasErr {
+		return Report{Processed: true}, fmt.Errorf("transcription failed for %s", inputFile)
+	}
+	if !ok {
+		return Report{Processed: true}, nil
 	}
 
 	cutSuccess := runLocalAdDetectionAndCutStep(transData, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime, t0Step1)
 	if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
 		os.Remove(sourceAudioFile)
 	}
-	return !cutSuccess, processed, false
+	if !cutSuccess {
+		return Report{Processed: true}, fmt.Errorf("ad detection or cut failed for %s", inputFile)
+	}
+	return Report{Processed: true}, nil
 }
 
 func canRunSpeculativeRace(cfg types.Config, opts types.ProcOptions) bool {

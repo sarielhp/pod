@@ -152,9 +152,9 @@ func buildRmAdsAuditSubcommand(opts *CLIOptions, action *string) clihelp.Command
 	}
 }
 
-func runRmAdsCommand(config Config, cli CLIOptions, action string) error {
+func runRmAdsCommand(config Config, cli CLIOptions) error {
 	if cli.ProcSubcmd == "audit" {
-		return adremoval.RunTranscriptAudit(config, cli.Args, cli.ProcOptions)
+		return adremoval.RunTranscriptAudit(config, cli.Args, cli.ProcOptions, reporter(cli))
 	}
 	if cli.ProcSubcmd == "recut" {
 		cli.Recut = true
@@ -171,12 +171,14 @@ func runRmAdsCommand(config Config, cli CLIOptions, action string) error {
 		return err
 	}
 	if pod != nil {
-		return adremoval.ProcessPodcast(pod, cli.ProcOptions, config, action)
+		return ProcessPodcast(pod, cli.ProcOptions, config)
 	}
 	targets, ok := resolveTargetAudioArgs(cli, config)
 	if !ok {
 		return nil
 	}
-	adremoval.ProcessFiles(targets, cli.ProcOptions, config, action)
-	return nil
+	expanded := expandDirectoryArgs(targets, cli.ProcOptions, config)
+	_, err = adremoval.ProcessFiles(expanded, cli.ProcOptions, config, reporter(cli))
+	refreshFeedsForAudio(expanded, config)
+	return err
 }

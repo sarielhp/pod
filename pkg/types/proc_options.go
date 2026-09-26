@@ -71,3 +71,71 @@ func (o *ProcOptions) Normalize() {
 		o.ForceLLM = true
 	}
 }
+
+// TranscribeOptions holds options specific to the transcription stage.
+type TranscribeOptions struct {
+	Quiet          bool
+	Verbose        bool
+	KeepAudio      bool
+	TranscribeMin  string
+	UseChunks      bool
+	WhisperEngine  string
+	WhisperModel   string
+	SaveTranscript bool
+	TranscriptPath string
+	ExportSRT      bool
+	ExportTXT      bool
+}
+
+// DetectOptions holds options specific to the ad detection stage.
+type DetectOptions struct {
+	Quiet          bool
+	Verbose        bool
+	UseLLM         string
+	TranscriptPath string
+}
+
+// CutOptions holds options specific to the audio cutting stage.
+type CutOptions struct {
+	Quiet   bool
+	Verbose bool
+	Output  string
+	Recut   bool
+}
+
+// TranscribeOptions projects ProcOptions into options for the transcription stage.
+func (o ProcOptions) TranscribeOptions() TranscribeOptions {
+	return TranscribeOptions{
+		Quiet:          o.Quiet,
+		Verbose:        o.Verbose,
+		KeepAudio:      o.KeepAudio,
+		TranscribeMin:  o.TranscribeMin,
+		UseChunks:      o.UseChunks,
+		WhisperEngine:  o.WhisperEngine,
+		WhisperModel:   o.WhisperModel,
+		SaveTranscript: o.SaveTranscript,
+		TranscriptPath: o.TranscriptPath,
+		ExportSRT:      o.ExportSRT,
+		ExportTXT:      o.ExportTXT,
+	}
+}
+
+// DetectOptions projects ProcOptions into options for the ad detection stage.
+func (o ProcOptions) DetectOptions() DetectOptions {
+	return DetectOptions{
+		Quiet:          o.Quiet,
+		Verbose:        o.Verbose,
+		UseLLM:         o.UseLLM,
+		TranscriptPath: o.TranscriptPath,
+	}
+}
+
+// CutOptions projects ProcOptions into options for the cutting stage.
+func (o ProcOptions) CutOptions() CutOptions {
+	return CutOptions{
+		Quiet:   o.Quiet,
+		Verbose: o.Verbose,
+		Output:  o.Output,
+		Recut:   o.Recut,
+	}
+}

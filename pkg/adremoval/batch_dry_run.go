@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"pod/pkg/pipeline"
+	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -56,38 +58,36 @@ func auditFileStatus(inputFile string, opts types.ProcOptions) (category string,
 	return "completed", "Completed (0 ads)"
 }
 
-func printDryRunSummary(filesCount, needsTx, needsLLM, needsCut, remotePending, alreadyComplete int, opts types.ProcOptions, details []dryRunFileStatus) {
+func printDryRunSummary(filesCount, needsTx, needsLLM, needsCut, remotePending, alreadyComplete int, opts types.ProcOptions, details []dryRunFileStatus, r progress.Reporter) {
 	totalNeedingAction := needsTx + needsLLM + needsCut
-	fmt.Println()
-	fmt.Println(util.Bold("DRY RUN: Audio Processing Pipeline Status"))
-	fmt.Println(strings.Repeat("─", 55))
-	fmt.Printf("  • Total Episodes Scanned:        %d\n", filesCount)
-	fmt.Printf("  • Needs Transcription (Whisper): %d\n", needsTx)
-	fmt.Printf("  • Needs Ad Detection (LLM):      %d\n", needsLLM)
-	fmt.Printf("  • Needs Audio Cutting (FFmpeg):  %d\n", needsCut)
-	fmt.Printf("  • Already Processed / Ad-Free:   %d\n", alreadyComplete)
+	r.Infof("")
+	r.Infof("%s", util.Bold("DRY RUN: Audio Processing Pipeline Status"))
+	r.Infof("%s", strings.Repeat("─", 55))
+	r.Infof("  • Total Episodes Scanned:        %d", filesCount)
+	r.Infof("  • Needs Transcription (Whisper): %d", needsTx)
+	r.Infof("  • Needs Ad Detection (LLM):      %d", needsLLM)
+	r.Infof("  • Needs Audio Cutting (FFmpeg):  %d", needsCut)
+	r.Infof("  • Already Processed / Ad-Free:   %d", alreadyComplete)
 	if remotePending > 0 {
-		// Left mid-flight by the remote processing this build no longer has.
-		// Reported so they stay visible rather than silently uncounted.
-		fmt.Printf("  • Stranded in a remote state:    %d\n", remotePending)
+		r.Infof("  • Stranded in a remote state:    %d", remotePending)
 	}
-	fmt.Println(strings.Repeat("─", 55))
-	fmt.Printf("  Total Needing Local Processing:  %s\n", util.Bold(fmt.Sprintf("%d", totalNeedingAction)))
+	r.Infof("%s", strings.Repeat("─", 55))
+	r.Infof("  Total Needing Local Processing:  %s", util.Bold(strconv.Itoa(totalNeedingAction)))
 	if opts.Count > 0 && totalNeedingAction > opts.Count {
-		fmt.Printf("  (Limit -n %d: would process first %d of %d episodes)\n", opts.Count, opts.Count, totalNeedingAction)
+		r.Infof("  (Limit -n %d: would process first %d of %d episodes)", opts.Count, opts.Count, totalNeedingAction)
 	}
-	fmt.Println()
+	r.Infof("")
 
 	if opts.Verbose {
-		fmt.Println("Episode Details:")
+		r.Infof("Episode Details:")
 		for _, d := range details {
-			fmt.Printf("  [%s] %s\n", d.status, util.DisplayName(d.path))
+			r.Infof("  [%s] %s", d.status, util.DisplayName(d.path))
 		}
-		fmt.Println()
+		r.Infof("")
 	}
 }
 
-func handleProcDryRun(files []string, opts types.ProcOptions, cfg types.Config) {
+func handleProcDryRun(files []string, opts types.ProcOptions, cfg types.Config, r progress.Reporter) {
 	var needsTranscribe, needsLLM, needsCut, alreadyComplete, remotePending int
 	var details []dryRunFileStatus
 
@@ -111,5 +111,5 @@ func handleProcDryRun(files []string, opts types.ProcOptions, cfg types.Config) 
 		}
 	}
 
-	printDryRunSummary(len(files), needsTranscribe, needsLLM, needsCut, remotePending, alreadyComplete, opts, details)
+	printDryRunSummary(len(files), needsTranscribe, needsLLM, needsCut, remotePending, alreadyComplete, opts, details, r)
 }

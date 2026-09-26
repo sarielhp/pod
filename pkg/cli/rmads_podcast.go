@@ -1,25 +1,35 @@
-package adremoval
+package cli
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 	"unicode"
 
+	"pod/pkg/adremoval"
 	"pod/pkg/backend"
 	"pod/pkg/config"
 	"pod/pkg/pipeline"
 	"pod/pkg/podcast"
+	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
 
+func reporterFromQuiet(quiet bool) progress.Reporter {
+	if quiet {
+		return progress.Discard
+	}
+	return progress.Writer(os.Stdout, os.Stderr, false)
+}
+
 // ProcessPodcast removes ads from one podcast the caller has already resolved,
 // queueing or processing episodes according to that podcast's own policy.
-func ProcessPodcast(pod *podcast.ResolvedPodcast, opts types.ProcOptions, cfg types.Config, action string) error {
+func ProcessPodcast(pod *podcast.ResolvedPodcast, opts types.ProcOptions, cfg types.Config) error {
 	opts.Normalize()
 
 	targetAudioPath, err := resolveTargetEpisodeForRmAds(pod, opts, cfg)
@@ -68,7 +78,7 @@ func ProcessPodcast(pod *podcast.ResolvedPodcast, opts types.ProcOptions, cfg ty
 		return nil
 	}
 
-	return ProcessQueuedTarget(pod.Dir, targetAudioPath, action, opts, cfg)
+	return ProcessQueuedTarget(pod.Dir, targetAudioPath, opts, cfg)
 }
 
 func countAllQueuedEpisodes(podcastsDir string) int {
@@ -98,7 +108,7 @@ func resolveTargetEpisodeForRmAds(pod *podcast.ResolvedPodcast, opts types.ProcO
 }
 
 func getActiveBackendForPodcast(cfg types.Config, quiet bool) backend.Backend {
-	b, err := backend.FromAppConfig(&cfg, stdoutReporter(quiet))
+	b, err := backend.FromAppConfig(&cfg, reporterFromQuiet(quiet))
 	if err == nil {
 		return b
 	}
@@ -286,11 +296,6 @@ func resolveMatchingEpisodeAudioFile(podDir string, ep backend.Episode) (string,
 	return "", false
 }
 
-// locateEpisodeAudio finds the local file a backend path refers to.
-//
-// The path may be absolute, relative to the podcast, relative to the library,
-// or carry a "/podcasts/" prefix from the server that recorded it, so each
-// interpretation is tried in turn and the first that exists wins.
 func locateEpisodeAudio(podDir, raw string) string {
 	if raw == "" {
 		return ""
@@ -303,8 +308,6 @@ func locateEpisodeAudio(podDir, raw string) string {
 	return ""
 }
 
-// episodeAudioCandidates lists every place a recorded path might mean, in
-// order of preference.
 func episodeAudioCandidates(podDir, raw string) []string {
 	podBase := filepath.Base(podDir)
 	podRoot := filepath.Dir(podDir)
@@ -315,8 +318,6 @@ func episodeAudioCandidates(podDir, raw string) []string {
 		filepath.Join(podDir, filepath.Base(raw)),
 	}
 
-	// A path recorded as "<episode dir>/<file>" keeps its own directory, but
-	// only when that directory is not the podcast itself.
 	if epDir := filepath.Base(filepath.Dir(raw)); epDir != "." && epDir != "/" && epDir != "" && epDir != podBase {
 		candidates = append(candidates, filepath.Join(podDir, epDir, filepath.Base(raw)))
 	}
@@ -416,7 +417,7 @@ func tryDirectDownloadEpisode(podDir string, fe backend.FeedEpisode, quiet bool)
 	safeTitle := podcast.SanitizeTitle(fe.Title)
 	destPath := filepath.Join(podDir, safeTitle+".mp3")
 	d := podcast.NewDownloader()
-	if err := d.DownloadEpisode(context.Background(), encURL, destPath, stdoutReporter(quiet)); err == nil {
+	if err := d.DownloadEpisode(context.Background(), encURL, destPath, reporterFromQuiet(quiet)); err == nil {
 		return destPath, true
 	}
 	return "", false
@@ -526,10 +527,11 @@ func findLatestUncleanedLocalEpisode(podDir, podTitle string, quiet bool) (strin
 	return "", false
 }
 
-func ProcessQueuedTarget(podDir, targetAudioPath, action string, opts types.ProcOptions, cfg types.Config) error {
+// ProcessQueuedTarget executes ad removal for an episode in a podcast's queue.
+func ProcessQueuedTarget(podDir, targetAudioPath string, opts types.ProcOptions, cfg types.Config) error {
 	opts.Normalize()
 
-	if err := executeLocalBatchProcessing([]string{targetAudioPath}, opts, cfg, action); err != nil {
+	if _, err := adremoval.ProcessFiles([]string{targetAudioPath}, opts, cfg, reporterFromQuiet(opts.Quiet)); err != nil {
 		return err
 	}
 

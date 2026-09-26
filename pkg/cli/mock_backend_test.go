@@ -1,4 +1,4 @@
-package adremoval
+package cli
 
 import (
 	"time"

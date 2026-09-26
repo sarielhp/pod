@@ -95,7 +95,8 @@ func sortAds(ads []types.AdSegment) {
 	}
 }
 
-func calculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]float64 {
+// CalculateKeepSegments returns the non-ad segments to retain over totalDuration.
+func CalculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]float64 {
 	ads = sanitizeAdSegments(ads, totalDuration)
 	sorted := make([]types.AdSegment, len(ads))
 	copy(sorted, ads)

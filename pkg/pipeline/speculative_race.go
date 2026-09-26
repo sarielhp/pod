@@ -11,7 +11,6 @@ import (
 	"pod/pkg/gemini"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
-	"pod/pkg/util"
 )
 
 type SpeculativeRacer struct {
@@ -149,14 +148,6 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 		return nil, nil, false, fmt.Errorf("insufficient competing services for speculative race (found %d)", len(racers))
 	}
 
-	if !opts.Quiet {
-		racerNames := make([]string, len(racers))
-		for i, r := range racers {
-			racerNames[i] = r.Name
-		}
-		fmt.Printf("   Speculative competition: racing %s\n", strings.Join(racerNames, " vs "))
-	}
-
 	resultCh := make(chan SpeculativeCandidateResult, len(racers))
 	chunkDur := cfg.GeminiChunkSecCapped(cfg.ChunkDurationSec)
 
@@ -200,22 +191,10 @@ func awaitRaceResults(ctx context.Context, cancel context.CancelFunc, resultCh <
 		case res := <-resultCh:
 			if res.Err == nil {
 				cancel()
-				if !quiet {
-					fmt.Println("\n" + util.BoldGreen(fmt.Sprintf("Transcription complete: using %s result.", res.ServiceName)))
-				}
 				return res.TD, res.Ads, res.IsGemini, nil
 			}
 			remaining--
 			errors = append(errors, fmt.Sprintf("%s:\n   %v", res.ServiceName, res.Err))
-			if !quiet {
-				fmt.Printf("\n%s\n   %s\n",
-					util.BoldYellow(fmt.Sprintf("Transcription: %s failed:", res.ServiceName)),
-					util.BoldYellow(strings.ReplaceAll(res.Err.Error(), "\n", "\n   ")),
-				)
-				if remaining > 0 {
-					fmt.Printf("   ➔ %s\n\n", util.Bold("Continuing with remaining services..."))
-				}
-			}
 		case <-ctx.Done():
 			return nil, nil, false, ctx.Err()
 		}

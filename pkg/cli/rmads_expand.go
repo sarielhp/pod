@@ -1,65 +1,18 @@
-package adremoval
+package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"pod/pkg/config"
-	"pod/pkg/format"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
-	"pod/pkg/progress"
-	"pod/pkg/transcribe"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
-
-var (
-	errSkipped      = errors.New("episode skipped")
-	errLimitReached = errors.New("processing limit reached")
-
-	ErrSkipped      = errSkipped
-	ErrLimitReached = errLimitReached
-)
-
-// Report describes the outcome of an ad-removal processing run.
-type Report struct {
-	Processed bool
-	Total     int
-	Failures  int
-}
-
-// ProcessFiles removes ads from an already-resolved set of targets: audio
-// files, or directories to be expanded into the episodes their podcast's
-// ad-removal policy admits. Interpreting a command line into that set belongs
-// to the caller.
-func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, rep ...progress.Reporter) (Report, error) {
-	opts.Normalize()
-	var r progress.Reporter
-	if len(rep) > 0 {
-		r = rep[0]
-	}
-	r = progress.Or(r)
-
-	expandedArgs := expandDirectoryArgs(targets, opts, cfg)
-	if len(expandedArgs) == 0 {
-		if !opts.Quiet {
-			fmt.Println("No files or directories with audio found to process.")
-		}
-		return Report{}, nil
-	}
-
-	if opts.DryRun {
-		handleProcDryRun(expandedArgs, opts, cfg, r)
-		return Report{Total: len(expandedArgs)}, nil
-	}
-
-	return executeLocalBatchProcessing(expandedArgs, opts, cfg)
-}
 
 func groupAndFilterAudioByPodcast(rawMp3Files []string, opts types.ProcOptions, appCfg types.Config) []string {
 	filesByFolder := make(map[string][]string)
@@ -68,7 +21,7 @@ func groupAndFilterAudioByPodcast(rawMp3Files []string, opts types.ProcOptions, 
 		if strings.HasSuffix(epFolder, "-1") || strings.HasSuffix(epFolder, "-1/") {
 			continue
 		}
-		folder := podcast.DetectPodcastDirForAudio(f)
+		folder := episode.DetectPodcastDirForAudio(f)
 		filesByFolder[folder] = append(filesByFolder[folder], f)
 	}
 
@@ -124,6 +77,7 @@ func sortFilesByPublicationTime(files []string) {
 	})
 }
 
+// expandDirectoryArgs resolves directories into their constituent episode audio files.
 func expandDirectoryArgs(args []string, opts types.ProcOptions, appCfg types.Config) []string {
 	var expandedArgs []string
 	hasPrintedScanning := false
@@ -152,57 +106,6 @@ func expandDirectoryArgs(args []string, opts types.ProcOptions, appCfg types.Con
 	return expandedArgs
 }
 
-func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, cfg types.Config) (Report, error) {
-	wp := config.GetActiveWhisperProfile(&cfg)
-	if opts.WhisperEngine != "" {
-		wp.Engine = types.WhisperEngine(opts.WhisperEngine)
-	}
-	if wp.Engine != types.WhisperEngineLocal && wp.Engine != types.WhisperEngineGemini {
-		transcribe.WakeServer(cfg.WhisperURL, cfg.WhisperWakeCommand, opts.Quiet)
-	}
-
-	selectedProfile, _ := config.SelectLLMProfile(&cfg, opts.UseLLM)
-	batchStartTime := time.Now()
-
-	totalFiles := len(expandedArgs)
-	processedCount := 0
-	failures := 0
-
-	for idx, inputFile := range expandedArgs {
-		report, err := processSingleAudioFile(idx, len(expandedArgs), processedCount, inputFile, opts, cfg, batchStartTime, selectedProfile)
-		if errors.Is(err, errLimitReached) {
-			break
-		}
-		if errors.Is(err, errSkipped) {
-			continue
-		}
-		if err != nil {
-			failures++
-			continue
-		}
-		if report.Processed {
-			processedCount++
-		}
-	}
-
-	if (processedCount > 1 || totalFiles > 1) && !opts.Quiet {
-		batchDuration := time.Since(batchStartTime)
-		fmt.Printf("\nBatch Completed! Processed %d file(s) in %s.\n", processedCount, format.FormatClock(batchDuration.Seconds()))
-	}
-
-	os.Stdout.Sync()
-	os.Stderr.Sync()
-	rep := Report{
-		Total:     totalFiles,
-		Processed: processedCount > 0,
-		Failures:  failures,
-	}
-	if failures > 0 {
-		return rep, fmt.Errorf("%d episode(s) failed or could not be processed", failures)
-	}
-	return rep, nil
-}
-
 func ensurePodcastConfig(dir string, cfg config.PodcastConfig, quiet bool) {
 	if util.FileExists(filepath.Join(dir, config.PodcastConfigFileName)) {
 		return
@@ -228,12 +131,22 @@ func removeWorkDirs(dir string) {
 		return
 	}
 	for _, entry := range entries {
-		if entry.IsDir() {
-			if entry.Name() == ".work" {
-				_ = os.RemoveAll(filepath.Join(dir, entry.Name()))
-			} else {
-				removeWorkDirs(filepath.Join(dir, entry.Name()))
-			}
+		if entry.IsDir() && entry.Name() == ".work" {
+			_ = os.RemoveAll(filepath.Join(dir, entry.Name()))
 		}
+	}
+}
+
+// refreshFeedsForAudio regenerates the static site for each podcast directory
+// holding one of these files.
+func refreshFeedsForAudio(audioPaths []string, cfg types.Config) {
+	seen := map[string]bool{}
+	for _, p := range audioPaths {
+		dir := filepath.Dir(p)
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		refreshPodcastFeedXML(dir, cfg)
 	}
 }

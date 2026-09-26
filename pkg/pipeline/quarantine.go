@@ -119,9 +119,7 @@ func QuarantineAbandonedDuplicates(podDir string, trackedEpisodes []backend.Epis
 	}
 
 	if len(quarantined) > 0 {
-		if err := EnsureABSIgnore(podDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to ensure .absignore in '%s': %v\n", podDir, err)
-		}
+		_ = EnsureABSIgnore(podDir)
 	}
 
 	return quarantined

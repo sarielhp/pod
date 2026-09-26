@@ -36,8 +36,9 @@ type TranscriptionData struct {
 	Language string                 `json:"language,omitempty"`
 	// Backend and Model record which engine produced this transcript, so a
 	// saved transcript can be traced back to the backend that made it.
-	Backend string `json:"whisper_backend,omitempty"`
-	Model   string `json:"whisper_model,omitempty"`
+	Backend string      `json:"whisper_backend,omitempty"`
+	Model   string      `json:"whisper_model,omitempty"`
+	Cuts    []AdSegment `json:"cuts,omitempty"`
 }
 
 type CutEntry struct {
@@ -280,6 +281,7 @@ type CLIOptions struct {
 	DetectRaw       bool
 	DetectWriteCuts bool
 	DetectRepeat    int
+	CutsFile        string
 
 	// DownloadedOnly restricts `info latest` to episodes on disk. The default
 	// lists everything the feeds have published, which is the useful question

@@ -1,4 +1,4 @@
-package adremoval
+package cli
 
 import (
 	"encoding/json"
@@ -78,18 +78,6 @@ func TestExpandDirectoryArgsAppliesLatestPolicyPerPodcast(t *testing.T) {
 	got := expandDirectoryArgs([]string{lib}, types.ProcOptions{Quiet: true, DryRun: true}, types.Config{})
 	if len(got) != 1 {
 		t.Fatalf("expected the latest episode only, got %d: %v", len(got), got)
-	}
-}
-
-func TestGetActiveBackendAlwaysStandalone(t *testing.T) {
-	t.Parallel()
-	cfg := types.Config{}
-	cfg.BackendType = "podfetch"
-	cfg.PodfetchURL = "http://127.0.0.1:8000"
-
-	b := getActiveBackendForPodcast(cfg, true)
-	if b == nil || b.Name() != "standalone" {
-		t.Error("expected standalone backend")
 	}
 }
 

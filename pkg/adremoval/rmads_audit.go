@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"pod/pkg/audio"
+	"pod/pkg/episode"
 	"pod/pkg/pipeline"
-	"pod/pkg/podcast"
+	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -34,7 +35,12 @@ type transcriptAuditItem struct {
 	adFailed       bool
 }
 
-func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptions) error {
+func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptions, rep ...progress.Reporter) error {
+	var r progress.Reporter
+	if len(rep) > 0 {
+		r = rep[0]
+	}
+	r = progress.Or(r)
 	if len(targets) == 0 {
 		if cfg.PodcastsDir == "" {
 			return fmt.Errorf("podcasts_dir not configured and no target paths provided")
@@ -46,15 +52,11 @@ func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptio
 
 	audioFiles := collectAudioFilesForAudit(targets)
 	if len(audioFiles) == 0 {
-		if !opts.Quiet {
-			fmt.Println("No audio files found to audit.")
-		}
+		r.Infof("No audio files found to audit.")
 		return nil
 	}
 
-	if !opts.Quiet {
-		fmt.Printf("Auditing transcripts across %d audio file(s)...\n", len(audioFiles))
-	}
+	r.Infof("Auditing transcripts across %d audio file(s)...", len(audioFiles))
 
 	var tally auditTally
 	var failures []error
@@ -64,16 +66,16 @@ func RunTranscriptAudit(cfg types.Config, targets []string, opts types.ProcOptio
 		if item == nil {
 			continue
 		}
-		tally.count(item, opts)
+		tally.count(item, r)
 		if !item.needsRepair() {
 			continue
 		}
-		if err := repairAuditedEpisode(item, cfg, opts.DryRun, opts.Quiet); err != nil {
+		if err := repairAuditedEpisode(item, cfg, opts.DryRun, r); err != nil {
 			failures = append(failures, fmt.Errorf("audit %s: %w", audioPath, err))
 		}
 	}
 
-	printAuditSummary(tally.scanned, tally.suspicious, tally.uncut, tally.adFailed, opts.DryRun, opts.Quiet)
+	printAuditSummary(tally.scanned, tally.suspicious, tally.uncut, tally.adFailed, opts.DryRun, r)
 	return errors.Join(failures...)
 }
 
@@ -102,7 +104,7 @@ type auditTally struct {
 
 // count records one inspected episode, reporting the healthy ones when asked
 // to be verbose.
-func (t *auditTally) count(item *transcriptAuditItem, opts types.ProcOptions) {
+func (t *auditTally) count(item *transcriptAuditItem, r progress.Reporter) {
 	t.scanned++
 	switch {
 	case item.cleanStateMsg != "":
@@ -111,8 +113,8 @@ func (t *auditTally) count(item *transcriptAuditItem, opts types.ProcOptions) {
 		t.suspicious++
 	case item.adFailed:
 		t.adFailed++
-	case opts.Verbose && !opts.Quiet:
-		fmt.Printf("  [OK] %s (%.0fs, %d chars, %.1f%% coverage)\n",
+	default:
+		r.Detailf("  [OK] %s (%.0fs, %d chars, %.1f%% coverage)",
 			auditDisplayName(item.audioPath), item.audioDur, item.textChars, item.coverageRatio*100)
 	}
 }
@@ -251,14 +253,13 @@ func evaluateTranscriptMetrics(item *transcriptAuditItem, td types.Transcription
 	}
 }
 
-func repairAuditedEpisode(item *transcriptAuditItem, cfg types.Config, dryRun, quiet bool) error {
+func repairAuditedEpisode(item *transcriptAuditItem, cfg types.Config, dryRun bool, r progress.Reporter) error {
+	r = progress.Or(r)
 	if !auditMP3Exists(item.audioPath) {
 		return fmt.Errorf("audio is no longer a regular MP3: %s", item.audioPath)
 	}
 	if dryRun {
-		if !quiet {
-			fmt.Printf("  [DRY RUN] %s: would mark NeedAdR and queue\n", item.audioPath)
-		}
+		r.Infof("  [DRY RUN] %s: would mark NeedAdR and queue", item.audioPath)
 		return nil
 	}
 	if item.isSuspicious {
@@ -283,9 +284,7 @@ func repairAuditedEpisode(item *transcriptAuditItem, cfg types.Config, dryRun, q
 	if err := queueAuditedEpisode(cfg, item.audioPath); err != nil {
 		return err
 	}
-	if !quiet {
-		fmt.Printf("  [NeedAdR] %s: %s%s; queued\n", item.audioPath, item.cleanStateMsg, item.suspiciousMsg)
-	}
+	r.Infof("  [NeedAdR] %s: %s%s; queued", item.audioPath, item.cleanStateMsg, item.suspiciousMsg)
 	return nil
 }
 
@@ -293,7 +292,7 @@ func queueAuditedEpisode(cfg types.Config, audioPath string) error {
 	if !auditMP3Exists(audioPath) {
 		return fmt.Errorf("audio is no longer a regular MP3: %s", audioPath)
 	}
-	podDir := podcast.DetectPodcastDirForAudio(audioPath)
+	podDir := episode.DetectPodcastDirForAudio(audioPath)
 	if cfg.PodcastsDir != "" {
 		root, err := filepath.Abs(cfg.PodcastsDir)
 		if err != nil {
@@ -338,20 +337,19 @@ func auditMP3Exists(path string) bool {
 	return err == nil && info.Mode().IsRegular() && strings.EqualFold(filepath.Ext(path), ".mp3")
 }
 
-func printAuditSummary(scanned, suspicious, uncut, adFailed int, dryRun, quiet bool) {
-	if quiet {
-		return
-	}
-	fmt.Printf("\n%s\n", util.RepeatStr("-", 50))
-	fmt.Println("TRANSCRIPT AUDIT SUMMARY:")
-	fmt.Printf("  - Scanned episodes:        %d\n", scanned)
-	fmt.Printf("  - Suspicious transcripts:  %d\n", suspicious)
-	fmt.Printf("  - Invalid clean states:    %d\n", uncut)
-	fmt.Printf("  - Failed ad detections:    %d\n", adFailed)
+func printAuditSummary(scanned, suspicious, uncut, adFailed int, dryRun bool, r progress.Reporter) {
+	r.Infof("")
+	r.Infof("%s", util.RepeatStr("-", 50))
+	r.Infof("TRANSCRIPT AUDIT SUMMARY:")
+	r.Infof("  - Scanned episodes:        %d", scanned)
+	r.Infof("  - Suspicious transcripts:  %d", suspicious)
+	r.Infof("  - Invalid clean states:    %d", uncut)
+	r.Infof("  - Failed ad detections:    %d", adFailed)
 	if dryRun {
-		fmt.Println("  (Dry-run mode: no files were modified or deleted)")
+		r.Infof("  (Dry-run mode: no files were modified or deleted)")
 	}
-	fmt.Printf("%s\n\n", util.RepeatStr("-", 50))
+	r.Infof("%s", util.RepeatStr("-", 50))
+	r.Infof("")
 }
 
 func collectAudioFilesForAudit(targets []string) []string {

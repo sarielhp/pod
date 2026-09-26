@@ -36,7 +36,7 @@ func TestCalculateKeepSegments(t *testing.T) {
 		{Start: 10, End: 20},
 		{Start: 30, End: 40},
 	}
-	keep := calculateKeepSegments(50, ads)
+	keep := CalculateKeepSegments(50, ads)
 	if len(keep) != 3 {
 		t.Fatalf("expected 3 keep segments, got %d", len(keep))
 	}

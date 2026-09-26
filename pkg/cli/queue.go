@@ -94,7 +94,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 	case "recut":
 		cli.Recut = true
 		cli.ProcSubcmd = "recut"
-		return runRmAdsCommand(cfg, cli, "queue")
+		return runRmAdsCommand(cfg, cli)
 	case "export":
 		cli.ProcSubcmd = "export"
 		runExportCommand(cli)
@@ -349,7 +349,7 @@ func executeQueueRun(items []queueEpisodeItem, cli CLIOptions, cfg Config) error
 			continue
 		}
 
-		err := adremoval.ProcessQueuedTarget(it.PodcastDir, it.AudioPath, "rm_ads", cli.ProcOptions, cfg)
+		err := ProcessQueuedTarget(it.PodcastDir, it.AudioPath, cli.ProcOptions, cfg)
 		if err != nil {
 			if !cli.Quiet {
 				fmt.Fprintf(errFor(cli), "Error processing %s: %v\n", it.Filename, err)

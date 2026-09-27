@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"pod/pkg/kitty"
 )
 
 func TestTopNavBarAndBreadcrumbs(t *testing.T) {
@@ -198,5 +199,42 @@ func TestMouseWheelScrolling(t *testing.T) {
 	m.handleMouse(tea.MouseMsg{Button: tea.MouseButtonWheelUp})
 	if m.podIdx != 0 {
 		t.Errorf("expected podIdx to decrement to 0 on wheel up, got %d", m.podIdx)
+	}
+}
+
+func TestModalOverlayKittyClear(t *testing.T) {
+	t.Setenv("TERM", "xterm-kitty")
+	m := makeTestModel()
+	m.width = 100
+	m.height = 30
+
+	clearSeq := kitty.KittyClearGraphics()
+
+	m.showHelpModal = true
+	view := m.View()
+	if !strings.HasPrefix(view, clearSeq) {
+		t.Errorf("expected View() with showHelpModal to start with KittyClearGraphics")
+	}
+	m.showHelpModal = false
+
+	m.podIdx = 0
+	m.showPolicyModal = true
+	view = m.View()
+	if !strings.HasPrefix(view, clearSeq) {
+		t.Errorf("expected View() with showPolicyModal to start with KittyClearGraphics")
+	}
+	m.showPolicyModal = false
+
+	m.showDownloadPolicyModal = true
+	view = m.View()
+	if !strings.HasPrefix(view, clearSeq) {
+		t.Errorf("expected View() with showDownloadPolicyModal to start with KittyClearGraphics")
+	}
+	m.showDownloadPolicyModal = false
+
+	m.loadErr = "test error"
+	view = m.View()
+	if !strings.HasPrefix(view, clearSeq) {
+		t.Errorf("expected View() with loadErr to start with KittyClearGraphics")
 	}
 }

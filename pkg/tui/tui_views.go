@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"pod/pkg/kitty"
 )
 
@@ -14,6 +15,9 @@ func (m *tuiModel) drawPopup() string {
 }
 func (m *tuiModel) drawErrorScreen() string {
 	out := &strings.Builder{}
+	if kitty.IsKittyTerminal() {
+		out.WriteString(kitty.KittyClearGraphics())
+	}
 	out.WriteString(tuiTitleStyle.Render("  Connection Error"))
 	out.WriteByte('\n')
 	out.WriteByte('\n')
@@ -44,13 +48,13 @@ func (m *tuiModel) View() string {
 	}
 
 	if m.showHelpModal {
-		return m.drawHelpModal()
+		return m.renderModalOverlay(m.drawHelpModal())
 	}
 	if m.showPolicyModal {
-		return m.drawAdPolicyModal()
+		return m.renderModalOverlay(m.drawAdPolicyModal())
 	}
 	if m.showDownloadPolicyModal {
-		return m.drawDownloadPolicyModal()
+		return m.renderModalOverlay(m.drawDownloadPolicyModal())
 	}
 
 	var body strings.Builder
@@ -98,4 +102,18 @@ func (m *tuiModel) View() string {
 	}
 
 	return body.String()
+}
+
+func (m *tuiModel) renderModalOverlay(content string) string {
+	if content == "" {
+		return ""
+	}
+	box := content
+	if m.width > 0 && m.height > 0 {
+		box = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+	}
+	if kitty.IsKittyTerminal() {
+		return kitty.KittyClearGraphics() + box
+	}
+	return box
 }

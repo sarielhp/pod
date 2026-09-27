@@ -7,7 +7,6 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/episode"
-	"pod/pkg/podcast"
 )
 
 func loadTUIPodcastsABS(podcastsDir string, b backend.Backend) ([]tuiPodcast, error) {
@@ -33,16 +32,17 @@ func loadTUIPodcastsABS(podcastsDir string, b backend.Backend) ([]tuiPodcast, er
 			itemSummary, ok = itemByRel[filepath.Base(pod.dir)]
 		}
 		if ok {
-			enrichSinglePodcastABS(pod, b, itemSummary)
+			enrichSinglePodcastABS(pod, itemSummary)
 		}
 	}
 
 	return podcasts, nil
 }
 
-func buildABSItemsIndex(items []backend.Podcast) map[string]backend.Podcast {
-	itemByRel := make(map[string]backend.Podcast, len(items)*2)
-	for _, item := range items {
+func buildABSItemsIndex(items []backend.Podcast) map[string]*backend.Podcast {
+	itemByRel := make(map[string]*backend.Podcast, len(items)*2)
+	for i := range items {
+		item := &items[i]
 		itemByRel[item.RelPath] = item
 		cleanRel := filepath.Base(item.RelPath)
 		itemByRel[cleanRel] = item
@@ -53,9 +53,8 @@ func buildABSItemsIndex(items []backend.Podcast) map[string]backend.Podcast {
 	return itemByRel
 }
 
-func enrichSinglePodcastABS(pod *tuiPodcast, b backend.Backend, itemSummary backend.Podcast) {
-	fullItem, err := b.GetPodcast(itemSummary.ID)
-	if err != nil || fullItem == nil {
+func enrichSinglePodcastABS(pod *tuiPodcast, fullItem *backend.Podcast) {
+	if fullItem == nil {
 		return
 	}
 	pod.absData = fullItem
@@ -69,10 +68,6 @@ func enrichSinglePodcastABS(pod *tuiPodcast, b backend.Backend, itemSummary back
 		pod.feedURL = fullItem.Media.Metadata.FeedURL
 	}
 
-	cDir := podcast.CacheDirForPodcast(pod.dir)
-	coverDest := filepath.Join(cDir, "cover.jpg")
-	_ = b.DownloadCover(fullItem.ID, coverDest)
-
 	quarantined := episode.QuarantineAbandonedDuplicates(pod.dir, fullItem.Media.Episodes)
 	pod.notice = episode.FormatQuarantinedSummary(quarantined, pod.name)
 
@@ -82,8 +77,6 @@ func enrichSinglePodcastABS(pod *tuiPodcast, b backend.Backend, itemSummary back
 	sort.Slice(pod.episodes, func(x, y int) bool {
 		return pod.episodes[x].displayDate().After(pod.episodes[y].displayDate())
 	})
-
-	savePodcastToCache(pod)
 }
 
 func buildABSEpisodeMap(episodes []backend.Episode) map[string]*backend.Episode {

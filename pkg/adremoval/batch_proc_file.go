@@ -80,15 +80,17 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	}
 	defer fileLock.Release()
 
+	artifacts, stages := planForEpisode(mainMP3File, opts)
+
 	totalDuration := audio.GetAudioDuration(sourceAudioFile)
 	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
 	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
-	if opts.Recut {
+	if opts.Recut && artifacts.HasCuts {
 		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime)
 		return Report{Processed: true}, err
 	}
 
-	if needsTranscription := !util.FileExists(jsonFile) || opts.ForceTranscribe; needsTranscription {
+	if hasStage(stages, pipeline.StageTranscribe) {
 		var success, handled bool
 		switch {
 		case canRunSpeculativeRace(config, opts):
@@ -306,9 +308,44 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	return executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile, cutsResult.KeepSegments, adSegments, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1, t0Step2, t0Step3)
 }
 
+func planForEpisode(mainMP3File string, opts types.ProcOptions) (pipeline.Artifacts, []pipeline.Stage) {
+	baseName := util.StripExt(mainMP3File)
+	jsonFile := opts.TranscriptPath
+	if jsonFile == "" {
+		jsonFile = baseName + ".transcript.json"
+	}
+	cutsFile := baseName + ".cuts.json"
+	artifacts := pipeline.Artifacts{
+		HasTranscript: util.FileExists(jsonFile),
+		HasCuts:       util.FileExists(cutsFile),
+		IsClean:       episode.IsEpisodeClean(mainMP3File),
+	}
+	force := pipeline.ForceOptions{
+		Force:           opts.Force != "",
+		ForceTranscribe: opts.ForceTranscribe,
+		ForceDetect:     opts.ForceLLM,
+		Recut:           opts.Recut,
+	}
+	var stFile types.EpisodeStatusFile
+	if st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(mainMP3File)); st != nil {
+		stFile = *st
+	}
+	return artifacts, pipeline.Plan(stFile, artifacts, force)
+}
+
+func hasStage(stages []pipeline.Stage, target pipeline.Stage) bool {
+	for _, s := range stages {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
 func checkSkipOrLockAudioFile(mainMP3File, inputFile string, idx, totalFiles, processedCount int, opts types.ProcOptions) (*util.FileLockWrapper, bool, bool) {
 	shortName := util.DisplayName(filepath.Base(inputFile))
-	if !opts.ForceTranscribe && !opts.ForceLLM && !opts.Recut && episode.IsEpisodeClean(mainMP3File) {
+	_, stages := planForEpisode(mainMP3File, opts)
+	if len(stages) == 0 {
 		if opts.Verbose && !opts.Quiet {
 			fmt.Printf("skipping: %s\n", shortName)
 		}

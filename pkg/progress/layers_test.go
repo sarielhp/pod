@@ -104,6 +104,12 @@ func TestPackageLayering(t *testing.T) {
 			if importerPkg == "pod/pkg/episode" && impPath == "pod/pkg/pipeline" {
 				violations = append(violations, rel+": forbidden coupling: pkg/episode must not import pkg/pipeline")
 			}
+			if importerPkg == "pod/pkg/tui" && impPath == "pod/pkg/pipeline" {
+				violations = append(violations, rel+": forbidden coupling: pkg/tui must not import pkg/pipeline")
+			}
+			if importerPkg == "pod/pkg/pipeline" && impPath == "pod/pkg/backend" {
+				violations = append(violations, rel+": forbidden coupling: pkg/pipeline must not import pkg/backend")
+			}
 		}
 		return nil
 	})

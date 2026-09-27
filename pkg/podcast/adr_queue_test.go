@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 )
 
 func queueFixture(t *testing.T) (root, podDir string) {
@@ -43,7 +43,7 @@ func TestEnqueuePodcastIsIdempotent(t *testing.T) {
 		t.Errorf("re-enqueueing the same episodes added %d, want 0", n)
 	}
 
-	entries, err := pipeline.ReadQueue(podDir)
+	entries, err := episode.ReadQueue(podDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestClearPodcastQueueEmptiesIt(t *testing.T) {
 	if err := ClearPodcastQueue(podDir); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := pipeline.ReadQueue(podDir)
+	entries, err := episode.ReadQueue(podDir)
 	if err != nil {
 		t.Fatal(err)
 	}

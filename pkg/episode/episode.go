@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"pod/pkg/pipeline"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -23,6 +22,19 @@ func DetectPodcastDirForAudio(audioPath string) string {
 		}
 	}
 	return dir
+}
+
+// EpisodeTitleFromPath derives the display title of an episode from its file path.
+func EpisodeTitleFromPath(audioPath string) string {
+	base := filepath.Base(audioPath)
+	stem := util.StripExt(base)
+	if strings.EqualFold(stem, "podcast") {
+		parent := filepath.Base(filepath.Dir(audioPath))
+		if parent != "." && parent != "/" && parent != "" {
+			return parent
+		}
+	}
+	return stem
 }
 
 // Episode represents an episode and its associated media and metadata paths on disk.
@@ -45,7 +57,7 @@ func Resolve(path string) (Episode, error) {
 	}
 	cleanPath = filepath.Clean(cleanPath)
 
-	mainMP3File, precutFile, sourceAudioFile := pipeline.ResolveAudioFiles(cleanPath, false)
+	mainMP3File, precutFile, sourceAudioFile := ResolveAudioFiles(cleanPath, false)
 	baseName := util.StripExt(mainMP3File)
 	dir := filepath.Dir(mainMP3File)
 
@@ -63,7 +75,7 @@ func Resolve(path string) (Episode, error) {
 
 // Status reads the current episode status file from disk.
 func (e Episode) Status() (types.EpisodeStatusFile, error) {
-	st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(e.Main))
+	st, err := LoadEpisodeStatus(StatusPathFor(e.Main))
 	if err != nil {
 		return types.EpisodeStatusFile{}, err
 	}
@@ -75,10 +87,10 @@ func (e Episode) Status() (types.EpisodeStatusFile, error) {
 
 // Update mutates the episode status file atomically using the provided update function.
 func (e Episode) Update(fn func(*types.EpisodeStatusFile)) error {
-	return pipeline.UpdateEpisodeStatus(e.Main, fn)
+	return UpdateEpisodeStatus(e.Main, fn)
 }
 
 // IsClean reports whether this episode has completed ad removal and has a valid transcript.
 func (e Episode) IsClean() bool {
-	return pipeline.IsEpisodeClean(e.Main)
+	return IsEpisodeClean(e.Main)
 }

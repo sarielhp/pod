@@ -60,18 +60,16 @@ func runCutCommand(cfg Config, cli CLIOptions) error {
 		return err
 	}
 
-	out := outFor(cli)
+	prog := progressFor(cli)
 	if cli.DryRun {
-		fmt.Fprintf(out, "[Dry run] Would cut %s (%d segments, %s trimmed, new length %s)\n",
+		fmt.Fprintf(prog, "[Dry run] Would cut %s (%d segments, %s trimmed, new length %s)\n",
 			filepath.Base(res.InputPath), res.SegmentsCut,
 			format.FormatTime(res.CutSec), format.FormatMinutes(res.CleanedSec))
 		return nil
 	}
 
-	if !cli.Quiet {
-		fmt.Fprintf(out, "Cut %s: %d segments cut, %s trimmed, saved to %s\n",
-			filepath.Base(res.InputPath), res.SegmentsCut,
-			format.FormatTime(res.CutSec), res.OutputPath)
-	}
+	fmt.Fprintf(prog, "Cut %s: %d segments cut, %s trimmed, saved to %s\n",
+		filepath.Base(res.InputPath), res.SegmentsCut,
+		format.FormatTime(res.CutSec), res.OutputPath)
 	return nil
 }

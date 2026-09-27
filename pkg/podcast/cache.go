@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/config"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -74,50 +75,11 @@ type CachedEpisodeDetails struct {
 }
 
 func CacheBaseDir() string {
-	cacheHome := os.Getenv("XDG_CACHE_HOME")
-	if cacheHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return filepath.Join(os.TempDir(), "cache")
-		}
-		cacheHome = filepath.Join(home, ".cache")
-	}
-	podCacheDir := filepath.Join(cacheHome, "pod", "podcasts")
-	legacyDir := filepath.Join(cacheHome, "abs", "podcasts")
-	if _, err := os.Stat(podCacheDir); err == nil {
-		return podCacheDir
-	}
-	if _, err := os.Stat(legacyDir); err == nil {
-		return legacyDir
-	}
-	_ = os.MkdirAll(podCacheDir, 0755)
-	return podCacheDir
-}
-
-func sanitizeDirName(dirPath string) string {
-	clean := filepath.Clean(dirPath)
-	base := filepath.Base(clean)
-	h := sha256.Sum256([]byte(clean))
-	hashPrefix := hex.EncodeToString(h[:4])
-	safeBase := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			return r
-		}
-		return '_'
-	}, base)
-	return safeBase + "_" + hashPrefix
+	return config.CacheBaseDir()
 }
 
 func CacheDirForPodcast(podcastDir string) string {
-	absDir, err := filepath.Abs(podcastDir)
-	if err != nil {
-		absDir = podcastDir
-	}
-	name := sanitizeDirName(absDir)
-	dir := filepath.Join(CacheBaseDir(), name)
-	_ = os.MkdirAll(dir, 0755)
-	_ = os.MkdirAll(filepath.Join(dir, "details"), 0755)
-	return dir
+	return config.CacheDirForPodcast(podcastDir)
 }
 
 func LoadPodcastCache(podcastDir string) (*CachedPodcastIndex, error) {
@@ -380,7 +342,7 @@ func GetEpisodePublicationTime(filePath string) time.Time {
 	if date, ok := SourcePublicationTime(filePath); ok {
 		return date
 	}
-	st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(filePath))
+	st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(filePath))
 	if err == nil && st != nil && (st.PublicationSource == "source" || st.PublicationSource == "feed") {
 		if date, err := ParseAnyPublicationTime(st.PublishedAt); err == nil && !date.IsZero() {
 			return date

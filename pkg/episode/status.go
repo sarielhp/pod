@@ -1,4 +1,4 @@
-package pipeline
+package episode
 
 import (
 	"encoding/json"

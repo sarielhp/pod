@@ -12,7 +12,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/types"
 )
 
@@ -314,7 +314,7 @@ func TestExecuteFetchEnqueuesNewlyDownloaded(t *testing.T) {
 	}
 
 	// Verify .queue file exists in podDir and contains the downloaded episode!
-	queueEntries, err := pipeline.ReadQueue(podDir)
+	queueEntries, err := episode.ReadQueue(podDir)
 	if err != nil {
 		t.Fatalf("failed to read queue: %v", err)
 	}

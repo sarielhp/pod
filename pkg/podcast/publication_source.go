@@ -3,17 +3,17 @@ package podcast
 import (
 	"path/filepath"
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"strings"
 	"time"
 )
 
 func SetPublicationSource(root string, dates map[string]time.Time) {
-	pipeline.SetPublicationSource(root, dates)
+	episode.SetPublicationSource(root, dates)
 }
 
 func SourcePublicationTime(path string) (time.Time, bool) {
-	return pipeline.SourcePublicationTime(path)
+	return episode.SourcePublicationTime(path)
 }
 
 func LoadSourcePublicationDates(b backend.Backend, root string) (map[string]time.Time, error) {
@@ -38,7 +38,7 @@ func LoadSourcePublicationDates(b backend.Backend, root string) (map[string]time
 				if path == "" {
 					path = ep.AudioFile.Metadata.RelPath
 				}
-				episodes = append(episodes, backend.CatalogEpisode{AudioPath: path, PublishedAt: pipeline.ParseABSEpisodePublishedAt(&ep)})
+				episodes = append(episodes, backend.CatalogEpisode{AudioPath: path, PublishedAt: episode.ParseABSEpisodePublishedAt(&ep)})
 			}
 		}
 	}

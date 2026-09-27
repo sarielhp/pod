@@ -11,7 +11,6 @@ import (
 
 	"pod/pkg/config"
 	"pod/pkg/episode"
-	"pod/pkg/pipeline"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -59,15 +58,7 @@ func (r *ResolvedID) IsEpisode() bool {
 }
 
 func EpisodeTitleFromPath(audioPath string) string {
-	base := filepath.Base(audioPath)
-	stem := util.StripExt(base)
-	if strings.EqualFold(stem, "podcast") {
-		parent := filepath.Base(filepath.Dir(audioPath))
-		if parent != "." && parent != "/" && parent != "" {
-			return parent
-		}
-	}
-	return stem
+	return episode.EpisodeTitleFromPath(audioPath)
 }
 
 func DetectPodcastDirForAudio(audioPath string) string {
@@ -102,10 +93,10 @@ func GetOrSetEpisodeShortID(podDir, podShortID, audioPath string) string {
 		podShortID = GetOrSetPodcastShortID(podDir, filepath.Base(podDir))
 	}
 	id := EpisodeShortIDReadOnly(podDir, podShortID, audioPath)
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 	if st.ID != id {
 		st.ID = id
-		_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(audioPath), st)
+		_ = episode.SaveEpisodeStatus(episode.StatusPathFor(audioPath), st)
 	}
 	return id
 }
@@ -114,8 +105,8 @@ func EpisodeShortIDReadOnly(podDir, podShortID, audioPath string) string {
 	bogusID := generateEpisodeShortID(podShortID, "podcast")
 	key := episodeUniqueKey(podDir, audioPath)
 
-	statPath := pipeline.StatusPathFor(audioPath)
-	if st, err := pipeline.LoadEpisodeStatus(statPath); err == nil && st != nil {
+	statPath := episode.StatusPathFor(audioPath)
+	if st, err := episode.LoadEpisodeStatus(statPath); err == nil && st != nil {
 		id := strings.TrimSpace(st.ID)
 		if id != "" && (id != bogusID || key == "podcast") {
 			return id
@@ -124,7 +115,7 @@ func EpisodeShortIDReadOnly(podDir, podShortID, audioPath string) string {
 
 	altStatPath := util.StripExt(audioPath) + ".json"
 	if altStatPath != statPath {
-		if st, err := pipeline.LoadEpisodeStatus(altStatPath); err == nil && st != nil {
+		if st, err := episode.LoadEpisodeStatus(altStatPath); err == nil && st != nil {
 			id := strings.TrimSpace(st.ID)
 			if id != "" && (id != bogusID || key == "podcast") {
 				return id
@@ -258,7 +249,7 @@ func buildResolvedEpisodeFromPath(audioPath string) *ResolvedID {
 	podShortID := GetOrSetPodcastShortID(podDir, podTitle)
 	epShortID := GetOrSetEpisodeShortID(podDir, podShortID, audioPath)
 	epTitle := EpisodeTitleFromPath(audioPath)
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 
 	return &ResolvedID{
 		Type: ResolvedTypeEpisode,
@@ -293,7 +284,7 @@ func resolveByEpisodeShortID(podEntries []PodcastDirEntry, search string) (*Reso
 
 func buildResolvedEpisodeFromParams(p PodcastDirEntry, mp3Path, epID string) *ResolvedID {
 	epTitle := EpisodeTitleFromPath(mp3Path)
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
+	st := episode.GetOrCreateEpisodeStatus(mp3Path)
 	return &ResolvedID{
 		Type: ResolvedTypeEpisode,
 		Episode: &ResolvedEpisode{

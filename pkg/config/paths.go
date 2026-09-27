@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net"
 	"os"
 	"path/filepath"
@@ -85,4 +87,51 @@ func localIP() string {
 
 func replaceIP(url, ip string) string {
 	return strings.Replace(url, "192.168.1.230", ip, 1)
+}
+
+func CacheBaseDir() string {
+	cacheHome := os.Getenv("XDG_CACHE_HOME")
+	if cacheHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return filepath.Join(os.TempDir(), "cache")
+		}
+		cacheHome = filepath.Join(home, ".cache")
+	}
+	podCacheDir := filepath.Join(cacheHome, "pod", "podcasts")
+	legacyDir := filepath.Join(cacheHome, "abs", "podcasts")
+	if _, err := os.Stat(podCacheDir); err == nil {
+		return podCacheDir
+	}
+	if _, err := os.Stat(legacyDir); err == nil {
+		return legacyDir
+	}
+	_ = os.MkdirAll(podCacheDir, 0755)
+	return podCacheDir
+}
+
+func SanitizeDirName(dirPath string) string {
+	clean := filepath.Clean(dirPath)
+	base := filepath.Base(clean)
+	h := sha256.Sum256([]byte(clean))
+	hashPrefix := hex.EncodeToString(h[:4])
+	safeBase := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return '_'
+	}, base)
+	return safeBase + "_" + hashPrefix
+}
+
+func CacheDirForPodcast(podcastDir string) string {
+	absDir, err := filepath.Abs(podcastDir)
+	if err != nil {
+		absDir = podcastDir
+	}
+	name := SanitizeDirName(absDir)
+	dir := filepath.Join(CacheBaseDir(), name)
+	_ = os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(filepath.Join(dir, "details"), 0755)
+	return dir
 }

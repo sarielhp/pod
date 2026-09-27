@@ -11,7 +11,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -330,13 +330,13 @@ func (l *Library) downloadEpisode(d *Downloader, podDir string, ep backend.FeedE
 	}
 
 	if pubMs > 0 {
-		st := pipeline.GetOrCreateEpisodeStatus(destPath)
+		st := episode.GetOrCreateEpisodeStatus(destPath)
 		st.PublishedAt = time.UnixMilli(pubMs).UTC().Format(time.RFC3339)
 		st.PublicationSource = "feed"
-		_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(destPath), st)
+		_ = episode.SaveEpisodeStatus(episode.StatusPathFor(destPath), st)
 	}
 	if shouldQueue {
-		pipeline.AddToQueue(podDir, fn)
+		episode.AddToQueue(podDir, fn)
 	}
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -129,7 +129,7 @@ func buildEpisodeMeta(path, podDir string, fi os.FileInfo, feedMap map[string]ba
 		}
 	}
 	if durSec <= 0 {
-		if st, _ := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(path)); st != nil {
+		if st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(path)); st != nil {
 			if st.Cleaned.DurationSec > 0 {
 				durSec = st.Cleaned.DurationSec
 			} else if st.Original.DurationSec > 0 {

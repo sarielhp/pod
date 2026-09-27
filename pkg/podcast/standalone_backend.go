@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/progress"
 	"pod/pkg/util"
 )
@@ -308,7 +308,7 @@ func (b *StandaloneBackend) DownloadEpisodes(podcastID string, episodes []backen
 }
 
 func initDownloadedEpisodeStatus(audioPath, filename string, ep backend.FeedEpisode, pubTime time.Time) {
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 	if st != nil {
 		if !pubTime.IsZero() {
 			st.PublishedAt = pubTime.UTC().Format(time.RFC3339)
@@ -317,7 +317,7 @@ func initDownloadedEpisodeStatus(audioPath, filename string, ep backend.FeedEpis
 		if st.MediaFile == "" {
 			st.MediaFile = filename
 		}
-		_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(audioPath), st)
+		_ = episode.SaveEpisodeStatus(episode.StatusPathFor(audioPath), st)
 	}
 }
 

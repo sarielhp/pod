@@ -4,18 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"pod/pkg/config"
 	"pod/pkg/format"
-	"pod/pkg/podcast"
 	"pod/pkg/progress"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
-	"pod/pkg/util"
 )
 
 var (
@@ -33,10 +28,9 @@ type Report struct {
 	Failures  int
 }
 
-// ProcessFiles removes ads from an already-resolved set of targets: audio
-// files, or directories to be expanded into the episodes their podcast's
-// ad-removal policy admits. Interpreting a command line into that set belongs
-// to the caller.
+// ProcessFiles removes ads from an already-resolved set of audio file targets.
+// Interpreting a command line (e.g. resolving directories or filtering by
+// podcast policy) belongs to the caller.
 func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, rep ...progress.Reporter) (Report, error) {
 	opts.Normalize()
 	var r progress.Reporter
@@ -45,8 +39,7 @@ func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, re
 	}
 	r = progress.Or(r)
 
-	expandedArgs := expandDirectoryArgs(targets, opts, cfg)
-	if len(expandedArgs) == 0 {
+	if len(targets) == 0 {
 		if !opts.Quiet {
 			fmt.Println("No files or directories with audio found to process.")
 		}
@@ -54,102 +47,11 @@ func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, re
 	}
 
 	if opts.DryRun {
-		handleProcDryRun(expandedArgs, opts, cfg, r)
-		return Report{Total: len(expandedArgs)}, nil
+		handleProcDryRun(targets, opts, cfg, r)
+		return Report{Total: len(targets)}, nil
 	}
 
-	return executeLocalBatchProcessing(expandedArgs, opts, cfg)
-}
-
-func groupAndFilterAudioByPodcast(rawMp3Files []string, opts types.ProcOptions, appCfg types.Config) []string {
-	filesByFolder := make(map[string][]string)
-	for _, f := range rawMp3Files {
-		epFolder := filepath.Dir(f)
-		if strings.HasSuffix(epFolder, "-1") || strings.HasSuffix(epFolder, "-1/") {
-			continue
-		}
-		folder := podcast.DetectPodcastDirForAudio(f)
-		filesByFolder[folder] = append(filesByFolder[folder], f)
-	}
-
-	var podFolders []string
-	for folder := range filesByFolder {
-		podFolders = append(podFolders, folder)
-	}
-	sort.Strings(podFolders)
-
-	var filtered []string
-	for _, podFolder := range podFolders {
-		fList := filesByFolder[podFolder]
-		podCfg := config.LoadPodcastConfig(podFolder, config.DefaultPodcastConfig(&appCfg))
-		if !opts.DryRun {
-			ensurePodcastConfig(podFolder, podCfg, opts.Quiet)
-		}
-		if config.NormalizeAdRemovalMode(podCfg.AdRemoval) == config.AdRemovalNone {
-			if opts.Verbose && !opts.Quiet {
-				fmt.Printf("Podcast config set to 'none' for '%s'. Skipping.\n", filepath.Base(podFolder))
-			}
-			continue
-		}
-		filtered = append(filtered, podcast.FilterByAdRemovalPolicy(fList, podFolder, podCfg)...)
-	}
-	return filtered
-}
-
-func expandSingleDirectoryArg(arg string, opts types.ProcOptions, appCfg types.Config) []string {
-	if !opts.DryRun {
-		removeWorkDirs(arg)
-	}
-	rawMp3Files := util.FindMP3Files(arg)
-	if len(rawMp3Files) == 0 {
-		if !opts.Quiet {
-			fmt.Printf("No MP3 files found in directory '%s'.\n", arg)
-		}
-		return nil
-	}
-	return groupAndFilterAudioByPodcast(rawMp3Files, opts, appCfg)
-}
-
-func sortFilesByPublicationTime(files []string) {
-	if len(files) <= 1 {
-		return
-	}
-	sort.SliceStable(files, func(i, j int) bool {
-		ti := podcast.GetEpisodePublicationTime(files[i])
-		tj := podcast.GetEpisodePublicationTime(files[j])
-		if ti.Equal(tj) {
-			return files[i] < files[j]
-		}
-		return ti.After(tj)
-	})
-}
-
-func expandDirectoryArgs(args []string, opts types.ProcOptions, appCfg types.Config) []string {
-	var expandedArgs []string
-	hasPrintedScanning := false
-	printScanning := func(dir string) {
-		if opts.Quiet {
-			return
-		}
-		if !hasPrintedScanning {
-			fmt.Println()
-			hasPrintedScanning = true
-		}
-		fmt.Printf("Scanning: %s\n", dir)
-	}
-
-	for _, arg := range args {
-		fi, err := os.Stat(arg)
-		if err == nil && fi.IsDir() {
-			printScanning(arg)
-			expandedArgs = append(expandedArgs, expandSingleDirectoryArg(arg, opts, appCfg)...)
-		} else {
-			expandedArgs = append(expandedArgs, arg)
-		}
-	}
-
-	sortFilesByPublicationTime(expandedArgs)
-	return expandedArgs
+	return executeLocalBatchProcessing(targets, opts, cfg)
 }
 
 func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, cfg types.Config) (Report, error) {
@@ -201,39 +103,4 @@ func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, 
 		return rep, fmt.Errorf("%d episode(s) failed or could not be processed", failures)
 	}
 	return rep, nil
-}
-
-func ensurePodcastConfig(dir string, cfg config.PodcastConfig, quiet bool) {
-	if util.FileExists(filepath.Join(dir, config.PodcastConfigFileName)) {
-		return
-	}
-	if cfg.ID == "" {
-		cfg.ID = podcast.GetOrSetPodcastShortID(dir, filepath.Base(dir))
-	}
-	if err := config.SavePodcastConfig(dir, cfg); err != nil {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "Warning: could not write default config for %s: %v\n", filepath.Base(dir), err)
-		}
-		return
-	}
-	if !quiet {
-		fmt.Printf("Created default %s for '%s' (ad removal: %s)\n",
-			config.PodcastConfigFileName, filepath.Base(dir), cfg.AdRemoval)
-	}
-}
-
-func removeWorkDirs(dir string) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			if entry.Name() == ".work" {
-				_ = os.RemoveAll(filepath.Join(dir, entry.Name()))
-			} else {
-				removeWorkDirs(filepath.Join(dir, entry.Name()))
-			}
-		}
-	}
 }

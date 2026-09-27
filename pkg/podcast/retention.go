@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -94,7 +94,7 @@ func hasAssociatedTranscript(path string) bool {
 }
 
 func pruneExpiredEpisode(path string, dryRun bool) (int64, bool, error) {
-	if pipeline.IsEpisodeInRemoteFlight(path) {
+	if episode.IsEpisodeInRemoteFlight(path) {
 		return 0, false, nil
 	}
 	precut := path + ".precut"

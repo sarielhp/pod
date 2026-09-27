@@ -15,27 +15,11 @@ import (
 	"pod/pkg/detect"
 	"pod/pkg/format"
 	"pod/pkg/gemini"
+	"pod/pkg/progress"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
-
-func ResolveAudioFiles(inputFile string, verbose bool) (mainMP3File, precutFile, sourceAudioFile string) {
-	mainMP3File, precutFile = inputFile, inputFile+".precut"
-	if strings.HasSuffix(inputFile, ".precut") {
-		mainMP3File, precutFile = strings.TrimSuffix(inputFile, ".precut"), inputFile
-	}
-
-	switch {
-	case util.FileExists(precutFile):
-		sourceAudioFile = precutFile
-	case util.FileExists(mainMP3File):
-		sourceAudioFile = mainMP3File
-	default:
-		sourceAudioFile = inputFile
-	}
-	return mainMP3File, precutFile, sourceAudioFile
-}
 
 func ResolveOutputFile(mainMP3File string, output string, totalFiles int) string {
 	if totalFiles > 1 && output != "" {
@@ -73,15 +57,49 @@ func HandleTranscribeMin(sourceAudioFile *string, totalDuration float64, transcr
 	return durSec, nil
 }
 
-func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time) error {
+func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time, rep ...progress.Reporter) error {
+	var r progress.Reporter
+	if len(rep) > 0 {
+		r = rep[0]
+	}
+	r = progress.Or(r)
+
 	cutsFile := baseName + ".cuts.json"
-	_, err := CutFile(CutRequest{
+	res, err := CutFile(CutRequest{
 		Path:     sourceAudioFile,
 		CutsPath: cutsFile,
 		Output:   outputFile,
 		DryRun:   opts.DryRun,
-	}, cfg, opts, nil)
-	return err
+	}, cfg, opts, r)
+	if err != nil {
+		return err
+	}
+	if opts.DryRun {
+		r.Infof("[dry-run] Would recut %s using %s", filepath.Base(mainMP3File), filepath.Base(cutsFile))
+		return nil
+	}
+
+	newDuration := res.CleanedSec
+	actualCut := res.CutSec
+	_ = UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+		st.Status = types.StateDone
+		if util.FileExists(precutFile) {
+			st.Original.Filename = filepath.Base(precutFile)
+			if fi, err := os.Stat(precutFile); err == nil {
+				st.Original.SizeBytes = fi.Size()
+			}
+		}
+		st.Cleaned.Filename = filepath.Base(outputFile)
+		st.Cleaned.DurationSec = newDuration
+		st.Cleaned.AdDurationSec = actualCut
+		if fi, err := os.Stat(outputFile); err == nil {
+			st.Cleaned.SizeBytes = fi.Size()
+		}
+	})
+
+	r.Infof("Success! Recut ad-free episode saved to: %s (duration: %s, trimmed: %s)",
+		outputFile, format.FormatTime(newDuration), format.FormatTime(actualCut))
+	return nil
 }
 
 func LoadOrTranscribe(sourceAudioFile, jsonFile string, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, totalDuration, speedFactor float64, whisperLanguage, whisperPrompt string, id3TagsOut map[string]string, isNewlyTranscribed *bool, t0Step1 *time.Time) (*types.TranscriptionData, error) {

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -44,7 +44,7 @@ func QueueFilename(podDir, audioPath string) string {
 
 // queueEntryMatchesAudio reports whether a queue entry names a given audio file.
 func queueEntryMatchesAudio(podDir, queuedFilename, audioPath string) bool {
-	path, err := pipeline.ResolveQueueAudioPath(podDir, queuedFilename)
+	path, err := episode.ResolveQueueAudioPath(podDir, queuedFilename)
 	return err == nil && filepath.Clean(path) == filepath.Clean(audioPath)
 }
 
@@ -65,13 +65,13 @@ func (l *Library) QueuePodcasts() []PodcastDirEntry {
 
 // PodcastQueue returns the ad-removal queue of one podcast.
 func PodcastQueue(p PodcastDirEntry) ([]QueueItem, error) {
-	filenames, err := pipeline.ReadQueue(p.Dir)
+	filenames, err := episode.ReadQueue(p.Dir)
 	if err != nil {
 		return nil, err
 	}
 	var list []QueueItem
 	for _, fn := range filenames {
-		mp3Path, err := pipeline.ResolveQueueAudioPath(p.Dir, fn)
+		mp3Path, err := episode.ResolveQueueAudioPath(p.Dir, fn)
 		if err != nil {
 			return nil, fmt.Errorf("queue %s: %w", p.Dir, err)
 		}
@@ -179,7 +179,7 @@ func matchQueueEpisodes(podcasts []PodcastDirEntry, query string) []*ResolvedID 
 	var matches []*ResolvedID
 	for _, p := range podcasts {
 		for _, path := range util.FindMP3Files(p.Dir) {
-			if !pipeline.IsQueueAudioPath(path) {
+			if !episode.IsQueueAudioPath(path) {
 				continue
 			}
 			id := EpisodeShortIDReadOnly(p.Dir, p.ShortID, path)
@@ -210,7 +210,7 @@ func matchQueueEpisodes(podcasts []PodcastDirEntry, query string) []*ResolvedID 
 func EnqueuePodcast(podDir string) (int, error) {
 	var candidates []string
 	for _, mp3 := range util.FindMP3Files(podDir) {
-		if pipeline.IsQueueAudioPath(mp3) && !pipeline.IsEpisodeClean(mp3) {
+		if episode.IsQueueAudioPath(mp3) && !episode.IsEpisodeClean(mp3) {
 			candidates = append(candidates, QueueFilename(podDir, mp3))
 		}
 	}
@@ -219,7 +219,7 @@ func EnqueuePodcast(podDir string) (int, error) {
 	}
 
 	added := 0
-	err := pipeline.UpdateQueue(podDir, func(entries []string) []string {
+	err := episode.UpdateQueue(podDir, func(entries []string) []string {
 		existing := make(map[string]bool, len(entries))
 		for _, e := range entries {
 			existing[strings.ToLower(e)] = true
@@ -243,20 +243,20 @@ func EnqueuePodcast(podDir string) (int, error) {
 // ClearPodcastQueue empties one podcast's ad-removal queue, also clearing the
 // stored priority of everything that was in it.
 func ClearPodcastQueue(podDir string) error {
-	entries, err := pipeline.ReadQueue(podDir)
+	entries, err := episode.ReadQueue(podDir)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
-		path, err := pipeline.ResolveQueueAudioPath(podDir, entry)
+		path, err := episode.ResolveQueueAudioPath(podDir, entry)
 		if err != nil {
 			continue
 		}
-		if err := pipeline.ClearQueuePriority(path); err != nil {
+		if err := episode.ClearQueuePriority(path); err != nil {
 			return err
 		}
 	}
-	return pipeline.UpdateQueue(podDir, func([]string) []string { return []string{} })
+	return episode.UpdateQueue(podDir, func([]string) []string { return []string{} })
 }
 
 // ClearAllQueues empties every podcast queue in the library and returns how
@@ -266,7 +266,7 @@ func ClearPodcastQueue(podDir string) error {
 func (l *Library) ClearAllQueues() (int, error) {
 	cleared := 0
 	for _, p := range l.QueuePodcasts() {
-		if _, err := os.Stat(filepath.Join(p.Dir, pipeline.QueueFileName)); err != nil {
+		if _, err := os.Stat(filepath.Join(p.Dir, episode.QueueFileName)); err != nil {
 			continue
 		}
 		if err := ClearPodcastQueue(p.Dir); err != nil {

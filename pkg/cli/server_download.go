@@ -232,7 +232,9 @@ func finalizeServerDownloads(b backend.Backend, config Config, cli CLIOptions, p
 			}
 		} else {
 			if targets, ok := resolveTargetAudioArgs(cli, config); ok {
-				_, _ = adremoval.ProcessFiles(targets, cli.ProcOptions, config)
+				if _, err := adremoval.ProcessFiles(targets, cli.ProcOptions, config, reporter(cli)); err != nil {
+					return err
+				}
 			}
 		}
 	}

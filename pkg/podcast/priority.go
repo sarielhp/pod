@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 )
 
 func EpisodePriority(podDir, audioPath string) int {
@@ -14,7 +14,7 @@ func EpisodePriority(podDir, audioPath string) int {
 	cfg := config.LoadPodcastConfig(podDir, config.DefaultPodcastConfig(nil))
 	priority := max(0, min(10, cfg.Priority))
 	if audioPath != "" {
-		if st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(audioPath)); err == nil && st != nil {
+		if st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(audioPath)); err == nil && st != nil {
 			priority = max(priority, max(0, min(10, st.Priority)))
 		}
 	}

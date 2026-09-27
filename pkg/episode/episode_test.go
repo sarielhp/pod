@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pod/pkg/pipeline"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -113,7 +112,7 @@ func TestEpisodeStatusHelpers(t *testing.T) {
 	stInit := &types.EpisodeStatusFile{
 		Status: types.StateDownloaded,
 	}
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(ep.Main), stInit); err != nil {
+	if err := SaveEpisodeStatus(StatusPathFor(ep.Main), stInit); err != nil {
 		t.Fatal(err)
 	}
 

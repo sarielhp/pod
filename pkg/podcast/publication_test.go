@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"testing"
 	"time"
 )
@@ -23,7 +23,7 @@ func TestPublicationDatesRepairAndUnknown(t *testing.T) {
 			t.Fatal(err)
 		}
 		data := `{"id":"existing","status":"needs_adr","published_at":"2026-09-10T13:00:00Z","extra":{"keep":true}}`
-		if err := os.WriteFile(pipeline.StatusPathFor(path), []byte(data), 0644); err != nil {
+		if err := os.WriteFile(episode.StatusPathFor(path), []byte(data), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -46,7 +46,7 @@ func TestPublicationDatesRepairAndUnknown(t *testing.T) {
 		if err != nil || statuses != 2 || caches != 1 {
 			t.Fatalf("repair %v: %d %d %v", dry, statuses, caches, err)
 		}
-		data, err := os.ReadFile(pipeline.StatusPathFor(first))
+		data, err := os.ReadFile(episode.StatusPathFor(first))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,7 +57,7 @@ func TestPublicationDatesRepairAndUnknown(t *testing.T) {
 		if record["extra"] == nil || record["id"] == nil {
 			t.Fatal("repair lost unrelated fields")
 		}
-		st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(first))
+		st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(first))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,17 +84,17 @@ func TestSourceDatePersistsInNewStatuses(t *testing.T) {
 	if err := os.WriteFile(path, []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(path)
+	st := episode.GetOrCreateEpisodeStatus(path)
 	if st.PublishedAt != "" {
 		t.Fatal("new status invented a publication date")
 	}
 	date := time.Date(2026, 9, 9, 9, 0, 0, 0, time.UTC)
 	SetPublicationSource(root, map[string]time.Time{path: date})
 	defer SetPublicationSource("", nil)
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(path), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(path), st); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(path))
+	stored, err := episode.LoadEpisodeStatus(episode.StatusPathFor(path))
 	if err != nil || stored.PublishedAt != date.Format(time.RFC3339) || stored.PublicationSource != "source" {
 		t.Fatalf("wrong source date: %+v %v", stored, err)
 	}

@@ -9,13 +9,12 @@ import (
 	"time"
 
 	"pod/pkg/audio"
-	"pod/pkg/backend"
 	"pod/pkg/config"
 	"pod/pkg/detect"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/gemini"
 	"pod/pkg/pipeline"
-	"pod/pkg/podcast"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -351,9 +350,9 @@ func printEpisodeHeader(inputFile string, idx, totalFiles, processedCount int, o
 	if abs, err := filepath.Abs(inputFile); err == nil {
 		resolved = abs
 	}
-	podcastDir := podcast.DetectPodcastDirForAudio(resolved)
+	podcastDir := episode.DetectPodcastDirForAudio(resolved)
 	podcastName := filepath.Base(podcastDir)
-	episodeName := podcast.EpisodeTitleFromPath(resolved)
+	episodeName := episode.EpisodeTitleFromPath(resolved)
 	fmt.Printf("%s %s\n", util.BoldCyan("Podcast:"), util.Bold(util.DisplayName(podcastName)))
 	fmt.Printf("%s %s\n", util.BoldCyan("Episode:"), util.Bold(util.DisplayName(episodeName)))
 	switch {
@@ -520,9 +519,6 @@ func executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFi
 	if !opts.Quiet {
 		printFullSummary(opts.Verbose, totalDuration, newDuration, actualCut, pctCut, len(adSegments), time.Since(t0Step1), time.Since(t0Step2), time.Since(t0Step3), time.Since(fileStartTime))
 		fmt.Printf("\nSuccess! Ad-free episode saved to: '%s'\n", outputFile)
-	}
-	if err := backend.SyncEpisodeDuration(&cfg, outputFile, newDuration); err != nil && !opts.Quiet {
-		fmt.Fprintf(os.Stderr, "Warning: failed to sync duration: %v\n", err)
 	}
 	return true
 }

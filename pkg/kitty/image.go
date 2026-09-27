@@ -16,7 +16,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
-	"pod/pkg/podcast"
+	"pod/pkg/config"
 	"pod/pkg/util"
 )
 
@@ -223,11 +223,11 @@ func readAndScaleImagePNG(filePath, diskPngPath, cacheKey string) ([]byte, error
 
 func PodcastCacheDirForImage(imagePath string) string {
 	dir := filepath.Dir(imagePath)
-	base := podcast.CacheBaseDir()
+	base := config.CacheBaseDir()
 	if strings.HasPrefix(filepath.Clean(dir), filepath.Clean(base)) {
 		return dir
 	}
-	return podcast.CacheDirForPodcast(dir)
+	return config.CacheDirForPodcast(dir)
 }
 
 func FindCoverImage(podcastDir string) string {
@@ -261,7 +261,7 @@ func FindCoverImageUncached(podcastDir string) string {
 		}
 	}
 
-	cDir := podcast.CacheDirForPodcast(podcastDir)
+	cDir := config.CacheDirForPodcast(podcastDir)
 	for _, cand := range candidates {
 		p := filepath.Join(cDir, cand)
 		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Size() > 0 {

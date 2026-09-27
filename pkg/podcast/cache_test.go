@@ -3,7 +3,7 @@ package podcast
 import (
 	"os"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/types"
 	"testing"
 	"time"
@@ -97,7 +97,7 @@ func TestGetEpisodePublicationTimeFromFeedSourceStatus(t *testing.T) {
 		PublishedAt:       "2026-09-02T15:04:05Z",
 		PublicationSource: "feed",
 	}
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st); err != nil {
 		t.Fatal(err)
 	}
 

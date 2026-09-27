@@ -60,15 +60,16 @@ func CutFile(req CutRequest, cfg types.Config, opts types.ProcOptions, rep progr
 		return res, fmt.Errorf("%s is a directory", req.Path)
 	}
 
-	res.InputPath = req.Path
-	res.OriginalSec = audio.GetAudioDuration(req.Path)
+	mainMP3File, precutFile, sourceAudioFile := ResolveAudioFiles(req.Path, opts.Verbose)
+	res.InputPath = mainMP3File
+	res.OriginalSec = audio.GetAudioDuration(sourceAudioFile)
 	if res.OriginalSec <= 0 {
-		return res, fmt.Errorf("%s has no readable audio track", filepath.Base(req.Path))
+		return res, fmt.Errorf("%s has no readable audio track", filepath.Base(sourceAudioFile))
 	}
 
 	cutsPath := req.CutsPath
 	if cutsPath == "" {
-		cutsPath = util.StripExt(req.Path) + ".cuts.json"
+		cutsPath = util.StripExt(mainMP3File) + ".cuts.json"
 	}
 	res.CutsPath = cutsPath
 
@@ -85,7 +86,7 @@ func CutFile(req CutRequest, cfg types.Config, opts types.ProcOptions, rep progr
 
 	outputPath := req.Output
 	if outputPath == "" {
-		outputPath = req.Path
+		outputPath = mainMP3File
 	}
 	res.OutputPath = outputPath
 
@@ -97,8 +98,8 @@ func CutFile(req CutRequest, cfg types.Config, opts types.ProcOptions, rep progr
 		return res, fmt.Errorf("no keep segments found in cut metadata %s", filepath.Base(cutsPath))
 	}
 
-	r.Infof("Cutting ads in %s (%d non-ad segments)...", filepath.Base(req.Path), len(keepSegments))
-	if err := executeCutProcessing(req.Path, outputPath, keepSegments); err != nil {
+	r.Infof("Cutting ads in %s (%d non-ad segments)...", filepath.Base(sourceAudioFile), len(keepSegments))
+	if err := executeCutProcessing(sourceAudioFile, mainMP3File, precutFile, outputPath, keepSegments); err != nil {
 		return res, err
 	}
 
@@ -149,7 +150,7 @@ func extractKeepSegments(cutsData types.CutsData, totalDuration float64) ([][2]f
 	return keepSegs, cutDur, len(existingAds)
 }
 
-func executeCutProcessing(sourceAudio, outputPath string, keepSegments [][2]float64) error {
+func executeCutProcessing(sourceAudio, mainMP3, precut, outputPath string, keepSegments [][2]float64) error {
 	workDir := util.WorkDirFor(outputPath)
 	if err := os.MkdirAll(workDir, 0755); err != nil {
 		return fmt.Errorf("create work dir %s: %w", workDir, err)
@@ -165,6 +166,14 @@ func executeCutProcessing(sourceAudio, outputPath string, keepSegments [][2]floa
 		_ = os.Remove(tempOutput)
 		_ = os.RemoveAll(workDir)
 		return fmt.Errorf("cut audio for %s: %w", filepath.Base(sourceAudio), err)
+	}
+
+	if outputPath == mainMP3 && sourceAudio == mainMP3 && util.FileExists(mainMP3) {
+		if !util.FileExists(precut) {
+			if err := os.Link(mainMP3, precut); err != nil {
+				_ = util.CopyFileErr(mainMP3, precut)
+			}
+		}
 	}
 
 	if err := util.SafeMove(tempOutput, outputPath); err != nil {

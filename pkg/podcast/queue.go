@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 )
 
@@ -163,8 +163,8 @@ func matchEpisodeDeduplication(guid1, enc1, title1, guid2, enc2, title2 string) 
 	if enc1 != "" && enc2 != "" && strings.EqualFold(strings.TrimSpace(enc1), strings.TrimSpace(enc2)) {
 		return true
 	}
-	t1 := pipeline.NormalizeEpisodeTitle(title1)
-	t2 := pipeline.NormalizeEpisodeTitle(title2)
+	t1 := episode.NormalizeEpisodeTitle(title1)
+	t2 := episode.NormalizeEpisodeTitle(title2)
 	if t1 != "" && t2 != "" && t1 == t2 {
 		return true
 	}

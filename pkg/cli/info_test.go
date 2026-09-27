@@ -58,7 +58,7 @@ func TestInfoPodcastCardAndJSON(t *testing.T) {
 	}
 
 	jsonBytes, _ := buf.Bytes(), error(nil)
-	var podInfo PodcastInfoJSON
+	var podInfo podcastInfoJSON
 	if err := json.Unmarshal(jsonBytes, &podInfo); err != nil {
 		t.Fatalf("failed to parse podcast info json: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestInfoEpisodeCardAndJSON(t *testing.T) {
 	}
 
 	jsonBytes, _ := buf.Bytes(), error(nil)
-	var epInfo EpisodeInfoJSON
+	var epInfo episodeInfoJSON
 	if err := json.Unmarshal(jsonBytes, &epInfo); err != nil {
 		t.Fatalf("failed to parse episode info json: %v", err)
 	}
@@ -174,12 +174,12 @@ func TestInfoEpisodeWithCuts(t *testing.T) {
 
 func TestFormatPodcastInfoHebrew(t *testing.T) {
 	t.Parallel()
-	info := PodcastInfoJSON{
+	info := podcastInfoJSON{
 		ID:        "pod1",
 		Title:     "פודקאסט חדשות",
 		Directory: "/podcasts/news",
 		Author:    "יוסי כהן",
-		RecentEpisodes: []RecentEpisodeDTO{
+		RecentEpisodes: []recentEpisodeDTO{
 			{
 				ID:       "ep01",
 				Title:    "פרק ראשון",
@@ -209,7 +209,7 @@ func TestFormatPodcastInfoHebrew(t *testing.T) {
 
 func TestFormatEpisodeInfoHebrew(t *testing.T) {
 	t.Parallel()
-	info := EpisodeInfoJSON{
+	info := episodeInfoJSON{
 		ID:           "ep01",
 		PodcastID:    "pod1",
 		PodcastTitle: "פודקאסט היסטוריה",

@@ -217,7 +217,7 @@ func buildPlayerCommand(opts *CLIOptions, action *string) clihelp.Command {
 				Description: "Stop background audio playback",
 				UsageLine:   "pod player stop",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "player"
 					opts.PlayerSubcmd = "stop"
 					return nil
@@ -228,7 +228,7 @@ func buildPlayerCommand(opts *CLIOptions, action *string) clihelp.Command {
 				Description: "Toggle playback pause state",
 				UsageLine:   "pod player pause",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "player"
 					opts.PlayerSubcmd = "pause"
 					return nil
@@ -239,7 +239,7 @@ func buildPlayerCommand(opts *CLIOptions, action *string) clihelp.Command {
 				Description: "Display player status and progress",
 				UsageLine:   "pod player status",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "player"
 					opts.PlayerSubcmd = "status"
 					return nil

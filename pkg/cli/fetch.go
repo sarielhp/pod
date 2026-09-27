@@ -99,7 +99,7 @@ func runFetchCommand(cfg Config, cli CLIOptions) error {
 	}
 
 	start := time.Now()
-	plans := lib.PlanFetch(subs, opts, feedCheckProgress(cli, len(subs)))
+	plans := lib.PlanFetch(subs, opts, feedCheckProgress(cli))
 	fmt.Fprint(progressFor(cli), "\r\x1b[K")
 	reportSubDownloadPlans(plans, time.Since(start), cli)
 

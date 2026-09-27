@@ -57,7 +57,7 @@ func TestPolicyDisplayAndJSON(t *testing.T) {
 	}
 
 	jsonBytes, _ := buf.Bytes(), error(nil)
-	var policyRes PodcastPolicyResult
+	var policyRes podcastPolicyResult
 	if err := json.Unmarshal(jsonBytes, &policyRes); err != nil {
 		t.Fatalf("failed to unmarshal policy json: %v", err)
 	}

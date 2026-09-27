@@ -259,13 +259,13 @@ func handleServerImport(cfg Config, cli CLIOptions) error {
 		return fmt.Errorf("open subscriptions store: %w", err)
 	}
 	if len(cli.Args) > 0 {
-		data, err := os.ReadFile(cli.Args[0])
-		if err != nil {
-			return fmt.Errorf("read OPML file: %w", err)
+		data, readErr := os.ReadFile(cli.Args[0])
+		if readErr != nil {
+			return fmt.Errorf("read OPML file: %w", readErr)
 		}
-		n, err := store.ImportFromOPML(data)
-		if err != nil {
-			return fmt.Errorf("import OPML: %w", err)
+		n, importErr := store.ImportFromOPML(data)
+		if importErr != nil {
+			return fmt.Errorf("import OPML: %w", importErr)
 		}
 		fmt.Fprintf(progressFor(cli), "Imported %d new subscription(s) from %s\n", n, cli.Args[0])
 		return nil
@@ -338,7 +338,7 @@ func runSubscriptionDirectDownloads(store *podcast.SubscriptionStore, cfg Config
 	}
 
 	start := time.Now()
-	plans := lib.PlanSubscriptionDownloads(targets, opts, feedCheckProgress(cli, len(targets)))
+	plans := lib.PlanSubscriptionDownloads(targets, opts, feedCheckProgress(cli))
 	fmt.Fprint(progressFor(cli), "\r\x1b[K")
 	reportSubDownloadPlans(plans, time.Since(start), cli)
 
@@ -359,7 +359,7 @@ func runSubscriptionDirectDownloads(store *podcast.SubscriptionStore, cfg Config
 
 // feedCheckProgress returns the in-place counter shown while feeds are read,
 // or nil when the caller asked for quiet.
-func feedCheckProgress(cli CLIOptions, total int) func(done, total int) {
+func feedCheckProgress(cli CLIOptions) func(done, total int) {
 	if cli.Quiet {
 		return nil
 	}

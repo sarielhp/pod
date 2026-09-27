@@ -75,7 +75,7 @@ func buildConfigBasicSubcommands(opts *CLIOptions, action *string) []clihelp.Com
 			Description: "Display current configuration summary table",
 			UsageLine:   "pod config show",
 			Args:        clihelp.NoArgs,
-			Run: func(ctx *clihelp.Context) error {
+			Run: func(_ *clihelp.Context) error {
 				*action = "config"
 				opts.ConfigCmd = "show"
 				return nil
@@ -95,7 +95,7 @@ func buildConfigLLMSubcommand(opts *CLIOptions, action *string) clihelp.Command 
 				Description: "List all configured LLM profiles",
 				UsageLine:   "pod config llm list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "config"
 					opts.ConfigCmd = "llm-list"
 					return nil
@@ -121,14 +121,14 @@ func buildConfigLLMSubcommand(opts *CLIOptions, action *string) clihelp.Command 
 				Description: "Import LLM settings from OpenCode",
 				UsageLine:   "pod config llm import",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "config"
 					opts.ConfigCmd = "llm-import"
 					return nil
 				},
 			},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			*action = "config"
 			opts.ConfigCmd = "llm-list"
 			return nil
@@ -146,7 +146,7 @@ func buildConfigWhisperSubcommand(opts *CLIOptions, action *string) clihelp.Comm
 				Description: "List all configured Whisper profiles",
 				UsageLine:   "pod config whisper list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "config"
 					opts.ConfigCmd = "whisper-list"
 					return nil
@@ -198,7 +198,7 @@ func buildConfigWhisperSubcommand(opts *CLIOptions, action *string) clihelp.Comm
 				},
 			},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			*action = "config"
 			opts.ConfigCmd = "whisper-list"
 			return nil
@@ -259,7 +259,7 @@ func buildConfigProcessorSubcommand(opts *CLIOptions, action *string) clihelp.Co
 				Description: "List configured post-processor programs",
 				UsageLine:   "pod config processor list",
 				Args:        clihelp.NoArgs,
-				Run: func(ctx *clihelp.Context) error {
+				Run: func(_ *clihelp.Context) error {
 					*action = "config"
 					opts.ProcessorCmd = "list"
 					return nil
@@ -281,7 +281,7 @@ func buildConfigProcessorSubcommand(opts *CLIOptions, action *string) clihelp.Co
 				},
 			},
 		},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			*action = "config"
 			opts.ProcessorCmd = "list"
 			return nil

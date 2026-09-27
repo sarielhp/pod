@@ -409,8 +409,8 @@ func TestQueueAddAllPreservesNestedEpisodePaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	var entries []string
-	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatal(err)
+	if unmarshalErr := json.Unmarshal(data, &entries); unmarshalErr != nil {
+		t.Fatal(unmarshalErr)
 	}
 	if len(entries) != 1 || entries[0] != filepath.Join("2026", "ep1.mp3") {
 		t.Fatalf("queue entries = %v, want nested relative path", entries)
@@ -420,15 +420,15 @@ func TestQueueAddAllPreservesNestedEpisodePaths(t *testing.T) {
 	cli := CLIOptions{QueueSubcmd: "run", ProcOptions: ProcOptions{Quiet: true}}
 	cli.Out = &buf
 	cli.Err = &buf
-	if err := runQueueCommand(cfg, cli); err != nil {
-		t.Fatalf("queue run: %v", err)
+	if runErr := runQueueCommand(cfg, cli); runErr != nil {
+		t.Fatalf("queue run: %v", runErr)
 	}
 	data, err = os.ReadFile(filepath.Join(podDir, "queue.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatal(err)
+	if unmarshalErr := json.Unmarshal(data, &entries); unmarshalErr != nil {
+		t.Fatal(unmarshalErr)
 	}
 	if len(entries) != 0 {
 		t.Fatalf("queue entries after run = %v, want empty", entries)

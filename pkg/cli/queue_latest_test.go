@@ -15,14 +15,13 @@ func TestQueueLatestDefaultCount(t *testing.T) {
 	titles := []string{"Ep1", "Ep2", "Ep3", "Ep4", "Ep5", "Ep6", "Ep7", "Ep8", "Ep9", "Ep10", "Ep11", "Ep12"}
 	dir, paths := createTestPodcastWithEpisodes(t, root, "Show", titles)
 
-	cfg := Config{PodcastsDir: root}
 	opts := CLIOptions{
 		ProcOptions: ProcOptions{
 			Quiet: true,
 		},
 	}
 
-	if err := runQueueLatest(cfg, root, 10, "", opts); err != nil {
+	if err := runQueueLatest(root, 10, "", opts); err != nil {
 		t.Fatal(err)
 	}
 
@@ -60,14 +59,13 @@ func TestQueueLatestExcludesClean(t *testing.T) {
 
 	markEpisodeClean(t, paths[2])
 
-	cfg := Config{PodcastsDir: root}
 	opts := CLIOptions{
 		ProcOptions: ProcOptions{
 			Quiet: true,
 		},
 	}
 
-	if err := runQueueLatest(cfg, root, 2, "", opts); err != nil {
+	if err := runQueueLatest(root, 2, "", opts); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,14 +89,13 @@ func TestQueueLatestTargetPodcast(t *testing.T) {
 	dirA, pathsA := createTestPodcastWithEpisodes(t, root, "ShowA", []string{"A1", "A2"})
 	dirB, _ := createTestPodcastWithEpisodes(t, root, "ShowB", []string{"B1", "B2"})
 
-	cfg := Config{PodcastsDir: root}
 	opts := CLIOptions{
 		ProcOptions: ProcOptions{
 			Quiet: true,
 		},
 	}
 
-	if err := runQueueLatest(cfg, root, 5, "showa", opts); err != nil {
+	if err := runQueueLatest(root, 5, "showa", opts); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,7 +122,6 @@ func TestQueueLatestDryRun(t *testing.T) {
 	root := t.TempDir()
 	dir, _ := createTestPodcastWithEpisodes(t, root, "Show", []string{"Ep1", "Ep2"})
 
-	cfg := Config{PodcastsDir: root}
 	opts := CLIOptions{
 		ProcOptions: ProcOptions{
 			DryRun: true,
@@ -133,7 +129,7 @@ func TestQueueLatestDryRun(t *testing.T) {
 		},
 	}
 
-	if err := runQueueLatest(cfg, root, 5, "", opts); err != nil {
+	if err := runQueueLatest(root, 5, "", opts); err != nil {
 		t.Fatal(err)
 	}
 

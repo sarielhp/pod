@@ -1,3 +1,4 @@
+// Package cli implements the command-line interface and commands for pod.
 package cli
 
 import (
@@ -14,29 +15,50 @@ import (
 )
 
 type (
-	Config            = types.Config
-	CLIOptions        = types.CLIOptions
-	ProcOptions       = types.ProcOptions
-	PolicyOptions     = types.PolicyOptions
-	LLMProfile        = types.LLMProfile
-	AdSegment         = types.AdSegment
+	// Config aliases types.Config for package cli.
+	Config = types.Config
+	// CLIOptions aliases types.CLIOptions for package cli.
+	CLIOptions = types.CLIOptions
+	// ProcOptions aliases types.ProcOptions for package cli.
+	ProcOptions = types.ProcOptions
+	// PolicyOptions aliases types.PolicyOptions for package cli.
+	PolicyOptions = types.PolicyOptions
+	// LLMProfile aliases types.LLMProfile for package cli.
+	LLMProfile = types.LLMProfile
+	// AdSegment aliases types.AdSegment for package cli.
+	AdSegment = types.AdSegment
+	// TranscriptionData aliases types.TranscriptionData for package cli.
 	TranscriptionData = types.TranscriptionData
-	CutsData          = types.CutsData
-	CutEntry          = types.CutEntry
+	// CutsData aliases types.CutsData for package cli.
+	CutsData = types.CutsData
+	// CutEntry aliases types.CutEntry for package cli.
+	CutEntry = types.CutEntry
+	// EpisodeStatusFile aliases types.EpisodeStatusFile for package cli.
 	EpisodeStatusFile = types.EpisodeStatusFile
-	PlayerTrack       = types.PlayerTrack
-	Podcast           = backend.Podcast
-	PodcastConfig     = config.PodcastConfig
-	FeedEpisode       = backend.FeedEpisode
-	Episode           = backend.Episode
-	WhisperEngine     = types.WhisperEngine
-	WhisperProfile    = types.WhisperProfile
-	ResolvedPodcast   = podcast.ResolvedPodcast
-	ResolvedEpisode   = podcast.ResolvedEpisode
-	ResolvedID        = podcast.ResolvedID
-	syncWG            = util.SyncWG
+	// PlayerTrack aliases types.PlayerTrack for package cli.
+	PlayerTrack = types.PlayerTrack
+	// Podcast aliases backend.Podcast for package cli.
+	Podcast = backend.Podcast
+	// PodcastConfig aliases config.PodcastConfig for package cli.
+	PodcastConfig = config.PodcastConfig
+	// FeedEpisode aliases backend.FeedEpisode for package cli.
+	FeedEpisode = backend.FeedEpisode
+	// Episode aliases backend.Episode for package cli.
+	Episode = backend.Episode
+	// WhisperEngine aliases types.WhisperEngine for package cli.
+	WhisperEngine = types.WhisperEngine
+	// WhisperProfile aliases types.WhisperProfile for package cli.
+	WhisperProfile = types.WhisperProfile
+	// ResolvedPodcast aliases podcast.ResolvedPodcast for package cli.
+	ResolvedPodcast = podcast.ResolvedPodcast
+	// ResolvedEpisode aliases podcast.ResolvedEpisode for package cli.
+	ResolvedEpisode = podcast.ResolvedEpisode
+	// ResolvedID aliases podcast.ResolvedID for package cli.
+	ResolvedID = podcast.ResolvedID
+	syncWG     = util.SyncWG
 )
 
+// Aliased policy and state constants imported across cli subcommands.
 const (
 	AdRemovalNone   = config.AdRemovalNone
 	AdRemovalLatest = config.AdRemovalLatest

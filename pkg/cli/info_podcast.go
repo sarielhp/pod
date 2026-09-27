@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-type PodcastInfoJSON struct {
+type podcastInfoJSON struct {
 	ID        string `json:"id"`
 	UUID      string `json:"uuid,omitempty"`
 	Title     string `json:"title"`
@@ -43,10 +43,10 @@ type PodcastInfoJSON struct {
 	CleanEpisodes      int                `json:"clean_episodes"`
 	TotalDurationSec   float64            `json:"total_duration_sec"`
 	TotalDiskSizeBytes int64              `json:"total_disk_size_bytes"`
-	RecentEpisodes     []RecentEpisodeDTO `json:"recent_episodes,omitempty"`
+	RecentEpisodes     []recentEpisodeDTO `json:"recent_episodes,omitempty"`
 }
 
-type RecentEpisodeDTO struct {
+type recentEpisodeDTO struct {
 	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Date     string `json:"date"`
@@ -70,7 +70,7 @@ func inspectPodcastInfo(pod *ResolvedPodcast, cli CLIOptions, baseURL string) er
 	return nil
 }
 
-func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisodes int) (int, float64, int64, []RecentEpisodeDTO) {
+func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisodes int) (int, float64, int64, []recentEpisodeDTO) {
 	cleanCount := 0
 	var totalDur float64
 	var totalSize int64
@@ -102,7 +102,7 @@ func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisod
 		return epList[i].pt.After(epList[j].pt)
 	})
 
-	var recent []RecentEpisodeDTO
+	var recent []recentEpisodeDTO
 	limit := 5
 	if maxEpisodes > 0 {
 		limit = maxEpisodes
@@ -115,7 +115,7 @@ func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisod
 		epID := podcast.GetOrSetEpisodeShortID(pod.Dir, pod.ShortID, mp3)
 		st, _ := getEpisodeStatusLabel(mp3)
 		od, _ := episode.EpisodeDurations(mp3, episode.GetOrCreateEpisodeStatus(mp3))
-		recent = append(recent, RecentEpisodeDTO{
+		recent = append(recent, recentEpisodeDTO{
 			ID:       epID,
 			Title:    podcast.EpisodeTitleFromPath(mp3),
 			Date:     publicationDateTime(epList[i].pt),
@@ -145,7 +145,7 @@ func getPodcastMetadataFields(pod *ResolvedPodcast) (string, string, string, str
 	return author, feedURL, coverPath, desc, uuid
 }
 
-func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) PodcastInfoJSON {
+func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) podcastInfoJSON {
 	mp3s := util.FindMP3Files(pod.Dir)
 	cleanCount, totalDur, totalSize, recent := collectPodcastStatsAndRecent(pod, mp3s, maxEpisodes)
 	author, feedURL, coverPath, desc, uuid := getPodcastMetadataFields(pod)
@@ -153,7 +153,7 @@ func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) 
 	autoDl := pod.Config.IsAutoDownloadEnabled()
 	autoCl := pod.Config.IsAutoCleanupEnabled()
 
-	return PodcastInfoJSON{
+	return podcastInfoJSON{
 		ID:                 pod.ShortID,
 		UUID:               uuid,
 		Title:              pod.Title,
@@ -188,7 +188,7 @@ func publishedURL(baseURL, podDir, name string) string {
 	return base + "/" + url.PathEscape(filepath.Base(podDir)) + "/" + name
 }
 
-func formatPodcastInfo(info PodcastInfoJSON) string {
+func formatPodcastInfo(info podcastInfoJSON) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n%s\n", strings.Repeat("=", 80)))
 	sb.WriteString(fmt.Sprintf("Podcast: %s [%s]\n", util.Bold(util.DisplayName(info.Title)), util.BoldCyan(info.ID)))
@@ -256,6 +256,6 @@ func formatPodcastInfo(info PodcastInfoJSON) string {
 	return sb.String()
 }
 
-func printPodcastInfoCard(w io.Writer, info PodcastInfoJSON) {
+func printPodcastInfoCard(w io.Writer, info podcastInfoJSON) {
 	fmt.Fprint(w, formatPodcastInfo(info))
 }

@@ -111,7 +111,7 @@ func TestFavoriteSubcommandList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handleServerFavorite list json failed: %v", err)
 	}
-	var results []FavoritePodcastResult
+	var results []favoritePodcastResult
 	if err := json.Unmarshal(jsonBytes, &results); err != nil {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}

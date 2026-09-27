@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type EpisodeInfoJSON struct {
+type episodeInfoJSON struct {
 	ID                  string          `json:"id"`
 	PodcastID           string          `json:"podcast_id"`
 	PodcastTitle        string          `json:"podcast_title"`
@@ -30,10 +30,10 @@ type EpisodeInfoJSON struct {
 	TranscriptPath      string          `json:"transcript_path,omitempty"`
 	TranscriptSegments  int             `json:"transcript_segments,omitempty"`
 	Description         string          `json:"description,omitempty"`
-	Cuts                []EpisodeCutDTO `json:"cuts,omitempty"`
+	Cuts                []episodeCutDTO `json:"cuts,omitempty"`
 }
 
-type EpisodeCutDTO struct {
+type episodeCutDTO struct {
 	StartFormatted string  `json:"start"`
 	EndFormatted   string  `json:"end"`
 	DurationSec    float64 `json:"duration_sec"`
@@ -99,14 +99,14 @@ func getEpisodeTranscriptInfo(epPath string) (bool, string, int) {
 	return hasTx, txPath, txSegments
 }
 
-func collectEpisodeCuts(epPath string, st *EpisodeStatusFile) []EpisodeCutDTO {
-	var cuts []EpisodeCutDTO
+func collectEpisodeCuts(epPath string, st *EpisodeStatusFile) []episodeCutDTO {
+	var cuts []episodeCutDTO
 	cutsFile := util.StripExt(epPath) + ".cuts.json"
 	if data, err := os.ReadFile(cutsFile); err == nil {
 		var cd CutsData
 		if json.Unmarshal(data, &cd) == nil {
 			for _, c := range cd.CutIntervals {
-				cuts = append(cuts, EpisodeCutDTO{
+				cuts = append(cuts, episodeCutDTO{
 					StartFormatted: c.StartFormatted,
 					EndFormatted:   c.EndFormatted,
 					DurationSec:    c.DurationSec,
@@ -120,7 +120,7 @@ func collectEpisodeCuts(epPath string, st *EpisodeStatusFile) []EpisodeCutDTO {
 	if len(cuts) == 0 && st != nil && len(st.Ads) > 0 {
 		for _, ad := range st.Ads {
 			dur := ad.End - ad.Start
-			cuts = append(cuts, EpisodeCutDTO{
+			cuts = append(cuts, episodeCutDTO{
 				StartFormatted: format.FormatClock(ad.Start),
 				EndFormatted:   format.FormatClock(ad.End),
 				DurationSec:    dur,
@@ -132,7 +132,7 @@ func collectEpisodeCuts(epPath string, st *EpisodeStatusFile) []EpisodeCutDTO {
 	return cuts
 }
 
-func buildEpisodeInfoDTO(ep *ResolvedEpisode) EpisodeInfoJSON {
+func buildEpisodeInfoDTO(ep *ResolvedEpisode) episodeInfoJSON {
 	fi, _ := os.Stat(ep.Path)
 	var fileSize int64
 	if fi != nil {
@@ -169,7 +169,7 @@ func buildEpisodeInfoDTO(ep *ResolvedEpisode) EpisodeInfoJSON {
 
 	cuts := collectEpisodeCuts(ep.Path, st)
 
-	return EpisodeInfoJSON{
+	return episodeInfoJSON{
 		ID:                  ep.ShortID,
 		PodcastID:           ep.PodcastShortID,
 		PodcastTitle:        ep.PodcastTitle,
@@ -191,7 +191,7 @@ func buildEpisodeInfoDTO(ep *ResolvedEpisode) EpisodeInfoJSON {
 	}
 }
 
-func formatEpisodeInfo(info EpisodeInfoJSON, showCuts ...bool) string {
+func formatEpisodeInfo(info episodeInfoJSON, showCuts ...bool) string {
 	sc := false
 	if len(showCuts) > 0 {
 		sc = showCuts[0]
@@ -229,7 +229,7 @@ func formatEpisodeInfo(info EpisodeInfoJSON, showCuts ...bool) string {
 	return sb.String()
 }
 
-func formatEpisodeCutsAndTranscript(info EpisodeInfoJSON, showCuts bool) string {
+func formatEpisodeCutsAndTranscript(info episodeInfoJSON, showCuts bool) string {
 	var sb strings.Builder
 	if len(info.Cuts) > 0 || showCuts {
 		sb.WriteString(fmt.Sprintf("\n  Commercial Cuts (%d cuts detected):\n", len(info.Cuts)))
@@ -263,6 +263,6 @@ func formatEpisodeCutsAndTranscript(info EpisodeInfoJSON, showCuts bool) string 
 	return sb.String()
 }
 
-func printEpisodeInfoCard(w io.Writer, info EpisodeInfoJSON, showCuts bool) {
+func printEpisodeInfoCard(w io.Writer, info episodeInfoJSON, showCuts bool) {
 	fmt.Fprint(w, formatEpisodeInfo(info, showCuts))
 }

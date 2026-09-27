@@ -46,29 +46,29 @@ func (m *mockTestBackend) GetPodcast(id string) (*backend.Podcast, error) {
 	return nil, nil
 }
 
-func (m *mockTestBackend) PodcastFeedEpisodes(feedURL string) ([]backend.FeedEpisode, error) {
+func (m *mockTestBackend) PodcastFeedEpisodes(_ string) ([]backend.FeedEpisode, error) {
 	return m.feedEpisodes, m.feedEpisodesErr
 }
 
-func (m *mockTestBackend) ActiveDownloads(podcastID string) ([]backend.ActiveDownload, error) {
+func (m *mockTestBackend) ActiveDownloads(_ string) ([]backend.ActiveDownload, error) {
 	return nil, nil
 }
 
-func (m *mockTestBackend) OpenRSSFeed(podcastID, baseURL string) (string, error) {
+func (m *mockTestBackend) OpenRSSFeed(_, _ string) (string, error) {
 	return "", nil
 }
 
-func (m *mockTestBackend) DownloadCover(podcastID, destPath string) error {
+func (m *mockTestBackend) DownloadCover(_, _ string) error {
 	return nil
 }
 
-func (m *mockTestBackend) CreatePodcast(libraryID, folderID, path, title, feedURL string) (*backend.Podcast, error) {
+func (m *mockTestBackend) CreatePodcast(_, _, _, _, _ string) (*backend.Podcast, error) {
 	return nil, nil
 }
 
-func (m *mockTestBackend) DeletePodcast(id string) error { return nil }
+func (m *mockTestBackend) DeletePodcast(_ string) error { return nil }
 
-func (m *mockTestBackend) DeleteItem(id string) error { return nil }
+func (m *mockTestBackend) DeleteItem(_ string) error { return nil }
 
 func (m *mockTestBackend) DownloadEpisodes(podcastID string, episodes []backend.FeedEpisode) error {
 	m.downloadCalls++
@@ -78,19 +78,19 @@ func (m *mockTestBackend) DownloadEpisodes(podcastID string, episodes []backend.
 	return nil
 }
 
-func (m *mockTestBackend) DeletePodcastEpisode(podcastID, episodeID string) error { return nil }
+func (m *mockTestBackend) DeletePodcastEpisode(_, _ string) error { return nil }
 
-func (m *mockTestBackend) ResetPodcastDateCheck(itemID, title string) error { return nil }
+func (m *mockTestBackend) ResetPodcastDateCheck(_, _ string) error { return nil }
 
-func (m *mockTestBackend) ResetPodcastDateCheckAPI(itemID string) error { return nil }
+func (m *mockTestBackend) ResetPodcastDateCheckAPI(_ string) error { return nil }
 
-func (m *mockTestBackend) SyncDuration(filePath string, duration float64) error { return nil }
+func (m *mockTestBackend) SyncDuration(_ string, _ float64) error { return nil }
 
-func (m *mockTestBackend) ApplyKeepPolicy(podcastID, podcastTitle string, keep int, dryRun bool) (int, error) {
+func (m *mockTestBackend) ApplyKeepPolicy(_, _ string, _ int, _ bool) (int, error) {
 	return 0, nil
 }
 
-func (m *mockTestBackend) UpdatePodcastSettings(podcastID string, autoDownload, autoCleanup bool, autoCleanupDays int) error {
+func (m *mockTestBackend) UpdatePodcastSettings(_ string, _, _ bool, _ int) error {
 	return nil
 }
 
@@ -98,19 +98,19 @@ func (m *mockTestBackend) TestConnection(progress.Reporter) (bool, error) { retu
 
 func (m *mockTestBackend) Login() (string, error) { return "", nil }
 
-func (m *mockTestBackend) Scan(opts backend.ScanOptions) (backend.ScanResult, error) {
+func (m *mockTestBackend) Scan(_ backend.ScanOptions) (backend.ScanResult, error) {
 	return backend.ScanResult{}, nil
 }
 
-func (m *mockTestBackend) Rescan(opts backend.RescanOptions) (backend.RescanResult, error) {
+func (m *mockTestBackend) Rescan(_ backend.RescanOptions) (backend.RescanResult, error) {
 	return backend.RescanResult{}, nil
 }
 
-func (m *mockTestBackend) ExportOPML(opts backend.OPMLExportOptions) ([]byte, error) {
+func (m *mockTestBackend) ExportOPML(_ backend.OPMLExportOptions) ([]byte, error) {
 	return nil, nil
 }
 
-func (m *mockTestBackend) ImportOPML(data []byte, opts backend.OPMLImportOptions) (backend.OPMLImportResult, error) {
+func (m *mockTestBackend) ImportOPML(_ []byte, _ backend.OPMLImportOptions) (backend.OPMLImportResult, error) {
 	return backend.OPMLImportResult{}, nil
 }
 
@@ -118,6 +118,6 @@ func (m *mockTestBackend) FetchPodcastFeeds() ([]backend.OPMLFeed, error) {
 	return nil, nil
 }
 
-func (m *mockTestBackend) WaitForActiveDownloads(podcasts []backend.Podcast, timeout time.Duration) error {
+func (m *mockTestBackend) WaitForActiveDownloads(_ []backend.Podcast, _ time.Duration) error {
 	return nil
 }

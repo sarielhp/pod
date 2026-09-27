@@ -141,7 +141,7 @@ func collectLatestUncleanedEpisodes(podcastsDir, target string) ([]latestQueueCa
 	return candidates, nil
 }
 
-func runQueueLatest(cfg Config, podcastsDir string, limit int, target string, cli CLIOptions) error {
+func runQueueLatest(podcastsDir string, limit int, target string, cli CLIOptions) error {
 	candidates, err := collectLatestUncleanedEpisodes(podcastsDir, target)
 	if err != nil {
 		return err

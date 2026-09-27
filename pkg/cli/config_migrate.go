@@ -22,17 +22,17 @@ func migratePodcastsManagerConfig(w io.Writer, cfg *Config) bool {
 
 	pmConfigDir := filepath.Join(home, ".config", "podcasts_manager")
 	pmConfigPath := filepath.Join(pmConfigDir, "config.json")
-	if _, err := os.Stat(pmConfigPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(pmConfigPath); os.IsNotExist(statErr) {
 		pmConfigDir = filepath.Join(home, ".config", "podcast_manager")
 		pmConfigPath = filepath.Join(pmConfigDir, "config.json")
 	}
 
-	if _, err := os.Stat(pmConfigPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(pmConfigPath); os.IsNotExist(statErr) {
 		return false
 	}
 
-	data, err := os.ReadFile(pmConfigPath)
-	if err != nil {
+	data, readErr := os.ReadFile(pmConfigPath)
+	if readErr != nil {
 		return false
 	}
 

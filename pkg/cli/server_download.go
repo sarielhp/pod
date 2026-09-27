@@ -123,7 +123,7 @@ func planServerDownloads(b backend.Backend, config Config, cli CLIOptions, podca
 	start := time.Now()
 	index := podcast.BuildEpisodeIndex(b, podcasts)
 
-	progress := func(done, total int) {}
+	progress := func(_, _ int) {}
 	if !cli.Quiet {
 		progress = func(done, total int) {
 			fmt.Fprintf(outFor(cli), "\rChecking feeds for new episodes (%d/%d)...\x1b[K", done, total)

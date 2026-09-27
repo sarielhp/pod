@@ -31,7 +31,7 @@ func TestFindTargetEpisodeFromBackend_OnlyDownloadsLatest(t *testing.T) {
 		{Title: "Ep 2", PublishedAt: 1725278400000, GUID: "g-2", EnclosureURL: "https://example.com/ep2.mp3"},
 		{Title: "Ep 1", PublishedAt: 1725192000000, GUID: "g-1", EnclosureURL: "https://example.com/ep1.mp3"},
 	}
-	b.downloadFn = func(podcastID string, episodes []backend.FeedEpisode) error {
+	b.downloadFn = func(_ string, _ []backend.FeedEpisode) error {
 		return fmt.Errorf("simulated download error")
 	}
 

@@ -47,10 +47,7 @@ func TestServerSubscriptionCommands(t *testing.T) {
 	listCli := CLIOptions{
 		ProcOptions: ProcOptions{Quiet: true},
 	}
-	if err := handleServerList(cfg, listCli); err != nil {
-		// List might query backend if not configured, or if it queries backend it could report backend not configured
-		// That is normal if backend is nil.
-	}
+	_ = handleServerList(cfg, listCli)
 
 	// 4. Test Remove
 	removeCli := CLIOptions{

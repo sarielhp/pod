@@ -12,6 +12,7 @@ import (
 	"pod/pkg/util"
 )
 
+// Execute parses arguments, executes the requested command, and returns the exit code.
 func Execute(args []string) int {
 	action, cli, err := parseFlagsArgs(args)
 	if err != nil {

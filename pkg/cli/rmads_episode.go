@@ -50,8 +50,8 @@ func enqueueUrgentEpisode(ep *ResolvedEpisode) (queueEpisodeItem, error) {
 	err = episode.UpdateQueue(ep.PodcastDir, func(entries []string) []string {
 		ordered := []string{item.Filename}
 		for _, entry := range entries {
-			resolved, err := episode.ResolveQueueAudioPath(ep.PodcastDir, entry)
-			if err == nil && filepath.Clean(resolved) == filepath.Clean(ep.Path) {
+			resolved, resolveErr := episode.ResolveQueueAudioPath(ep.PodcastDir, entry)
+			if resolveErr == nil && filepath.Clean(resolved) == filepath.Clean(ep.Path) {
 				continue
 			}
 			ordered = append(ordered, entry)

@@ -60,7 +60,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 			if err != nil {
 				return err
 			}
-			return runQueueLatest(cfg, podcastsDir, limit, target, cli)
+			return runQueueLatest(podcastsDir, limit, target, cli)
 		}
 		return handleQueueAdd(outFor(cli), lib, args)
 	case "today":
@@ -73,7 +73,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 		if err != nil {
 			return err
 		}
-		return runQueueLatest(cfg, podcastsDir, limit, target, cli)
+		return runQueueLatest(podcastsDir, limit, target, cli)
 	case "remove":
 		if len(args) == 0 {
 			return fmt.Errorf("missing target ID(s) to remove from queue")

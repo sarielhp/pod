@@ -13,7 +13,7 @@ func buildServerPublicationSubcommand(opts *CLIOptions, action *string) clihelp.
 		Description: "Repair cached and status publication dates from the source catalog",
 		Args:        clihelp.MaximumNArgs(0),
 		Options:     []clihelp.Option{clihelp.Bool(&opts.DryRun, "--dry-run", false, "Report changes without writing metadata")},
-		Run: func(ctx *clihelp.Context) error {
+		Run: func(_ *clihelp.Context) error {
 			*action = "server"
 			opts.ServerSubcmd = "publication-sync"
 			return nil

@@ -36,22 +36,22 @@ func TestStringDisplayWidth(t *testing.T) {
 
 func TestPadCell(t *testing.T) {
 	t.Parallel()
-	left := padCell("abc", 5, AlignLeft)
+	left := padCell("abc", 5, alignLeft)
 	if left != "abc  " {
-		t.Errorf("AlignLeft want %q, got %q", "abc  ", left)
+		t.Errorf("alignLeft want %q, got %q", "abc  ", left)
 	}
 
-	right := padCell("abc", 5, AlignRight)
+	right := padCell("abc", 5, alignRight)
 	if right != "  abc" {
-		t.Errorf("AlignRight want %q, got %q", "  abc", right)
+		t.Errorf("alignRight want %q, got %q", "  abc", right)
 	}
 
-	center := padCell("ab", 6, AlignCenter)
+	center := padCell("ab", 6, alignCenter)
 	if center != "  ab  " {
-		t.Errorf("AlignCenter want %q, got %q", "  ab  ", center)
+		t.Errorf("alignCenter want %q, got %q", "  ab  ", center)
 	}
 
-	emojiCenter := padCell("✨", 4, AlignCenter)
+	emojiCenter := padCell("✨", 4, alignCenter)
 	if stringDisplayWidth(emojiCenter) != 4 {
 		t.Errorf("emojiCenter width want 4, got %d (%q)", stringDisplayWidth(emojiCenter), emojiCenter)
 	}
@@ -59,10 +59,10 @@ func TestPadCell(t *testing.T) {
 
 func TestRenderTableBordersConnected(t *testing.T) {
 	t.Parallel()
-	cols := []TableColumn{
-		{Header: "ID", Width: 5, Align: AlignCenter},
-		{Header: "Title", Width: 10, Align: AlignLeft},
-		{Header: "✨", Width: 4, Align: AlignCenter},
+	cols := []tableColumn{
+		{Header: "ID", Width: 5, Align: alignCenter},
+		{Header: "Title", Width: 10, Align: alignLeft},
+		{Header: "✨", Width: 4, Align: alignCenter},
 	}
 
 	top := renderTableTop(cols)

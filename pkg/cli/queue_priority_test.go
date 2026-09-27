@@ -84,12 +84,12 @@ func TestRmAdsEpisodeQueuesUrgentlyAndRetainsOnFailure(t *testing.T) {
 	}
 	defer lock.Release()
 	cli.DryRun = false
-	if err := runRmAdsCommand(cfg, cli); err == nil {
+	if runErr := runRmAdsCommand(cfg, cli); runErr == nil {
 		t.Fatal("locked requested episode reported success")
 	}
-	entries, err := episode.ReadQueue(dir)
-	if err != nil || !reflect.DeepEqual(entries, []string{"requested.mp3", "other.mp3"}) {
-		t.Fatalf("queue=%v error=%v", entries, err)
+	entries, readErr := episode.ReadQueue(dir)
+	if readErr != nil || !reflect.DeepEqual(entries, []string{"requested.mp3", "other.mp3"}) {
+		t.Fatalf("queue=%v error=%v", entries, readErr)
 	}
 	if podcast.EpisodePriority(dir, paths[1]) != 10 {
 		t.Fatal("request missing priority 10")

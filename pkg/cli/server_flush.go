@@ -122,19 +122,19 @@ func flushPodcastAudio(b backend.Backend, item backend.Podcast, dir string, cli 
 		return nil
 	}
 	local := config.LoadPodcastConfig(dir, config.PodcastConfig{})
-	if err := b.UpdatePodcastSettings(item.ID, false, local.IsAutoCleanupEnabled(), local.AutoCleanupDays); err != nil {
-		return fmt.Errorf("disable server downloads before flushing: %w", err)
+	if updateErr := b.UpdatePodcastSettings(item.ID, false, local.IsAutoCleanupEnabled(), local.AutoCleanupDays); updateErr != nil {
+		return fmt.Errorf("disable server downloads before flushing: %w", updateErr)
 	}
 	local.SetAutoDownload(false)
-	if err := config.SavePodcastConfig(dir, local); err != nil {
-		return err
+	if saveErr := config.SavePodcastConfig(dir, local); saveErr != nil {
+		return saveErr
 	}
-	if err := queue.FlushPodcast(item.ID, dir); err != nil {
-		return err
+	if flushErr := queue.FlushPodcast(item.ID, dir); flushErr != nil {
+		return flushErr
 	}
-	active, err := b.ActiveDownloads(item.ID)
-	if err != nil {
-		return err
+	active, activeErr := b.ActiveDownloads(item.ID)
+	if activeErr != nil {
+		return activeErr
 	}
 	if len(active) != 0 {
 		return fmt.Errorf("downloads disabled, but %d downloads are still active; retry flush when they finish", len(active))

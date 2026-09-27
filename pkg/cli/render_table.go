@@ -9,43 +9,43 @@ import (
 	"time"
 )
 
-type TableAlign int
+type tableAlign int
 
 const (
-	AlignLeft TableAlign = iota
-	AlignCenter
-	AlignRight
+	alignLeft tableAlign = iota
+	alignCenter
+	alignRight
 )
 
-type TableColumn struct {
+type tableColumn struct {
 	Header string
 	Width  int
-	Align  TableAlign
+	Align  tableAlign
 }
 
 func stringDisplayWidth(s string) int {
 	return util.StringDisplayWidth(s)
 }
 
-func padCell(val string, width int, align TableAlign) string {
+func padCell(val string, width int, align tableAlign) string {
 	w := util.StringDisplayWidth(val)
 	if w >= width {
 		return val
 	}
 	diff := width - w
 	switch align {
-	case AlignCenter:
+	case alignCenter:
 		left := diff / 2
 		right := diff - left
 		return strings.Repeat(" ", left) + val + strings.Repeat(" ", right)
-	case AlignRight:
+	case alignRight:
 		return strings.Repeat(" ", diff) + val
 	default:
 		return val + strings.Repeat(" ", diff)
 	}
 }
 
-func renderTableTop(cols []TableColumn) string {
+func renderTableTop(cols []tableColumn) string {
 	var parts []string
 	for _, c := range cols {
 		parts = append(parts, strings.Repeat("─", c.Width+2))
@@ -53,15 +53,15 @@ func renderTableTop(cols []TableColumn) string {
 	return "┌" + strings.Join(parts, "┬") + "┐"
 }
 
-func renderTableHeader(cols []TableColumn) string {
+func renderTableHeader(cols []tableColumn) string {
 	var formatted []string
 	for _, c := range cols {
-		formatted = append(formatted, padCell(c.Header, c.Width, AlignCenter))
+		formatted = append(formatted, padCell(c.Header, c.Width, alignCenter))
 	}
 	return "│ " + strings.Join(formatted, " │ ") + " │"
 }
 
-func renderTableDivider(cols []TableColumn) string {
+func renderTableDivider(cols []tableColumn) string {
 	var parts []string
 	for _, c := range cols {
 		parts = append(parts, strings.Repeat("─", c.Width+2))
@@ -69,7 +69,7 @@ func renderTableDivider(cols []TableColumn) string {
 	return "├" + strings.Join(parts, "┼") + "┤"
 }
 
-func renderTableRow(cells []string, cols []TableColumn) string {
+func renderTableRow(cells []string, cols []tableColumn) string {
 	var formatted []string
 	for i, c := range cols {
 		val := ""
@@ -81,7 +81,7 @@ func renderTableRow(cells []string, cols []TableColumn) string {
 	return "│ " + strings.Join(formatted, " │ ") + " │"
 }
 
-func renderTableBottom(cols []TableColumn) string {
+func renderTableBottom(cols []tableColumn) string {
 	var parts []string
 	for _, c := range cols {
 		parts = append(parts, strings.Repeat("─", c.Width+2))
@@ -126,28 +126,28 @@ func compactAdRemoval(adRemoval string) string {
 	}
 }
 
-func podcastTableColumns(titleWidth int) []TableColumn {
-	return []TableColumn{
-		{Header: "ID", Width: 5, Align: AlignCenter},
-		{Header: "Title", Width: titleWidth, Align: AlignLeft},
-		{Header: "🎙️", Width: 4, Align: AlignRight},
-		{Header: "✨", Width: 4, Align: AlignRight},
-		{Header: "⬇️", Width: 5, Align: AlignCenter},
-		{Header: "✂️", Width: 5, Align: AlignCenter},
-		{Header: "⏳", Width: 4, Align: AlignCenter},
-		{Header: "📅 Last", Width: 16, Align: AlignCenter},
+func podcastTableColumns(titleWidth int) []tableColumn {
+	return []tableColumn{
+		{Header: "ID", Width: 5, Align: alignCenter},
+		{Header: "Title", Width: titleWidth, Align: alignLeft},
+		{Header: "🎙️", Width: 4, Align: alignRight},
+		{Header: "✨", Width: 4, Align: alignRight},
+		{Header: "⬇️", Width: 5, Align: alignCenter},
+		{Header: "✂️", Width: 5, Align: alignCenter},
+		{Header: "⏳", Width: 4, Align: alignCenter},
+		{Header: "📅 Last", Width: 16, Align: alignCenter},
 	}
 }
 
-func latestEpisodeTableColumns(podWidth, titleWidth int) []TableColumn {
-	return []TableColumn{
-		{Header: "📅 Date", Width: 16, Align: AlignCenter},
-		{Header: "🎙️ Pod", Width: 6, Align: AlignCenter},
-		{Header: "🔖 Ep", Width: 6, Align: AlignCenter},
-		{Header: "📻 Podcast", Width: podWidth, Align: AlignLeft},
-		{Header: "✂️ AdR", Width: 9, Align: AlignCenter},
-		{Header: "⏱️ Dur", Width: 6, Align: AlignRight},
-		{Header: "Title", Width: titleWidth, Align: AlignLeft},
+func latestEpisodeTableColumns(podWidth, titleWidth int) []tableColumn {
+	return []tableColumn{
+		{Header: "📅 Date", Width: 16, Align: alignCenter},
+		{Header: "🎙️ Pod", Width: 6, Align: alignCenter},
+		{Header: "🔖 Ep", Width: 6, Align: alignCenter},
+		{Header: "📻 Podcast", Width: podWidth, Align: alignLeft},
+		{Header: "✂️ AdR", Width: 9, Align: alignCenter},
+		{Header: "⏱️ Dur", Width: 6, Align: alignRight},
+		{Header: "Title", Width: titleWidth, Align: alignLeft},
 	}
 }
 
@@ -276,13 +276,13 @@ func formatRelativeDateTime(t time.Time) string {
 	return formatRelativeDateTimeAt(t, time.Now())
 }
 
-func queueTableColumns(titleWidth int) []TableColumn {
-	return []TableColumn{
-		{Header: "Podcast ID", Width: 10, Align: AlignCenter},
-		{Header: "Episode ID", Width: 10, Align: AlignCenter},
-		{Header: "Pri", Width: 3, Align: AlignRight},
-		{Header: "Length", Width: 8, Align: AlignRight},
-		{Header: "P-date", Width: 19, Align: AlignLeft},
-		{Header: "Title", Width: titleWidth, Align: AlignLeft},
+func queueTableColumns(titleWidth int) []tableColumn {
+	return []tableColumn{
+		{Header: "Podcast ID", Width: 10, Align: alignCenter},
+		{Header: "Episode ID", Width: 10, Align: alignCenter},
+		{Header: "Pri", Width: 3, Align: alignRight},
+		{Header: "Length", Width: 8, Align: alignRight},
+		{Header: "P-date", Width: 19, Align: alignLeft},
+		{Header: "Title", Width: titleWidth, Align: alignLeft},
 	}
 }

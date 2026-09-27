@@ -14,7 +14,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-type PodcastPolicyResult struct {
+type podcastPolicyResult struct {
 	ID              string `json:"id"`
 	Title           string `json:"title"`
 	Favorite        bool   `json:"favorite"`
@@ -69,8 +69,8 @@ func backendConnectionMessage(name string) string {
 	return fmt.Sprintf("Connected to %s", name)
 }
 
-func policyResult(st podcast.PolicyState, sync string) PodcastPolicyResult {
-	return PodcastPolicyResult{
+func policyResult(st podcast.PolicyState, sync string) podcastPolicyResult {
+	return podcastPolicyResult{
 		ID:              st.ID,
 		Title:           st.Title,
 		Favorite:        st.Favorite,
@@ -261,7 +261,7 @@ func mustBackend(cfg Config, cli CLIOptions) backend.Backend {
 
 func displayPodcastGroupPolicy(group *podcast.ResolvedPodcastGroup, cli CLIOptions) error {
 	states := podcast.GroupPolicies(group.Entries)
-	results := make([]PodcastPolicyResult, 0, len(states))
+	results := make([]podcastPolicyResult, 0, len(states))
 	for _, st := range states {
 		results = append(results, policyResult(st, ""))
 	}
@@ -361,7 +361,7 @@ func displayPodcastPolicy(cfg Config, cli CLIOptions, pod *ResolvedPodcast) erro
 	return nil
 }
 
-func printPodcastPolicyDetails(w io.Writer, res PodcastPolicyResult) {
+func printPodcastPolicyDetails(w io.Writer, res podcastPolicyResult) {
 	fmt.Fprintf(w, "\nPolicy for %s [%s]:\n", util.Bold(util.DisplayName(res.Title)), util.BoldCyan(res.ID))
 	fmt.Fprintf(w, "%s\n", strings.Repeat("=", 65))
 	favStr := "No"

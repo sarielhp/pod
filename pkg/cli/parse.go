@@ -1,7 +1,6 @@
 package cli
 
 import (
-	_ "embed"
 	"fmt"
 	"io"
 	"os"

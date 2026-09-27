@@ -161,7 +161,7 @@ func TestFindTargetEpisodeFromBackend_FeedCatalog(t *testing.T) {
 		{Title: "Episode 2", PublishedAt: 1725278400000, GUID: "guid-2", EnclosureURL: "https://example.com/ep2.mp3"},
 		{Title: "Episode 1", PublishedAt: 1725192000000, GUID: "guid-1", EnclosureURL: "https://example.com/ep1.mp3"},
 	}
-	b.downloadFn = func(podcastID string, episodes []backend.FeedEpisode) error {
+	b.downloadFn = func(_ string, _ []backend.FeedEpisode) error {
 		return os.WriteFile(filepath.Join(podDir, "Episode_2.mp3"), []byte("new ep 2"), 0644)
 	}
 
@@ -278,7 +278,7 @@ func TestHandlePodcastRmAdsWorkflow_OfflineBackendFallback(t *testing.T) {
 		Config:     podCfg,
 	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 	}))
 	defer srv.Close()

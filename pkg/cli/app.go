@@ -19,6 +19,7 @@ var (
 	embeddedVersion   string
 )
 
+// SetEmbeddedVersion sets the version string embedded from the build.
 func SetEmbeddedVersion(v string) {
 	embeddedVersionMu.Lock()
 	defer embeddedVersionMu.Unlock()

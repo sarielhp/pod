@@ -257,7 +257,7 @@ func TestFetchExecutionDryRun(t *testing.T) {
 	now := time.Now()
 	pubDate := now.Add(-1 * time.Hour).Format(time.RFC1123Z)
 
-	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		_, _ = w.Write([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel><title>News Daily</title>
@@ -312,13 +312,13 @@ func TestFetchExecutionNoClean(t *testing.T) {
 	now := time.Now()
 	pubDate := now.Add(-1 * time.Hour).Format(time.RFC1123Z)
 
-	audioSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	audioSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "audio/mpeg")
 		_, _ = w.Write([]byte("audio bytes"))
 	}))
 	defer audioSrv.Close()
 
-	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		_, _ = w.Write([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel><title>Fetch Show</title>
@@ -350,8 +350,8 @@ func TestFetchExecutionNoClean(t *testing.T) {
 		PodcastsDir: podcastsDir,
 	}
 
-	if err := runFetchCommand(cfg, cli); err != nil {
-		t.Fatalf("runFetchCommand failed: %v", err)
+	if fetchErr := runFetchCommand(cfg, cli); fetchErr != nil {
+		t.Fatalf("runFetchCommand failed: %v", fetchErr)
 	}
 
 	// Verify file was downloaded
@@ -361,9 +361,9 @@ func TestFetchExecutionNoClean(t *testing.T) {
 	}
 
 	// Verify file was added to .queue
-	queueEntries, err := episode.ReadQueue(showDir)
-	if err != nil {
-		t.Fatalf("failed to read queue: %v", err)
+	queueEntries, queueErr := episode.ReadQueue(showDir)
+	if queueErr != nil {
+		t.Fatalf("failed to read queue: %v", queueErr)
 	}
 	if len(queueEntries) != 1 {
 		t.Fatalf("expected 1 queued entry, got %d", len(queueEntries))
@@ -375,7 +375,7 @@ func TestFetchExecutionLatestAlreadyDownloaded(t *testing.T) {
 	now := time.Now()
 	pubDate := now.Add(-1 * time.Hour).Format(time.RFC1123Z)
 
-	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	feedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		_, _ = w.Write([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel><title>Existing Show</title>

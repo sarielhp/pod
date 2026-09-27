@@ -13,7 +13,7 @@ import (
 	"github.com/sarielhp/clihelp"
 )
 
-type FavoritePodcastResult struct {
+type favoritePodcastResult struct {
 	ID             string `json:"id"`
 	Title          string `json:"title"`
 	Favorite       bool   `json:"favorite"`
@@ -98,7 +98,7 @@ func handleServerFavorite(cfg Config, cli CLIOptions) error {
 
 func listFavoritePodcasts(podcastsDir string, cli CLIOptions) error {
 	entries := podcast.ScanPodcastDirs(podcastsDir)
-	var favorites []FavoritePodcastResult
+	var favorites []favoritePodcastResult
 	for _, entry := range entries {
 		pCfg := config.LoadPodcastConfig(entry.Dir, config.PodcastConfig{})
 		if pCfg.Favorite {
@@ -106,7 +106,7 @@ func listFavoritePodcasts(podcastsDir string, cli CLIOptions) error {
 			if pCfg.FavoriteSince != nil {
 				sinceStr = pCfg.FavoriteSince.Format("2006-01-02 15:04")
 			}
-			favorites = append(favorites, FavoritePodcastResult{
+			favorites = append(favorites, favoritePodcastResult{
 				ID:             entry.ShortID,
 				Title:          entry.Title,
 				Favorite:       true,
@@ -166,7 +166,7 @@ func setSingleFavorite(cfg Config, podcastsDir, target string, favorite bool, cl
 		sinceStr = pod.Config.FavoriteSince.Format("2006-01-02 15:04")
 	}
 
-	res := FavoritePodcastResult{
+	res := favoritePodcastResult{
 		ID:             pod.ShortID,
 		Title:          pod.Title,
 		Favorite:       pod.Config.Favorite,

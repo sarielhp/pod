@@ -5,6 +5,11 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.10] - 2026-09-26
+
+### Fixed
+- **TUI Modal Graphics & Overlay Bleed**: Fixed Kitty graphics protocol cover art persisting underneath modals (Help modal `?`, Ad Policy modal `c`, Download Policy modal `d`) by clearing the Kitty graphics GPU layer when modals are open and centering modal overlays across the full terminal window to blank out background screen artifacts.
+
 ## [0.5.7] - 2026-09-26
 
 ### Added

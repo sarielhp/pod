@@ -163,7 +163,17 @@ func ResolveAnyID(podcastsDir, query string) (*ResolvedID, error) {
 		return nil, fmt.Errorf("no podcasts found in %s", podcastsDir)
 	}
 
-	if res, ok := resolveByEpisodeShortID(podEntries, search); ok {
+	mp3Cache := make(map[string][]string)
+	getMP3s := func(dir string) []string {
+		if files, ok := mp3Cache[dir]; ok {
+			return files
+		}
+		files := util.FindMP3Files(dir)
+		mp3Cache[dir] = files
+		return files
+	}
+
+	if res, ok := resolveByEpisodeShortID(podEntries, search, getMP3s); ok {
 		return res, nil
 	}
 
@@ -190,11 +200,11 @@ func ResolveAnyID(podcastsDir, query string) (*ResolvedID, error) {
 		return res, nil
 	}
 
-	if res, ok := resolveByEpisodeFileOrTitle(podEntries, search); ok {
+	if res, ok := resolveByEpisodeFileOrTitle(podEntries, search, getMP3s); ok {
 		return res, nil
 	}
 
-	if res, ok := resolveBySubstring(podEntries, search); ok {
+	if res, ok := resolveBySubstring(podEntries, search, getMP3s); ok {
 		return res, nil
 	}
 
@@ -266,12 +276,15 @@ func buildResolvedEpisodeFromPath(audioPath string) *ResolvedID {
 	}
 }
 
-func resolveByEpisodeShortID(podEntries []PodcastDirEntry, search string) (*ResolvedID, bool) {
+func resolveByEpisodeShortID(podEntries []PodcastDirEntry, search string, findMP3s func(string) []string) (*ResolvedID, bool) {
 	if len(search) != 6 || !strings.HasPrefix(strings.ToLower(search), "e") {
 		return nil, false
 	}
+	if findMP3s == nil {
+		findMP3s = util.FindMP3Files
+	}
 	for _, p := range podEntries {
-		mp3s := util.FindMP3Files(p.Dir)
+		mp3s := findMP3s(p.Dir)
 		for _, mp3 := range mp3s {
 			epID := GetOrSetEpisodeShortID(p.Dir, p.ShortID, mp3)
 			if strings.EqualFold(epID, search) {
@@ -322,10 +335,13 @@ func resolveByPodcastUUID(podEntries []PodcastDirEntry, search string) (*Resolve
 	return nil, false
 }
 
-func resolveByEpisodeFileOrTitle(podEntries []PodcastDirEntry, search string) (*ResolvedID, bool) {
+func resolveByEpisodeFileOrTitle(podEntries []PodcastDirEntry, search string, findMP3s func(string) []string) (*ResolvedID, bool) {
+	if findMP3s == nil {
+		findMP3s = util.FindMP3Files
+	}
 	cleanSearch := strings.ToLower(strings.TrimSuffix(search, filepath.Ext(search)))
 	for _, p := range podEntries {
-		mp3s := util.FindMP3Files(p.Dir)
+		mp3s := findMP3s(p.Dir)
 		for _, mp3 := range mp3s {
 			fn := filepath.Base(mp3)
 			base := util.StripExt(fn)
@@ -339,10 +355,13 @@ func resolveByEpisodeFileOrTitle(podEntries []PodcastDirEntry, search string) (*
 	return nil, false
 }
 
-func resolveBySubstring(podEntries []PodcastDirEntry, search string) (*ResolvedID, bool) {
+func resolveBySubstring(podEntries []PodcastDirEntry, search string, findMP3s func(string) []string) (*ResolvedID, bool) {
+	if findMP3s == nil {
+		findMP3s = util.FindMP3Files
+	}
 	lower := strings.ToLower(search)
 	for _, p := range podEntries {
-		mp3s := util.FindMP3Files(p.Dir)
+		mp3s := findMP3s(p.Dir)
 		for _, mp3 := range mp3s {
 			fn := filepath.Base(mp3)
 			title := EpisodeTitleFromPath(mp3)

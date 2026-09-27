@@ -126,3 +126,29 @@ func TestMatchBackendPodcastsAmbiguous(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, formatted)
 	}
 }
+
+func TestMatchSubscription(t *testing.T) {
+	t.Parallel()
+	subs := []Subscription{
+		{ID: "sub1", Title: "Hardcore History", Folder: "hh"},
+		{ID: "sub2", Title: "Lex Fridman Podcast", Folder: "lex"},
+	}
+
+	// Match by title substring
+	s, err := MatchSubscription(subs, "fridman")
+	if err != nil || s == nil || s.ID != "sub2" {
+		t.Fatalf("expected sub2, got %+v (err: %v)", s, err)
+	}
+
+	// Match by ID
+	s, err = MatchSubscription(subs, "sub1")
+	if err != nil || s == nil || s.ID != "sub1" {
+		t.Fatalf("expected sub1, got %+v (err: %v)", s, err)
+	}
+
+	// Match by folder
+	s, err = MatchSubscription(subs, "hh")
+	if err != nil || s == nil || s.ID != "sub1" {
+		t.Fatalf("expected sub1 by folder, got %+v (err: %v)", s, err)
+	}
+}

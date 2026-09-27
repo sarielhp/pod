@@ -173,15 +173,21 @@ func subToBackendPodcast(sub Subscription, podcastsDir string) backend.Podcast {
 }
 
 func (b *StandaloneBackend) GetPodcast(id string) (*backend.Podcast, error) {
-	pods, err := b.Podcasts()
+	store, err := b.getStore()
+	if err != nil {
+		return nil, fmt.Errorf("load subscriptions store: %w", err)
+	}
+	subs := store.List()
+	sort.Slice(subs, func(i, j int) bool {
+		return strings.ToLower(subs[i].Title) < strings.ToLower(subs[j].Title)
+	})
+
+	matchedSub, err := MatchSubscription(subs, id)
 	if err != nil {
 		return nil, err
 	}
-	matched, err := MatchBackendPodcasts(pods, id)
-	if err != nil {
-		return nil, err
-	}
-	return matched, nil
+	p := subToBackendPodcast(*matchedSub, b.basePodcastsDir())
+	return &p, nil
 }
 
 func (b *StandaloneBackend) PodcastFeedEpisodes(feedURL string) ([]backend.FeedEpisode, error) {

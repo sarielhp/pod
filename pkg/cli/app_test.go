@@ -19,9 +19,16 @@ func TestFindMP3Files(t *testing.T) {
 	os.WriteFile(d+"/a.txt", []byte("x"), 0644)
 	os.MkdirAll(d+"/sub", 0755)
 	os.WriteFile(d+"/sub/b.mp3", []byte("x"), 0644)
+
+	os.Symlink(d+"/a.mp3", d+"/sub/link_a.mp3")
+
+	extDir := t.TempDir()
+	os.WriteFile(extDir+"/c.mp3", []byte("x"), 0644)
+	os.Symlink(extDir, d+"/ext_link")
+
 	files := util.FindMP3Files(d)
-	if len(files) != 2 {
-		t.Errorf("got %d files, want 2", len(files))
+	if len(files) != 4 {
+		t.Errorf("got %d files, want 4 (%v)", len(files), files)
 	}
 }
 

@@ -1,7 +1,9 @@
 package format
 
 import (
+	"cmp"
 	"math"
+	"slices"
 
 	"pod/pkg/types"
 )
@@ -86,13 +88,12 @@ func MergeIntervals(ads []types.AdSegment) []types.AdSegment {
 }
 
 func sortAds(ads []types.AdSegment) {
-	for i := 0; i < len(ads); i++ {
-		for j := i + 1; j < len(ads); j++ {
-			if ads[j].Start < ads[i].Start || (ads[j].Start == ads[i].Start && ads[j].End < ads[i].End) {
-				ads[i], ads[j] = ads[j], ads[i]
-			}
+	slices.SortFunc(ads, func(a, b types.AdSegment) int {
+		if c := cmp.Compare(a.Start, b.Start); c != 0 {
+			return c
 		}
-	}
+		return cmp.Compare(a.End, b.End)
+	})
 }
 
 // CalculateKeepSegments returns the non-ad segments to retain over totalDuration.
@@ -125,13 +126,12 @@ func CalculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]fl
 }
 
 func sortBounds(bounds [][2]float64) {
-	for i := 0; i < len(bounds); i++ {
-		for j := i + 1; j < len(bounds); j++ {
-			if bounds[j][0] < bounds[i][0] || (bounds[j][0] == bounds[i][0] && bounds[j][1] < bounds[i][1]) {
-				bounds[i], bounds[j] = bounds[j], bounds[i]
-			}
+	slices.SortFunc(bounds, func(a, b [2]float64) int {
+		if c := cmp.Compare(a[0], b[0]); c != 0 {
+			return c
 		}
-	}
+		return cmp.Compare(a[1], b[1])
+	})
 }
 
 func mergeBounds(bounds [][2]float64) [][2]float64 {

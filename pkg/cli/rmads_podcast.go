@@ -452,14 +452,15 @@ func downloadSingleFeedEpisode(b backend.Backend, item *backend.Podcast, podDir 
 
 	waitForBackendDownloads(b, itemID)
 
-	for _, f := range util.FindMP3Files(podDir) {
+	currentFiles := util.FindMP3Files(podDir)
+	for _, f := range currentFiles {
 		if !existingFiles[f] {
 			return f, nil
 		}
 	}
 
 	safeTitle := podcast.SanitizeTitle(fe.Title)
-	for _, f := range util.FindMP3Files(podDir) {
+	for _, f := range currentFiles {
 		base := util.StripExt(filepath.Base(f))
 		title := podcast.EpisodeTitleFromPath(f)
 		if strings.EqualFold(base, safeTitle) || strings.EqualFold(base, fe.Title) ||

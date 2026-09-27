@@ -206,3 +206,56 @@ func describeBackendPodcast(p backend.Podcast) AmbiguousPodcastMatch {
 	}
 	return AmbiguousPodcastMatch{ID: id, Name: title}
 }
+
+func MatchSubscription(subs []Subscription, query string) (*Subscription, error) {
+	search := strings.TrimSpace(query)
+	if search == "" {
+		return nil, fmt.Errorf("empty podcast query")
+	}
+
+	return matchByName(subs, search, subscriptionMatchNames, describeSubscription, resolveSubscriptionByID)
+}
+
+func subscriptionMatchNames(s Subscription) []string {
+	if s.Folder != "" {
+		return []string{s.Title, s.Folder}
+	}
+	return []string{s.Title}
+}
+
+func describeSubscription(s Subscription) AmbiguousPodcastMatch {
+	id := s.ID
+	if id == "" {
+		id = GeneratePodcastShortID(s.Title)
+	}
+	return AmbiguousPodcastMatch{ID: id, Name: s.Title}
+}
+
+func resolveSubscriptionByID(subs []Subscription, search string) (*Subscription, error) {
+	var idMatches []Subscription
+	for i := range subs {
+		if subs[i].ID == search {
+			idMatches = append(idMatches, subs[i])
+		}
+	}
+	if len(idMatches) == 1 {
+		return &idMatches[0], nil
+	}
+	if len(idMatches) >= 2 {
+		return nil, fmt.Errorf("multiple podcasts match ID %q", search)
+	}
+	for i := range subs {
+		if strings.EqualFold(GeneratePodcastShortID(subs[i].Title), search) {
+			return &subs[i], nil
+		}
+	}
+	if idx, err := strconv.Atoi(search); err == nil && idx >= 1 && idx <= len(subs) {
+		return &subs[idx-1], nil
+	}
+	for i := range subs {
+		if strings.EqualFold(subs[i].Folder, search) {
+			return &subs[i], nil
+		}
+	}
+	return nil, fmt.Errorf("podcast matching %q not found on server", search)
+}

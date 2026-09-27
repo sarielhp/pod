@@ -21,25 +21,21 @@ func FindMP3Files(dir string) []string {
 }
 
 func FindMP3FilesErr(dir string) ([]string, error) {
-	visited := make(map[string]bool)
-	return findMP3FilesHelper(dir, visited)
-}
-
-func findMP3FilesHelper(dir string, visited map[string]bool) ([]string, error) {
 	realPath, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		realPath = dir
 	}
-	if visited[realPath] {
-		return nil, nil
-	}
-	visited[realPath] = true
+	visited := map[string]bool{realPath: true, dir: true}
+	return findMP3FilesHelper(dir, visited)
+}
 
-	var files []string
+func findMP3FilesHelper(dir string, visited map[string]bool) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
+
+	var files []string
 	for _, entry := range entries {
 		name := entry.Name()
 		if name == ".work" || strings.HasPrefix(name, ".") {
@@ -47,12 +43,37 @@ func findMP3FilesHelper(dir string, visited map[string]bool) ([]string, error) {
 		}
 		fullPath := filepath.Join(dir, name)
 		if entry.IsDir() {
+			if visited[fullPath] {
+				continue
+			}
+			visited[fullPath] = true
 			subFiles, subErr := findMP3FilesHelper(fullPath, visited)
 			if subErr != nil {
 				fmt.Fprintf(os.Stderr, "Warning: cannot read subdirectory %s: %v\n", fullPath, subErr)
 			}
 			files = append(files, subFiles...)
-		} else if strings.HasSuffix(strings.ToLower(name), ".mp3") {
+			continue
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			target, err := filepath.EvalSymlinks(fullPath)
+			if err != nil || visited[target] {
+				continue
+			}
+			fi, err := os.Stat(target)
+			if err != nil {
+				continue
+			}
+			if fi.IsDir() {
+				visited[target] = true
+				subFiles, subErr := findMP3FilesHelper(target, visited)
+				if subErr != nil {
+					fmt.Fprintf(os.Stderr, "Warning: cannot read subdirectory %s: %v\n", fullPath, subErr)
+				}
+				files = append(files, subFiles...)
+				continue
+			}
+		}
+		if strings.HasSuffix(strings.ToLower(name), ".mp3") {
 			files = append(files, fullPath)
 		}
 	}

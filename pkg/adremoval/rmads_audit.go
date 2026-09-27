@@ -12,7 +12,6 @@ import (
 
 	"pod/pkg/audio"
 	"pod/pkg/episode"
-	"pod/pkg/pipeline"
 	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -136,10 +135,10 @@ func auditDisplayName(p string) string {
 func inspectEpisodeTranscript(audioPath string, minRatio float64, minChars int) *transcriptAuditItem {
 	base := util.StripExt(audioPath)
 	transPath := base + ".transcript.json"
-	statPath := pipeline.StatusPathFor(audioPath)
+	statPath := episode.StatusPathFor(audioPath)
 	cutsPath := base + ".cuts.json"
 
-	if !auditMP3Exists(audioPath) || pipeline.IsEpisodeInRemoteFlight(audioPath) {
+	if !auditMP3Exists(audioPath) || episode.IsEpisodeInRemoteFlight(audioPath) {
 		return nil
 	}
 
@@ -150,7 +149,7 @@ func inspectEpisodeTranscript(audioPath string, minRatio float64, minChars int) 
 		cutsPath:       cutsPath,
 	}
 
-	st, _ := pipeline.LoadEpisodeStatus(statPath)
+	st, _ := episode.LoadEpisodeStatus(statPath)
 	diskDuration := audio.GetAudioDuration(audioPath)
 	if st != nil && st.Original.DurationSec > 0 {
 		item.audioDur = st.Original.DurationSec
@@ -269,7 +268,7 @@ func repairAuditedEpisode(item *transcriptAuditItem, cfg types.Config, dryRun bo
 			}
 		}
 	}
-	if err := pipeline.UpdateEpisodeStatus(item.audioPath, func(st *types.EpisodeStatusFile) {
+	if err := episode.UpdateEpisodeStatus(item.audioPath, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateNeedsAdR
 		st.Cleaned = types.EpisodeAudioMeta{}
 		if item.isSuspicious {
@@ -310,7 +309,7 @@ func queueAuditedEpisode(cfg types.Config, audioPath string) error {
 	if err != nil {
 		return err
 	}
-	return pipeline.UpdateQueue(podDir, func(entries []string) []string {
+	return episode.UpdateQueue(podDir, func(entries []string) []string {
 		for _, entry := range entries {
 			if entry == rel {
 				return entries

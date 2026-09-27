@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sarielhp/clihelp"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -108,10 +108,10 @@ func collectLatestUncleanedEpisodes(podcastsDir, target string) ([]latestQueueCa
 	var candidates []latestQueueCandidate
 	for _, p := range entries {
 		for _, path := range util.FindMP3Files(p.Dir) {
-			if !pipeline.IsQueueAudioPath(path) || pipeline.IsEpisodeClean(path) {
+			if !episode.IsQueueAudioPath(path) || episode.IsEpisodeClean(path) {
 				continue
 			}
-			st := pipeline.GetOrCreateEpisodeStatus(path)
+			st := episode.GetOrCreateEpisodeStatus(path)
 			var fi os.FileInfo
 			if stat, err := os.Stat(path); err == nil {
 				fi = stat
@@ -160,7 +160,7 @@ func runQueueLatest(cfg Config, podcastsDir string, limit int, target string, cl
 	if cli.DryRun {
 		for _, it := range selected {
 			qFile := podcast.QueueFilename(it.podDir, it.path)
-			qEntries, _ := pipeline.ReadQueue(it.podDir)
+			qEntries, _ := episode.ReadQueue(it.podDir)
 			isQueued := false
 			for _, q := range qEntries {
 				if strings.EqualFold(q, qFile) {
@@ -182,7 +182,7 @@ func runQueueLatest(cfg Config, podcastsDir string, limit int, target string, cl
 	addedCount, alreadyCount := 0, 0
 	for _, it := range selected {
 		qFile := podcast.QueueFilename(it.podDir, it.path)
-		added, err := pipeline.AddToQueueChecked(it.podDir, qFile)
+		added, err := episode.AddToQueueChecked(it.podDir, qFile)
 		if err != nil {
 			return fmt.Errorf("queue episode %s: %w", it.title, err)
 		}

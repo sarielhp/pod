@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -50,7 +50,7 @@ func getPodcastLastEpisodesOnlineTimeline(pod tuiPodcast, maxEpisodes int) []Epi
 		if !d.IsZero() {
 			source = "Feed"
 			localStr = d.Local().Format("2006-01-02 15:04:05 MST")
-			if ep.publishedAt > 0 || (ep.absData != nil && pipeline.ParseABSEpisodePublishedAt(ep.absData) > 0) {
+			if ep.publishedAt > 0 || (ep.absData != nil && episode.ParseABSEpisodePublishedAt(ep.absData) > 0) {
 				source = "Feed"
 			}
 		}

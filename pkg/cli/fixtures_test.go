@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"strings"
 	"testing"
@@ -31,10 +31,10 @@ func createTestPodcastWithEpisodes(t *testing.T, root, podName string, titles []
 		if err := os.WriteFile(p, []byte("fake mp3 data "+title), 0644); err != nil {
 			t.Fatal(err)
 		}
-		st := pipeline.GetOrCreateEpisodeStatus(p)
+		st := episode.GetOrCreateEpisodeStatus(p)
 		st.PublicationSource = "source"
 		st.PublishedAt = time.Now().Add(-time.Duration(len(titles)-i) * 24 * time.Hour).Format(time.RFC3339)
-		if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(p), st); err != nil {
+		if err := episode.SaveEpisodeStatus(episode.StatusPathFor(p), st); err != nil {
 			t.Fatal(err)
 		}
 		paths = append(paths, p)
@@ -46,11 +46,11 @@ func markEpisodeClean(t *testing.T, mp3Path string) {
 	if err := os.WriteFile(strings.TrimSuffix(mp3Path, filepath.Ext(mp3Path))+".transcript.json", []byte(`{"text":"This episode contains a complete discussion with enough meaningful transcript text."}`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
+	st := episode.GetOrCreateEpisodeStatus(mp3Path)
 	st.Status = StateDone
 	st.Original.DurationSec = 60.0
 	st.Cleaned.DurationSec = 50.0
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -36,7 +36,7 @@ func TestPodcastPriorityPersistsAndReordersQueue(t *testing.T) {
 	if cfg.Priority != 8 {
 		t.Fatal("priority was not persisted")
 	}
-	st, _ := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(bp[0]))
+	st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(bp[0]))
 	if st.Priority != 0 {
 		t.Fatal("inherited priority became an episode override")
 	}
@@ -65,7 +65,7 @@ func TestRmAdsEpisodeQueuesUrgentlyAndRetainsOnFailure(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	dir, paths := createTestPodcastWithEpisodes(t, root, "Show", []string{"other", "requested"})
-	if _, err := pipeline.AddToQueueChecked(dir, filepath.Base(paths[0])); err != nil {
+	if _, err := episode.AddToQueueChecked(dir, filepath.Base(paths[0])); err != nil {
 		t.Fatal(err)
 	}
 	id := podcast.EpisodeShortIDReadOnly(dir, podcast.GeneratePodcastShortID("Show"), paths[1])
@@ -87,18 +87,18 @@ func TestRmAdsEpisodeQueuesUrgentlyAndRetainsOnFailure(t *testing.T) {
 	if err := runRmAdsCommand(cfg, cli); err == nil {
 		t.Fatal("locked requested episode reported success")
 	}
-	entries, err := pipeline.ReadQueue(dir)
+	entries, err := episode.ReadQueue(dir)
 	if err != nil || !reflect.DeepEqual(entries, []string{"requested.mp3", "other.mp3"}) {
 		t.Fatalf("queue=%v error=%v", entries, err)
 	}
 	if podcast.EpisodePriority(dir, paths[1]) != 10 {
 		t.Fatal("request missing priority 10")
 	}
-	other, _ := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(paths[0]))
+	other, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(paths[0]))
 	if other.Priority != 0 || other.Status != StateDownloaded {
 		t.Fatal("processed unrelated episode")
 	}
-	if _, err := pipeline.RemoveQueuedAudio(dir, paths[1]); err != nil {
+	if _, err := episode.RemoveQueuedAudio(dir, paths[1]); err != nil {
 		t.Fatal(err)
 	}
 	if podcast.EpisodePriority(dir, paths[1]) != 0 {

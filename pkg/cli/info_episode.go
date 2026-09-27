@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"pod/pkg/episode"
 	"pod/pkg/format"
-	"pod/pkg/pipeline"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"strings"
@@ -139,9 +139,9 @@ func buildEpisodeInfoDTO(ep *ResolvedEpisode) EpisodeInfoJSON {
 		fileSize = fi.Size()
 	}
 
-	st := pipeline.GetOrCreateEpisodeStatus(ep.Path)
+	st := episode.GetOrCreateEpisodeStatus(ep.Path)
 	statusStr, _ := getEpisodeStatusLabel(ep.Path)
-	origDur, cleanDur := pipeline.EpisodeDurations(ep.Path, st)
+	origDur, cleanDur := episode.EpisodeDurations(ep.Path, st)
 
 	pctReduction := 0.0
 	if origDur > 0 && cleanDur > 0 && origDur > cleanDur {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/util"
 	"reflect"
 	"testing"
@@ -24,9 +24,9 @@ func TestQueueTodaySelection(t *testing.T) {
 	dir, paths := createTestPodcastWithEpisodes(t, root, "Today", []string{"midnight", "late", "yesterday", "tomorrow", "unknown", "clean", "cached"})
 	dates := []string{"2026-03-08T00:00:00-06:00", "2026-03-09T04:59:59Z", "2026-03-07T23:59:59-06:00", "2026-03-09T00:00:00-05:00", "", "2026-03-08T12:00:00-05:00", "invalid"}
 	for i, path := range paths {
-		st := pipeline.GetOrCreateEpisodeStatus(path)
+		st := episode.GetOrCreateEpisodeStatus(path)
 		st.PublishedAt = dates[i]
-		if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(path), st); err != nil {
+		if err := episode.SaveEpisodeStatus(episode.StatusPathFor(path), st); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Chtimes(path, now, now); err != nil {
@@ -46,7 +46,7 @@ func TestQueueTodaySelection(t *testing.T) {
 	if err := podcast.SavePodcastCache(dir, index); err != nil {
 		t.Fatal(err)
 	}
-	pipeline.AddToQueue(dir, "existing.mp3")
+	episode.AddToQueue(dir, "existing.mp3")
 	if err := handleQueueToday(root, CLIOptions{
 		ProcOptions: ProcOptions{
 			DryRun: true,
@@ -78,12 +78,12 @@ func TestQueueTodayRequiresSourcePublicationDate(t *testing.T) {
 	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
 	dir, paths := createTestPodcastWithEpisodes(t, root, "SourceDates", []string{"old", "today", "unknown"})
 	for i, path := range paths {
-		st := pipeline.GetOrCreateEpisodeStatus(path)
+		st := episode.GetOrCreateEpisodeStatus(path)
 		st.PublishedAt = now.Format(time.RFC3339)
 		if i == 1 {
 			st.PublishedAt = now.AddDate(0, 0, -5).Format(time.RFC3339)
 		}
-		if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(path), st); err != nil {
+		if err := episode.SaveEpisodeStatus(episode.StatusPathFor(path), st); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Chtimes(path, now, now); err != nil {

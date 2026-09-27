@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -191,11 +191,11 @@ func TestAdDetectionFailureDoesNotMarkEpisodeClean(t *testing.T) {
 		t.Errorf("ep.cuts.json should not exist when LLM ad detection fails")
 	}
 
-	if pipeline.IsEpisodeCompleted(mp3) {
+	if episode.IsEpisodeCompleted(mp3) {
 		t.Errorf("episode must not be considered completed when ad detection fails")
 	}
 
-	st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(mp3))
+	st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(mp3))
 	if err != nil || st == nil {
 		t.Fatalf("expected status file to exist: %v", err)
 	}

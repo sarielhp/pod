@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -58,8 +58,8 @@ func renderLocalSummary(w io.Writer, cfg Config, quiet bool) (int, int, int) {
 			}
 			filtered := podcast.FilterByAdRemovalPolicy(mp3s, podPath, podCfg)
 			for _, mp3 := range filtered {
-				_ = pipeline.GetOrCreateEpisodeStatus(mp3)
-				if !pipeline.IsEpisodeCompleted(mp3) {
+				_ = episode.GetOrCreateEpisodeStatus(mp3)
+				if !episode.IsEpisodeCompleted(mp3) {
 					totalNeedsAd++
 				}
 			}
@@ -102,8 +102,8 @@ func renderLocalDiskPodcastStatus(w io.Writer, podcastsDir string, cfg Config, q
 		if config.NormalizeAdRemovalMode(podCfg.AdRemoval) != config.AdRemovalNone {
 			filtered := podcast.FilterByAdRemovalPolicy(mp3s, pe.Dir, podCfg)
 			for _, mp3 := range filtered {
-				_ = pipeline.GetOrCreateEpisodeStatus(mp3)
-				if !pipeline.IsEpisodeCompleted(mp3) {
+				_ = episode.GetOrCreateEpisodeStatus(mp3)
+				if !episode.IsEpisodeCompleted(mp3) {
 					needsAd++
 				}
 			}

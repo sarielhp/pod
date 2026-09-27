@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -101,10 +101,10 @@ func collectPodcastListItems(entries []podcast.PodcastDirEntry) []lsPodcastItem 
 		var newestTime time.Time
 
 		for _, mp3 := range mp3s {
-			if pipeline.IsEpisodeClean(mp3) {
+			if episode.IsEpisodeClean(mp3) {
 				cleanCount++
 			}
-			st := pipeline.GetOrCreateEpisodeStatus(mp3)
+			st := episode.GetOrCreateEpisodeStatus(mp3)
 			fi, _ := os.Stat(mp3)
 			pt := resolveEpisodePublicationTime(mp3, st, fi)
 			if pt.After(newestTime) {
@@ -250,8 +250,8 @@ func collectLatestEpisodeItems(allMp3s []string, podTitleMap, podIDMap map[strin
 
 		epShortID := podcast.GetOrSetEpisodeShortID(podDir, shortID, mp3)
 		statusStr, statusColor := getEpisodeStatusLabel(mp3)
-		st := pipeline.GetOrCreateEpisodeStatus(mp3)
-		origDur, cleanDur := pipeline.EpisodeDurations(mp3, st)
+		st := episode.GetOrCreateEpisodeStatus(mp3)
+		origDur, cleanDur := episode.EpisodeDurations(mp3, st)
 		txPath := util.StripExt(mp3) + ".transcript.json"
 		_, errTx := os.Stat(txPath)
 
@@ -345,8 +345,8 @@ func isStaleRemoteStatus(st *types.EpisodeStatusFile) bool {
 }
 
 func getEpisodeStatusLabel(mp3Path string) (string, string) {
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
-	if st.Status == StateDone || st.Status == StateCopiedBack || pipeline.IsEpisodeCompleted(mp3Path) {
+	st := episode.GetOrCreateEpisodeStatus(mp3Path)
+	if st.Status == StateDone || st.Status == StateCopiedBack || episode.IsEpisodeCompleted(mp3Path) {
 		return "Clean", "green"
 	}
 	if st.Status == StateQueuedRemote {
@@ -356,7 +356,7 @@ func getEpisodeStatusLabel(mp3Path string) (string, string) {
 		if lock, err := util.AcquireFileLock(mp3Path); err == nil && lock != nil {
 			lock.Release()
 			st.Status = types.StateNeedsAdR
-			_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st)
+			_ = episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st)
 			return "NeedAdR", "yellow"
 		}
 		return "In Progress", "yellow"
@@ -364,7 +364,7 @@ func getEpisodeStatusLabel(mp3Path string) (string, string) {
 	if st.Status == StateTranscribingRemotely || st.Status == StateCuttingRemotely {
 		if isStaleRemoteStatus(st) {
 			st.Status = types.StateNeedsAdR
-			_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st)
+			_ = episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st)
 			return "NeedAdR", "yellow"
 		}
 		return "In Progress", "yellow"

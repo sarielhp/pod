@@ -11,7 +11,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
 )
@@ -63,7 +63,7 @@ func TestHandlePodcastRmAdsWorkflow_MultiItemQueueSkip(t *testing.T) {
 	otherPodDir, otherPaths := createTestPodcastWithEpisodes(t, tmp, "Nature Show", []string{
 		"Birds",
 	})
-	pipeline.AddToQueue(otherPodDir, filepath.Base(otherPaths[0]))
+	episode.AddToQueue(otherPodDir, filepath.Base(otherPaths[0]))
 
 	podCfg := testLoadPodcastConfig(podDir)
 	resolved := &podcast.ResolvedPodcast{
@@ -98,7 +98,7 @@ func TestHandlePodcastRmAdsWorkflow_MultiItemQueueSkip(t *testing.T) {
 		t.Fatalf("expected %s in queue, got %v", filepath.Base(paths[1]), queued)
 	}
 
-	if pipeline.IsEpisodeClean(paths[1]) {
+	if episode.IsEpisodeClean(paths[1]) {
 		t.Fatalf("episode should not have been cleaned immediately when multiple items in queue")
 	}
 }
@@ -134,7 +134,7 @@ func TestHandlePodcastRmAdsWorkflow_DryRun(t *testing.T) {
 	if _, err := os.Stat(qFile); err == nil {
 		t.Fatalf("expected queue.json not to be created in dry run")
 	}
-	if pipeline.IsEpisodeClean(paths[0]) {
+	if episode.IsEpisodeClean(paths[0]) {
 		t.Fatalf("episode should not be cleaned in dry run")
 	}
 }
@@ -236,7 +236,7 @@ func TestProcessSingleQueuedTarget_LocalCompletion(t *testing.T) {
 	})
 	targetAudio := paths[0]
 	epFilename := filepath.Base(targetAudio)
-	pipeline.AddToQueue(podDir, epFilename)
+	episode.AddToQueue(podDir, epFilename)
 
 	markEpisodeClean(t, targetAudio)
 
@@ -325,7 +325,7 @@ func TestHandlePodcastRmAdsWorkflow_QueueSingleAndRemove(t *testing.T) {
 	}
 	config := types.Config{PodcastsDir: tmp}
 
-	pipeline.AddToQueue(resolved.Dir, filepath.Base(paths[0]))
+	episode.AddToQueue(resolved.Dir, filepath.Base(paths[0]))
 
 	err := ProcessQueuedTarget(resolved.Dir, paths[0], opts, config)
 	if err != nil {
@@ -355,12 +355,12 @@ func TestCountAllQueuedEpisodes(t *testing.T) {
 		t.Fatalf("expected 0 queued, got %d", count)
 	}
 
-	pipeline.AddToQueue(p1, "E1.mp3")
+	episode.AddToQueue(p1, "E1.mp3")
 	if count := countAllQueuedEpisodes(tmp); count != 1 {
 		t.Fatalf("expected 1 queued, got %d", count)
 	}
 
-	pipeline.AddToQueue(p2, "E2.mp3")
+	episode.AddToQueue(p2, "E2.mp3")
 	if count := countAllQueuedEpisodes(tmp); count != 2 {
 		t.Fatalf("expected 2 queued, got %d", count)
 	}
@@ -438,8 +438,8 @@ func TestFindTargetEpisodeFromBackend_SubfolderUncleaned(t *testing.T) {
 	if err := os.WriteFile(mp3Path, []byte("audio"), 0644); err != nil {
 		t.Fatalf("write mp3 failed: %v", err)
 	}
-	statPath := pipeline.StatusPathFor(mp3Path)
-	_ = pipeline.SaveEpisodeStatus(statPath, &types.EpisodeStatusFile{
+	statPath := episode.StatusPathFor(mp3Path)
+	_ = episode.SaveEpisodeStatus(statPath, &types.EpisodeStatusFile{
 		MediaFile: "podcast.mp3",
 		Status:    types.StateDownloaded,
 		Original:  types.EpisodeAudioMeta{DurationSec: 100},

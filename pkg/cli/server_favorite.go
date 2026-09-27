@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -195,7 +195,7 @@ func setSingleFavorite(cfg Config, podcastsDir, target string, favorite bool, cl
 
 func setEpisodeFavorite(ep *podcast.ResolvedEpisode, favorite bool, cli CLIOptions) error {
 	var isFav bool
-	err := pipeline.UpdateEpisodeStatus(ep.Path, func(st *types.EpisodeStatusFile) {
+	err := episode.UpdateEpisodeStatus(ep.Path, func(st *types.EpisodeStatusFile) {
 		st.SetFavorite(favorite)
 		isFav = st.IsFavorite()
 	})

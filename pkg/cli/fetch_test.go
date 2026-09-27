@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 )
 
@@ -361,7 +361,7 @@ func TestFetchExecutionNoClean(t *testing.T) {
 	}
 
 	// Verify file was added to .queue
-	queueEntries, err := pipeline.ReadQueue(showDir)
+	queueEntries, err := episode.ReadQueue(showDir)
 	if err != nil {
 		t.Fatalf("failed to read queue: %v", err)
 	}

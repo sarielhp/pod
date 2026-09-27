@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"strconv"
 	"strings"
@@ -43,14 +43,14 @@ func runUrgentEpisode(cfg Config, cli CLIOptions) (bool, error) {
 
 func enqueueUrgentEpisode(ep *ResolvedEpisode) (queueEpisodeItem, error) {
 	item := queueEpisodeItem{PodcastID: ep.PodcastShortID, EpisodeID: ep.ShortID, Title: ep.Title, AudioPath: ep.Path, PodcastDir: ep.PodcastDir, Filename: podcast.QueueFilename(ep.PodcastDir, ep.Path), Priority: 10}
-	path, err := pipeline.ResolveQueueAudioPath(ep.PodcastDir, item.Filename)
+	path, err := episode.ResolveQueueAudioPath(ep.PodcastDir, item.Filename)
 	if err != nil || filepath.Clean(path) != filepath.Clean(ep.Path) {
 		return item, fmt.Errorf("episode audio is not available in its podcast: %s", ep.ShortID)
 	}
-	err = pipeline.UpdateQueue(ep.PodcastDir, func(entries []string) []string {
+	err = episode.UpdateQueue(ep.PodcastDir, func(entries []string) []string {
 		ordered := []string{item.Filename}
 		for _, entry := range entries {
-			resolved, err := pipeline.ResolveQueueAudioPath(ep.PodcastDir, entry)
+			resolved, err := episode.ResolveQueueAudioPath(ep.PodcastDir, entry)
 			if err == nil && filepath.Clean(resolved) == filepath.Clean(ep.Path) {
 				continue
 			}
@@ -61,8 +61,8 @@ func enqueueUrgentEpisode(ep *ResolvedEpisode) (queueEpisodeItem, error) {
 	if err != nil {
 		return item, err
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(ep.Path)
+	st := episode.GetOrCreateEpisodeStatus(ep.Path)
 	st.Priority = 10
-	err = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(ep.Path), st)
+	err = episode.SaveEpisodeStatus(episode.StatusPathFor(ep.Path), st)
 	return item, err
 }

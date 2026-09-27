@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"strings"
 	"testing"
@@ -133,7 +133,7 @@ func TestFavoritePodcastDoesNotMarkExistingEpisodes(t *testing.T) {
 	oldTime := time.Now().Add(-10 * time.Minute)
 	_ = os.Chtimes(mp3Path, oldTime, oldTime)
 
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
+	st := episode.GetOrCreateEpisodeStatus(mp3Path)
 	if st.IsFavorite() {
 		t.Fatalf("expected initial episode status not favorite")
 	}
@@ -146,7 +146,7 @@ func TestFavoritePodcastDoesNotMarkExistingEpisodes(t *testing.T) {
 		t.Fatalf("handleServerFavorite failed: %v", err)
 	}
 
-	existingSt, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(mp3Path))
+	existingSt, err := episode.LoadEpisodeStatus(episode.StatusPathFor(mp3Path))
 	if err != nil {
 		t.Fatalf("LoadEpisodeStatus failed: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestFavoritePodcastDoesNotMarkExistingEpisodes(t *testing.T) {
 	newTime := time.Now().Add(5 * time.Minute)
 	_ = os.Chtimes(newMp3Path, newTime, newTime)
 
-	newSt := pipeline.GetOrCreateEpisodeStatus(newMp3Path)
+	newSt := episode.GetOrCreateEpisodeStatus(newMp3Path)
 	if !newSt.IsFavorite() {
 		t.Errorf("expected newly downloaded episode status file to have favorite: true")
 	}
@@ -175,7 +175,7 @@ func TestFavoriteSingleEpisode(t *testing.T) {
 
 	mp3Path := filepath.Join(podDir, "single_ep.mp3")
 	_ = os.WriteFile(mp3Path, []byte("fake audio content"), 0644)
-	_ = pipeline.GetOrCreateEpisodeStatus(mp3Path)
+	_ = episode.GetOrCreateEpisodeStatus(mp3Path)
 
 	epID := podcast.GetOrSetEpisodeShortID(podDir, podID, mp3Path)
 	cfg := Config{PodcastsDir: tempDir}
@@ -187,7 +187,7 @@ func TestFavoriteSingleEpisode(t *testing.T) {
 		t.Fatalf("handleServerFavorite single episode failed: %v", err)
 	}
 
-	st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(mp3Path))
+	st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(mp3Path))
 	if err != nil {
 		t.Fatalf("LoadEpisodeStatus failed: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestFavoriteSingleEpisode(t *testing.T) {
 		t.Fatalf("handleServerFavorite single episode unmark failed: %v", err)
 	}
 
-	unmarkedSt, _ := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(mp3Path))
+	unmarkedSt, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(mp3Path))
 	if unmarkedSt.IsFavorite() {
 		t.Errorf("expected episode status file to have favorite: false")
 	}

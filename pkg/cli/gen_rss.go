@@ -6,7 +6,7 @@ import (
 
 	"pod/pkg/adremoval"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -104,7 +104,7 @@ func cleanAndPublish(cfg Config, cli CLIOptions, targets []string) error {
 		if !util.FileExists(path) {
 			continue
 		}
-		if pipeline.IsEpisodeClean(path) {
+		if episode.IsEpisodeClean(path) {
 			continue
 		}
 		work = append(work, path)

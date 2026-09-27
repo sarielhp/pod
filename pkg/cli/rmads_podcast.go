@@ -13,7 +13,7 @@ import (
 	"pod/pkg/adremoval"
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/progress"
 	"pod/pkg/types"
@@ -54,7 +54,7 @@ func ProcessPodcast(pod *podcast.ResolvedPodcast, opts types.ProcOptions, cfg ty
 		return nil
 	}
 
-	added := pipeline.AddToQueue(pod.Dir, epFilename)
+	added := episode.AddToQueue(pod.Dir, epFilename)
 	epID := podcast.GetOrSetEpisodeShortID(pod.Dir, pod.ShortID, targetAudioPath)
 	title := podcast.EpisodeTitleFromPath(targetAudioPath)
 
@@ -87,7 +87,7 @@ func countAllQueuedEpisodes(podcastsDir string) int {
 	}
 	total := 0
 	for _, p := range podcast.ScanPodcastDirs(podcastsDir) {
-		total += len(pipeline.QueuedEpisodes(p.Dir))
+		total += len(episode.QueuedEpisodes(p.Dir))
 	}
 	return total
 }
@@ -136,7 +136,7 @@ func findTargetEpisodeFromBackend(b backend.Backend, pod *podcast.ResolvedPodcas
 	for i, fe := range feedEpisodes {
 		localPath, isDownloaded := findLocalPathForFeedEpisode(pod.Dir, fe, targetItem)
 		if isDownloaded {
-			if pipeline.IsEpisodeClean(localPath) {
+			if episode.IsEpisodeClean(localPath) {
 				continue
 			}
 			return localPath, true
@@ -516,7 +516,7 @@ func findLatestUncleanedLocalEpisode(podDir, podTitle string, quiet bool) (strin
 	})
 
 	for _, mp3 := range mp3s {
-		if !pipeline.IsEpisodeClean(mp3) {
+		if !episode.IsEpisodeClean(mp3) {
 			return mp3, true
 		}
 	}
@@ -535,10 +535,10 @@ func ProcessQueuedTarget(podDir, targetAudioPath string, opts types.ProcOptions,
 		return err
 	}
 
-	if !pipeline.IsEpisodeClean(targetAudioPath) {
+	if !episode.IsEpisodeClean(targetAudioPath) {
 		return fmt.Errorf("episode did not complete ad removal; retained in queue: %s", targetAudioPath)
 	}
-	_, err := pipeline.RemoveQueuedAudio(podDir, targetAudioPath)
+	_, err := episode.RemoveQueuedAudio(podDir, targetAudioPath)
 	refreshPodcastFeedXML(podDir, cfg)
 	return err
 }

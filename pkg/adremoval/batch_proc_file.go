@@ -23,7 +23,7 @@ import (
 // markTranscriptionStarted records that this episode is being transcribed,
 // along with what the source audio was before anything was cut from it.
 func markTranscriptionStarted(mainMP3File, sourceAudioFile string, totalDuration float64, verbose bool) {
-	err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateTranscribingLocally
 		st.Original.DurationSec = totalDuration
 		if fi, err := os.Stat(sourceAudioFile); err == nil {
@@ -63,13 +63,13 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 		return Report{}, nil
 	}
 
-	mainMP3File, precutFile, sourceAudioFile := pipeline.ResolveAudioFiles(inputFile, opts.Verbose)
+	mainMP3File, precutFile, sourceAudioFile := episode.ResolveAudioFiles(inputFile, opts.Verbose)
 	baseName := util.StripExt(mainMP3File)
 	jsonFile := opts.TranscriptPath
 	if jsonFile == "" {
 		jsonFile = baseName + ".transcript.json"
 	}
-	outputFile := pipeline.ResolveOutputFile(mainMP3File, opts.Output, totalFiles)
+	outputFile := episode.ResolveOutputFile(mainMP3File, opts.Output, totalFiles)
 
 	fileLock, ok, shouldStop := checkSkipOrLockAudioFile(mainMP3File, inputFile, idx, totalFiles, processedCount, opts)
 	if shouldStop {
@@ -280,7 +280,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 		if err := updateStatusAdDetection(mainMP3File, false, "failed", selectedProfile.Model, err.Error()); err != nil && opts.Verbose {
 			fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
 		}
-		if err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+		if err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 			st.Status = types.StateFailed
 		}); err != nil && opts.Verbose {
 			fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
@@ -308,7 +308,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 
 func checkSkipOrLockAudioFile(mainMP3File, inputFile string, idx, totalFiles, processedCount int, opts types.ProcOptions) (*util.FileLockWrapper, bool, bool) {
 	shortName := util.DisplayName(filepath.Base(inputFile))
-	if !opts.ForceTranscribe && !opts.ForceLLM && !opts.Recut && pipeline.IsEpisodeClean(mainMP3File) {
+	if !opts.ForceTranscribe && !opts.ForceLLM && !opts.Recut && episode.IsEpisodeClean(mainMP3File) {
 		if opts.Verbose && !opts.Quiet {
 			fmt.Printf("skipping: %s\n", shortName)
 		}
@@ -457,7 +457,7 @@ func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalD
 		}
 	}
 	format.SaveCutsJSON(mainMP3File, totalDuration, nil, &selectedProfile, opts.Quiet)
-	if err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	if err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateDone
 		st.Cleaned = types.EpisodeAudioMeta{Filename: filepath.Base(outputFile), DurationSec: totalDuration}
 		st.Ads = nil
@@ -472,7 +472,7 @@ func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalD
 }
 
 func executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile string, keepSegments [][2]float64, adSegments []types.AdSegment, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime, t0Step1, t0Step2, t0Step3 time.Time) bool {
-	if err := pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	if err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateCuttingLocally
 	}); err != nil && opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update status to cutting: %v\n", err)
@@ -553,7 +553,7 @@ func installCutAudioAndPreserveOriginal(sourceAudioFile, mainMP3File, precutFile
 }
 
 func updateEpisodeStatusAfterCut(mainMP3File, precutFile, outputFile string, adSegments []types.AdSegment, newDuration, actualCut float64) error {
-	return pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	return episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateDone
 		if util.FileExists(precutFile) {
 			st.Original.Filename = filepath.Base(precutFile)

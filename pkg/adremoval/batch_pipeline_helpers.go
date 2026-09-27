@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"pod/pkg/config"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/gemini"
 	"pod/pkg/pipeline"
@@ -157,7 +158,7 @@ func isGeminiEngine(cfg types.Config, opts types.ProcOptions) bool {
 }
 
 func updateStatusAdDetection(mainMP3File string, successful bool, status, model, errMsg string) error {
-	return pipeline.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	return episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.AdDetectionSuccessful = &successful
 		st.AdDetectionStatus = status
 		st.AdDetectionModel = model

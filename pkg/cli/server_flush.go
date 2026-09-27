@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"strings"
@@ -149,7 +149,7 @@ func flushPodcastAudio(b backend.Backend, item backend.Podcast, dir string, cli 
 			return fmt.Errorf("flush %s: %w", path, err)
 		}
 	}
-	if err := pipeline.UpdateQueue(dir, func([]string) []string { return nil }); err != nil {
+	if err := episode.UpdateQueue(dir, func([]string) []string { return nil }); err != nil {
 		return err
 	}
 	fmt.Fprintf(progressFor(cli), "Removed %d audio files from %s; transcripts kept. Automatic downloads disabled. Deleted audio can only be recovered from backups or by downloading it again.\n", len(files), item.Media.Metadata.Title)
@@ -170,7 +170,7 @@ func lockFlushAudio(paths []string) (func(), error) {
 			continue
 		}
 		seen[target] = true
-		if pipeline.IsEpisodeInRemoteFlight(target) {
+		if episode.IsEpisodeInRemoteFlight(target) {
 			release()
 			return nil, fmt.Errorf("episode is processing remotely: %s", target)
 		}

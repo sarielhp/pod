@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"reflect"
 	"testing"
@@ -64,7 +64,7 @@ func TestQueueReadOnlyAndEligibility(t *testing.T) {
 	if err := handleQueueAdd(io.Discard, podcast.Open(podcast.Config{PodcastsDir: root}, nil, nil), []string{"all"}); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := pipeline.ReadQueue(dir)
+	entries, err := episode.ReadQueue(dir)
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("queue=%v error=%v", entries, err)
 	}

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/types"
 )
 
@@ -16,7 +16,7 @@ func TestQueuedCompletedEpisodeWithoutTranscriptIsNotSkipped(t *testing.T) {
 	if err := os.WriteFile(path, []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(path), &types.EpisodeStatusFile{Status: types.StateDone}); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(path), &types.EpisodeStatusFile{Status: types.StateDone}); err != nil {
 		t.Fatal(err)
 	}
 	lock, process, stop := checkSkipOrLockAudioFile(path, path, 0, 1, 0, types.ProcOptions{Quiet: true})

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 )
 
 func TestQueueLatestDefaultCount(t *testing.T) {
@@ -26,7 +26,7 @@ func TestQueueLatestDefaultCount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queue, err := pipeline.ReadQueue(dir)
+	queue, err := episode.ReadQueue(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestQueueLatestExcludesClean(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queue, err := pipeline.ReadQueue(dir)
+	queue, err := episode.ReadQueue(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestQueueLatestTargetPodcast(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queueA, err := pipeline.ReadQueue(dirA)
+	queueA, err := episode.ReadQueue(dirA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestQueueLatestTargetPodcast(t *testing.T) {
 		t.Fatalf("ShowA mismatch: got %v, want %v", queueA, expectedA)
 	}
 
-	queueB, _ := pipeline.ReadQueue(dirB)
+	queueB, _ := episode.ReadQueue(dirB)
 	if len(queueB) != 0 {
 		t.Fatalf("expected ShowB queue to be empty, got %v", queueB)
 	}
@@ -137,7 +137,7 @@ func TestQueueLatestDryRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queue, _ := pipeline.ReadQueue(dir)
+	queue, _ := episode.ReadQueue(dir)
 	if len(queue) != 0 {
 		t.Fatalf("dry run should not modify queue, got: %v", queue)
 	}
@@ -210,7 +210,7 @@ func TestQueueRoutingLatest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runQueueCommand latest 2 failed: %v", err)
 	}
-	q, _ := pipeline.ReadQueue(dir)
+	q, _ := episode.ReadQueue(dir)
 	if len(q) != 2 {
 		t.Fatalf("expected 2 queued items, got %d", len(q))
 	}
@@ -223,7 +223,7 @@ func TestQueueRoutingLatest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runQueueCommand latest default failed: %v", err)
 	}
-	q, _ = pipeline.ReadQueue(dir)
+	q, _ = episode.ReadQueue(dir)
 	if len(q) != 3 {
 		t.Fatalf("expected 3 queued items, got %d", len(q))
 	}
@@ -238,7 +238,7 @@ func TestQueueRoutingLatest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runQueueCommand add latest 1 failed: %v", err)
 	}
-	q, _ = pipeline.ReadQueue(dir)
+	q, _ = episode.ReadQueue(dir)
 	if len(q) != 1 || q[0] != filepath.Base(paths[2]) {
 		t.Fatalf("expected 1 item (newest), got %v", q)
 	}

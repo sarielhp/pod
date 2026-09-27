@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -19,9 +19,9 @@ type dryRunFileStatus struct {
 }
 
 func auditFileStatus(inputFile string, opts types.ProcOptions) (category string, statusText string) {
-	mainMP3File, precutFile, _ := pipeline.ResolveAudioFiles(inputFile, opts.Verbose)
-	statFile := pipeline.StatusPathFor(mainMP3File)
-	st, _ := pipeline.LoadEpisodeStatus(statFile)
+	mainMP3File, precutFile, _ := episode.ResolveAudioFiles(inputFile, opts.Verbose)
+	statFile := episode.StatusPathFor(mainMP3File)
+	st, _ := episode.LoadEpisodeStatus(statFile)
 
 	if st != nil {
 		switch st.Status {

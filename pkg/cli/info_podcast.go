@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"pod/pkg/config"
+	"pod/pkg/episode"
 	"pod/pkg/format"
-	"pod/pkg/pipeline"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"sort"
@@ -87,11 +87,11 @@ func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisod
 		if err == nil {
 			totalSize += fi.Size()
 		}
-		if pipeline.IsEpisodeClean(mp3) {
+		if episode.IsEpisodeClean(mp3) {
 			cleanCount++
 		}
-		st := pipeline.GetOrCreateEpisodeStatus(mp3)
-		od, _ := pipeline.EpisodeDurations(mp3, st)
+		st := episode.GetOrCreateEpisodeStatus(mp3)
+		od, _ := episode.EpisodeDurations(mp3, st)
 		totalDur += od
 
 		pt := resolveEpisodePublicationTime(mp3, st, fi)
@@ -114,7 +114,7 @@ func collectPodcastStatsAndRecent(pod *ResolvedPodcast, mp3s []string, maxEpisod
 		mp3 := epList[i].path
 		epID := podcast.GetOrSetEpisodeShortID(pod.Dir, pod.ShortID, mp3)
 		st, _ := getEpisodeStatusLabel(mp3)
-		od, _ := pipeline.EpisodeDurations(mp3, pipeline.GetOrCreateEpisodeStatus(mp3))
+		od, _ := episode.EpisodeDurations(mp3, episode.GetOrCreateEpisodeStatus(mp3))
 		recent = append(recent, RecentEpisodeDTO{
 			ID:       epID,
 			Title:    podcast.EpisodeTitleFromPath(mp3),

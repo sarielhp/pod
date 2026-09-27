@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -32,14 +32,14 @@ func TestLsLatestCommand(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	_ = os.WriteFile(ep3, []byte("audio3"), 0644)
 
-	_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(ep3), &EpisodeStatusFile{
+	_ = episode.SaveEpisodeStatus(episode.StatusPathFor(ep3), &EpisodeStatusFile{
 		Status: StateDone,
 	})
 	for i, path := range []string{ep1, ep2, ep3} {
-		st := pipeline.GetOrCreateEpisodeStatus(path)
+		st := episode.GetOrCreateEpisodeStatus(path)
 		st.PublicationSource = "source"
 		st.PublishedAt = time.Date(2026, 9, 8+i, 9, 0, 0, 0, time.UTC).Format(time.RFC3339)
-		if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(path), st); err != nil {
+		if err := episode.SaveEpisodeStatus(episode.StatusPathFor(path), st); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -367,9 +367,9 @@ func TestGetEpisodeStatusLabelStaleActive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	st := pipeline.GetOrCreateEpisodeStatus(mp3Path)
+	st := episode.GetOrCreateEpisodeStatus(mp3Path)
 	st.Status = StateTranscribingLocally
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st); err != nil {
 		t.Fatal(err)
 	}
 
@@ -378,7 +378,7 @@ func TestGetEpisodeStatusLabelStaleActive(t *testing.T) {
 		t.Fatalf("expected NeedAdR/yellow for dead local process, got %s/%s", label, color)
 	}
 
-	reloaded, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(mp3Path))
+	reloaded, err := episode.LoadEpisodeStatus(episode.StatusPathFor(mp3Path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestGetEpisodeStatusLabelStaleActive(t *testing.T) {
 	defer lock.Release()
 
 	st.Status = StateTranscribingLocally
-	_ = pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(mp3Path), st)
+	_ = episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st)
 
 	label, color = getEpisodeStatusLabel(mp3Path)
 	if label != "In Progress" || color != "yellow" {

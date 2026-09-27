@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"pod/pkg/adremoval"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"strings"
@@ -213,7 +213,7 @@ func handleQueueAdd(w io.Writer, lib *podcast.Library, targets []string) error {
 
 		if res.IsEpisode() {
 			ep := res.Episode
-			added, err := pipeline.AddToQueueChecked(ep.PodcastDir, podcast.QueueFilename(ep.PodcastDir, ep.Path))
+			added, err := episode.AddToQueueChecked(ep.PodcastDir, podcast.QueueFilename(ep.PodcastDir, ep.Path))
 			if err != nil {
 				return err
 			}
@@ -244,7 +244,7 @@ func handleQueueRemove(w io.Writer, lib *podcast.Library, targets []string) erro
 
 		if res.IsEpisode() {
 			ep := res.Episode
-			removed, err := pipeline.RemoveQueuedAudio(ep.PodcastDir, ep.Path)
+			removed, err := episode.RemoveQueuedAudio(ep.PodcastDir, ep.Path)
 			if err != nil {
 				return err
 			}
@@ -278,7 +278,7 @@ func handleQueueClear(w io.Writer, lib *podcast.Library, target string) error {
 			return nil
 		}
 		if res.IsEpisode() {
-			if _, err := pipeline.RemoveQueuedAudio(res.Episode.PodcastDir, res.Episode.Path); err != nil {
+			if _, err := episode.RemoveQueuedAudio(res.Episode.PodcastDir, res.Episode.Path); err != nil {
 				return err
 			}
 			fmt.Fprintf(w, "Removed [%s] from queue\n", util.BoldCyan(res.Episode.ShortID))
@@ -341,9 +341,9 @@ func executeQueueRun(items []queueEpisodeItem, cli CLIOptions, cfg Config) error
 			continue
 		}
 
-		if !cli.ForceTranscribe && !cli.ForceLLM && !cli.Recut && pipeline.IsEpisodeClean(it.AudioPath) {
+		if !cli.ForceTranscribe && !cli.ForceLLM && !cli.Recut && episode.IsEpisodeClean(it.AudioPath) {
 			fmt.Fprintf(progressFor(cli), "Episode already has ads removed: %s (removing from queue)\n", it.Filename)
-			if _, err := pipeline.RemoveQueuedAudio(it.PodcastDir, it.AudioPath); err != nil {
+			if _, err := episode.RemoveQueuedAudio(it.PodcastDir, it.AudioPath); err != nil {
 				return err
 			}
 			continue

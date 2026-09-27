@@ -13,6 +13,7 @@ import (
 	"pod/pkg/audio"
 	"pod/pkg/config"
 	"pod/pkg/detect"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/gemini"
 	"pod/pkg/progress"
@@ -20,18 +21,6 @@ import (
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
-
-func ResolveOutputFile(mainMP3File string, output string, totalFiles int) string {
-	if totalFiles > 1 && output != "" {
-		if info, err := os.Stat(output); err == nil && info.IsDir() {
-			return filepath.Join(output, filepath.Base(mainMP3File))
-		}
-	}
-	if output != "" {
-		return output
-	}
-	return mainMP3File
-}
 
 func HandleTranscribeMin(sourceAudioFile *string, totalDuration float64, transcribeMin string) (float64, error) {
 	val, err := strconv.ParseFloat(transcribeMin, 64)
@@ -81,7 +70,7 @@ func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName 
 
 	newDuration := res.CleanedSec
 	actualCut := res.CutSec
-	_ = UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
+	_ = episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateDone
 		if util.FileExists(precutFile) {
 			st.Original.Filename = filepath.Base(precutFile)

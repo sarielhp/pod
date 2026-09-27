@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"pod/pkg/audio"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/progress"
 	"pod/pkg/types"
@@ -60,7 +61,7 @@ func CutFile(req CutRequest, cfg types.Config, opts types.ProcOptions, rep progr
 		return res, fmt.Errorf("%s is a directory", req.Path)
 	}
 
-	mainMP3File, precutFile, sourceAudioFile := ResolveAudioFiles(req.Path, opts.Verbose)
+	mainMP3File, precutFile, sourceAudioFile := episode.ResolveAudioFiles(req.Path, opts.Verbose)
 	res.InputPath = mainMP3File
 	res.OriginalSec = audio.GetAudioDuration(sourceAudioFile)
 	if res.OriginalSec <= 0 {

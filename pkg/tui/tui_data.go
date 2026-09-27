@@ -9,7 +9,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 )
@@ -39,7 +39,7 @@ func loadTUIPodcasts(podcastsDir string) ([]tuiPodcast, error) {
 }
 
 func loadSingleTUIPodcast(podDir, name string) *tuiPodcast {
-	_ = pipeline.EnsureABSIgnore(podDir)
+	_ = episode.EnsureABSIgnore(podDir)
 	pod := tuiPodcast{
 		name:   name,
 		dir:    podDir,
@@ -187,12 +187,12 @@ func buildCachedEpisodeSummary(ep tuiEpisode, podDir string, podABSData *backend
 	}
 	dur := ep.duration
 	season := ep.season
-	episode := ep.episode
+	epNum := ep.episode
 	if ep.absData != nil {
 		if ep.absData.Title != "" {
 			title = ep.absData.Title
 		}
-		if pub := pipeline.ParseABSEpisodePublishedAt(ep.absData); pub > 0 {
+		if pub := episode.ParseABSEpisodePublishedAt(ep.absData); pub > 0 {
 			pubAt = pub
 		}
 		if ep.absData.Duration > 0 {
@@ -202,7 +202,7 @@ func buildCachedEpisodeSummary(ep tuiEpisode, podDir string, podABSData *backend
 			season = ep.absData.Season
 		}
 		if ep.absData.Episode != "" {
-			episode = ep.absData.Episode
+			epNum = ep.absData.Episode
 		}
 
 		det := podcast.CachedEpisodeDetails{
@@ -231,7 +231,7 @@ func buildCachedEpisodeSummary(ep tuiEpisode, podDir string, podABSData *backend
 			SizeBytes:   ep.fileSize,
 		},
 		Season:        season,
-		Episode:       episode,
+		Episode:       epNum,
 		HasAdsRemoved: ep.hasAdsRemoved,
 		HasTranscript: ep.hasTranscript,
 	}

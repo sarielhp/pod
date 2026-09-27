@@ -8,7 +8,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
 )
@@ -76,7 +76,7 @@ type tuiEpisode struct {
 
 func (e tuiEpisode) displayDate() time.Time {
 	if e.absData != nil {
-		if pub := pipeline.ParseABSEpisodePublishedAt(e.absData); pub > 0 {
+		if pub := episode.ParseABSEpisodePublishedAt(e.absData); pub > 0 {
 			return time.UnixMilli(pub)
 		}
 	}

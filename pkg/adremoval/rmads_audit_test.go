@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/types"
 )
 
@@ -34,7 +34,7 @@ func TestAuditRepairsAndQueuesDownloadedEpisodes(t *testing.T) {
 			if err := RunTranscriptAudit(cfg, nil, types.ProcOptions{DryRun: true, Quiet: true}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := os.Stat(pipeline.StatusPathFor(path)); !os.IsNotExist(err) {
+			if _, err := os.Stat(episode.StatusPathFor(path)); !os.IsNotExist(err) {
 				t.Fatal("dry run wrote status")
 			}
 			for i := 0; i < 2; i++ {
@@ -42,11 +42,11 @@ func TestAuditRepairsAndQueuesDownloadedEpisodes(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(path))
+			st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(path))
 			if err != nil || st.Status != types.StateNeedsAdR {
 				t.Fatalf("status = %+v, error = %v", st, err)
 			}
-			queue := pipeline.QueuedEpisodes(filepath.Join(root, "show"))
+			queue := episode.QueuedEpisodes(filepath.Join(root, "show"))
 			if len(queue) != 1 || queue[0] != filepath.Join("episode", "podcast.mp3") {
 				t.Fatalf("queue = %v", queue)
 			}
@@ -90,7 +90,7 @@ func TestAuditFailedDetectionQueuesAndPreservesTranscript(t *testing.T) {
 	if err := RunTranscriptAudit(types.Config{PodcastsDir: root}, nil, types.ProcOptions{Quiet: true}); err != nil {
 		t.Fatal(err)
 	}
-	if queue := pipeline.QueuedEpisodes(root); len(queue) != 1 {
+	if queue := episode.QueuedEpisodes(root); len(queue) != 1 {
 		t.Fatalf("queue = %v", queue)
 	}
 	after, err := os.ReadFile(transPath)
@@ -156,9 +156,9 @@ func TestInspectEpisodeTranscriptReportsCompletedEpisodeWithoutTranscript(t *tes
 	if err := os.WriteFile(audioPath, []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 	st.Status = types.StateDone
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(audioPath), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(audioPath), st); err != nil {
 		t.Fatal(err)
 	}
 
@@ -174,10 +174,10 @@ func TestInspectEpisodeTranscriptRejectsShortCompletedTranscript(t *testing.T) {
 	if err := os.WriteFile(audioPath, []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 	st.Status = types.StateDone
 	st.Original.DurationSec = 30
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(audioPath), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(audioPath), st); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(filepath.Dir(audioPath), "episode.transcript.json"), []byte(`{"text":"short"}`), 0644); err != nil {
@@ -196,24 +196,24 @@ func TestReportAndHealInvalidCleanStateResetsCleanState(t *testing.T) {
 	if err := os.WriteFile(audioPath, []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	st := pipeline.GetOrCreateEpisodeStatus(audioPath)
+	st := episode.GetOrCreateEpisodeStatus(audioPath)
 	st.Status = types.StateDone
 	st.Cleaned = types.EpisodeAudioMeta{DurationSec: 90, AdDurationSec: 30}
-	if err := pipeline.SaveEpisodeStatus(pipeline.StatusPathFor(audioPath), st); err != nil {
+	if err := episode.SaveEpisodeStatus(episode.StatusPathFor(audioPath), st); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := repairAuditedEpisode(&transcriptAuditItem{audioPath: audioPath, cleanStateMsg: "duration mismatch"}, types.Config{PodcastsDir: filepath.Dir(audioPath)}, false, nil); err != nil {
 		t.Fatal(err)
 	}
-	healed, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(audioPath))
+	healed, err := episode.LoadEpisodeStatus(episode.StatusPathFor(audioPath))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if healed.Status != types.StateNeedsAdR || healed.Cleaned.DurationSec != 0 {
 		t.Fatalf("healed status = %+v, want NeedAdR without clean metadata", healed)
 	}
-	queued := pipeline.QueuedEpisodes(filepath.Dir(audioPath))
+	queued := episode.QueuedEpisodes(filepath.Dir(audioPath))
 	if len(queued) != 1 || queued[0] != filepath.Base(audioPath) {
 		t.Fatalf("queued episodes = %v, want %s", queued, filepath.Base(audioPath))
 	}

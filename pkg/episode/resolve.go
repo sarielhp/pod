@@ -1,10 +1,25 @@
 package episode
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"pod/pkg/util"
 )
+
+// ResolveOutputFile calculates the destination file path for cutting/output.
+func ResolveOutputFile(mainMP3File string, output string, totalFiles int) string {
+	if totalFiles > 1 && output != "" {
+		if info, err := os.Stat(output); err == nil && info.IsDir() {
+			return filepath.Join(output, filepath.Base(mainMP3File))
+		}
+	}
+	if output != "" {
+		return output
+	}
+	return mainMP3File
+}
 
 // ResolveAudioFiles determines the main MP3 file path, precut backup file path,
 // and the source audio file to be read based on file existence.

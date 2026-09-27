@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"pod/pkg/backend"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 )
 
@@ -73,8 +73,8 @@ func enrichSinglePodcastABS(pod *tuiPodcast, b backend.Backend, itemSummary back
 	coverDest := filepath.Join(cDir, "cover.jpg")
 	_ = b.DownloadCover(fullItem.ID, coverDest)
 
-	quarantined := pipeline.QuarantineAbandonedDuplicates(pod.dir, fullItem.Media.Episodes)
-	pod.notice = pipeline.FormatQuarantinedSummary(quarantined, pod.name)
+	quarantined := episode.QuarantineAbandonedDuplicates(pod.dir, fullItem.Media.Episodes)
+	pod.notice = episode.FormatQuarantinedSummary(quarantined, pod.name)
 
 	episodeMap := buildABSEpisodeMap(fullItem.Media.Episodes)
 	matchAndEnrichEpisodes(pod.episodes, episodeMap)
@@ -93,18 +93,18 @@ func buildABSEpisodeMap(episodes []backend.Episode) map[string]*backend.Episode 
 		if ep.AudioFile != nil && ep.AudioFile.Metadata != nil {
 			if ep.AudioFile.Metadata.Filename != "" {
 				episodeMap[ep.AudioFile.Metadata.Filename] = ep
-				episodeMap[pipeline.NormalizeEpisodeTitle(ep.AudioFile.Metadata.Filename)] = ep
+				episodeMap[episode.NormalizeEpisodeTitle(ep.AudioFile.Metadata.Filename)] = ep
 			}
 			if ep.AudioFile.Metadata.RelPath != "" {
 				cleanRel := filepath.Base(ep.AudioFile.Metadata.RelPath)
 				episodeMap[cleanRel] = ep
-				episodeMap[pipeline.NormalizeEpisodeTitle(cleanRel)] = ep
+				episodeMap[episode.NormalizeEpisodeTitle(cleanRel)] = ep
 			}
 		}
 		if ep.Title != "" {
 			episodeMap[ep.Title] = ep
 			episodeMap[ep.Title+".mp3"] = ep
-			episodeMap[pipeline.NormalizeEpisodeTitle(ep.Title)] = ep
+			episodeMap[episode.NormalizeEpisodeTitle(ep.Title)] = ep
 		}
 	}
 	return episodeMap
@@ -118,7 +118,7 @@ func matchAndEnrichEpisodes(episodes []tuiEpisode, episodeMap map[string]*backen
 			matchedEp = absEp
 		} else if absEp, exists := episodeMap[strings.TrimSuffix(ep.filename, ".mp3")]; exists {
 			matchedEp = absEp
-		} else if absEp, exists := episodeMap[pipeline.NormalizeEpisodeTitle(ep.filename)]; exists {
+		} else if absEp, exists := episodeMap[episode.NormalizeEpisodeTitle(ep.filename)]; exists {
 			matchedEp = absEp
 		}
 		if matchedEp != nil {
@@ -126,7 +126,7 @@ func matchAndEnrichEpisodes(episodes []tuiEpisode, episodeMap map[string]*backen
 			if matchedEp.Title != "" {
 				ep.title = matchedEp.Title
 			}
-			if pub := pipeline.ParseABSEpisodePublishedAt(matchedEp); pub > 0 {
+			if pub := episode.ParseABSEpisodePublishedAt(matchedEp); pub > 0 {
 				ep.publishedAt = pub
 			}
 			if matchedEp.Duration > 0 {

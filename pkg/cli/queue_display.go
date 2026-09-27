@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"pod/pkg/audio"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"strings"
@@ -12,7 +12,7 @@ import (
 )
 
 func collectQueueDisplayItems(p podcast.PodcastDirEntry) ([]queueEpisodeItem, error) {
-	entries, err := pipeline.ReadQueue(p.Dir)
+	entries, err := episode.ReadQueue(p.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func collectQueueDisplayItems(p podcast.PodcastDirEntry) ([]queueEpisodeItem, er
 	items := make([]queueEpisodeItem, 0, len(entries))
 	for _, entry := range entries {
 		item := queueEpisodeItem{PodcastID: p.ShortID, PodcastDir: p.Dir, Filename: entry}
-		path, err := pipeline.ResolveQueueAudioPath(p.Dir, entry)
+		path, err := episode.ResolveQueueAudioPath(p.Dir, entry)
 		if err != nil {
 			item.Title = "Unresolved queue entry"
 			if strings.Contains(err.Error(), "ambiguous") {
@@ -71,7 +71,7 @@ func populateQueueEpisodeDetails(item *queueEpisodeItem, ep podcast.CachedEpisod
 			item.PublishedAt = date.UTC().Format(time.RFC3339)
 		}
 	}
-	if st, err := pipeline.LoadEpisodeStatus(pipeline.StatusPathFor(item.AudioPath)); err == nil && st != nil {
+	if st, err := episode.LoadEpisodeStatus(episode.StatusPathFor(item.AudioPath)); err == nil && st != nil {
 		if st.Original.DurationSec > 0 {
 			item.DurationSec = st.Original.DurationSec
 		}

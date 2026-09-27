@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 	"pod/pkg/util"
 	"strings"
@@ -66,7 +66,7 @@ func todayQueueCandidates(dir string, now time.Time, source map[string]time.Time
 	end := start.AddDate(0, 0, 1)
 	var candidates []string
 	for _, path := range util.FindMP3Files(dir) {
-		if !pipeline.IsQueueAudioPath(path) {
+		if !episode.IsQueueAudioPath(path) {
 			continue
 		}
 		published := cached[filepath.Clean(path)]
@@ -79,7 +79,7 @@ func todayQueueCandidates(dir string, now time.Time, source map[string]time.Time
 		} else if date, ok := podcast.SourcePublicationTime(path); ok {
 			published = date
 		}
-		if !published.IsZero() && !published.Before(start) && published.Before(end) && !pipeline.IsEpisodeClean(path) {
+		if !published.IsZero() && !published.Before(start) && published.Before(end) && !episode.IsEpisodeClean(path) {
 			candidates = append(candidates, podcast.QueueFilename(dir, path))
 		}
 	}
@@ -103,7 +103,7 @@ func handleQueueTodaySource(root string, cli CLIOptions, now time.Time, source m
 		if len(candidates) == 0 {
 			continue
 		}
-		err := pipeline.UpdateQueue(pod.Dir, func(entries []string) []string {
+		err := episode.UpdateQueue(pod.Dir, func(entries []string) []string {
 			existing := make(map[string]bool)
 			for _, entry := range entries {
 				existing[strings.ToLower(entry)] = true

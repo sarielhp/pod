@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"pod/pkg/pipeline"
+	"pod/pkg/episode"
 	"pod/pkg/podcast"
 )
 
@@ -22,7 +22,7 @@ func downloadQueueItemFor(podTitle, podDir, podID string, ep tuiEpisode) podcast
 			guid = ep.absData.ID
 		}
 		pubDate = ep.absData.PubDate
-		if at := pipeline.ParseABSEpisodePublishedAt(ep.absData); at > 0 {
+		if at := episode.ParseABSEpisodePublishedAt(ep.absData); at > 0 {
 			pubAt = at
 		}
 	}

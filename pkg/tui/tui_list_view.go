@@ -20,16 +20,26 @@ func (m *tuiModel) drawPodcastsList() string {
 	dividerWidth := max(0, m.width-4)
 	renderPodcastsListHeader(pods, dividerWidth, out)
 
-	maxVis := m.visibleLines(4)
+	if m.showPodcastDetailPane && m.width >= 65 && len(pods) > 0 {
+		maxVis := m.visibleLines(4)
+		start := m.podScroll
+		end := min(len(pods), start+maxVis)
+		renderPodcastsSplitView(m, pods, start, end, maxVis, out)
+		renderPodcastsListFooter(m, len(pods), maxVis, dividerWidth, out)
+		return out.String()
+	}
+
+	maxVis := m.podcastTableVisibleLines()
 	start := m.podScroll
 	end := min(len(pods), start+maxVis)
 
-	if m.width >= 65 && len(pods) > 0 {
-		renderPodcastsSplitView(m, pods, start, end, maxVis, out)
+	if m.width >= 50 && len(pods) > 0 {
+		renderPodcastsFullLineView(m, pods, start, end, dividerWidth, out)
 	} else {
 		renderPodcastsNarrowView(m, pods, start, end, out)
 	}
 
+	renderPodcastBottomPolicyAndSummary(m, pods, dividerWidth, out)
 	renderPodcastsListFooter(m, len(pods), maxVis, dividerWidth, out)
 	return out.String()
 }
@@ -278,8 +288,113 @@ func renderPodcastsNarrowView(m *tuiModel, pods []tuiPodcast, start, end int, ou
 	}
 }
 
+func renderPodcastsTableHeader(dividerWidth int, out *strings.Builder) {
+	fixedWidth := 68
+	titleW := max(10, dividerWidth-fixedWidth)
+
+	iconH := util.PadRight("Icon", 3)
+	idH := util.PadRight("ID", 12)
+	titleH := util.PadRight("Title", titleW)
+	epsH := util.PadRight("Episodes", 12)
+	polH := util.PadRight("Policy (DL•Ret•AdR)", 22)
+	latestH := util.PadRight("Latest", 10)
+
+	hdr := fmt.Sprintf("  %s %s %s %s %s %s", iconH, idH, titleH, epsH, polH, latestH)
+	out.WriteString(tuiDimStyle.Render("  "+truncate(hdr, max(0, dividerWidth-2))) + "\n")
+	out.WriteString(tuiDividerStyle.Render("  "+strings.Repeat("─", dividerWidth)) + "\n")
+}
+
+func renderPodcastsFullLineView(m *tuiModel, pods []tuiPodcast, start, end, dividerWidth int, out *strings.Builder) {
+	renderPodcastsTableHeader(dividerWidth, out)
+	fixedWidth := 68
+	titleW := max(10, dividerWidth-fixedWidth)
+
+	for i := start; i < end; i++ {
+		p := pods[i]
+		selMark := "  "
+		if i == m.podIdx {
+			selMark = "> "
+		}
+
+		icon := p.displayIcon()
+		iconStr := util.PadRight(icon, 3)
+
+		idStr := p.config.ID
+		if idStr == "" {
+			idStr = p.name
+		}
+		idStr = util.PadRight(truncate(idStr, 12), 12)
+
+		titleStr := util.PadRight(truncate(util.DisplayName(p.name), titleW-1), titleW)
+
+		doneCount := 0
+		for _, e := range p.episodes {
+			if e.hasAdsRemoved {
+				doneCount++
+			}
+		}
+		epsStr := util.PadRight(fmt.Sprintf("%d (%d ✓)", len(p.episodes), doneCount), 12)
+
+		polStr := util.PadRight(config.CompactPolicySummary(p.config), 22)
+
+		latestDate := ""
+		for _, e := range p.episodes {
+			d := e.displayDate()
+			if !d.IsZero() {
+				s := d.Format("2006-01-02")
+				if latestDate == "" || s > latestDate {
+					latestDate = s
+				}
+			}
+		}
+		latestStr := util.PadRight(latestDate, 10)
+
+		row := fmt.Sprintf("%s%s %s %s %s %s %s", selMark, iconStr, idStr, titleStr, epsStr, polStr, latestStr)
+		cleanRow := truncate(row, dividerWidth)
+		if i == m.podIdx {
+			pad := strings.Repeat(" ", max(0, dividerWidth-util.StringDisplayWidth(cleanRow)))
+			out.WriteString(tuiSelectedStyle.Render("  "+cleanRow+pad) + "\n")
+		} else {
+			out.WriteString("  " + cleanRow + "\n")
+		}
+	}
+}
+
+func renderPodcastBottomPolicyAndSummary(m *tuiModel, pods []tuiPodcast, dividerWidth int, out *strings.Builder) {
+	if len(pods) == 0 || m.podIdx >= len(pods) {
+		return
+	}
+	selPod := pods[m.podIdx]
+
+	out.WriteString(tuiDividerStyle.Render("  "+strings.Repeat("─", dividerWidth)) + "\n")
+
+	policyLine := config.DetailedPolicySummary(selPod.config)
+	out.WriteString("  " + tuiBadgePolicy.Render(truncate(policyLine, dividerWidth)) + "\n")
+
+	if sum := selPod.displaySummary(); sum != "" {
+		clean := strings.TrimSpace(sum)
+		lines := wrapText("Summary: "+clean, dividerWidth-2)
+		for idx, l := range lines {
+			if idx >= 3 {
+				break
+			}
+			if idx == 0 {
+				prefix := "Summary: "
+				rest := strings.TrimPrefix(l, prefix)
+				out.WriteString("  " + tuiSectionTitle.Render(prefix) + tuiDimStyle.Render(rest) + "\n")
+			} else {
+				out.WriteString("  " + tuiDimStyle.Render(l) + "\n")
+			}
+		}
+	} else if m.summarizing {
+		out.WriteString("  " + tuiSectionTitle.Render("Summary: ") + tuiDimStyle.Render("[Generating AI summaries in background...]") + "\n")
+	} else {
+		out.WriteString("  " + tuiSectionTitle.Render("Summary: ") + tuiDimStyle.Render("[No AI summary yet. Press 's' to generate summaries in batch]") + "\n")
+	}
+}
+
 func renderPodcastsListFooter(m *tuiModel, totalPods, maxVis, dividerWidth int, out *strings.Builder) {
-	helpText := "↑↓ navigate │ Enter select │ F fetch-feed │ D dl-all │ L latest │ c ad-policy │ d policy │ x prune │ ? help"
+	helpText := "↑↓ navigate │ Enter select │ s ai-summary │ c ad-policy │ d dl/keep │ F fetch │ Tab split │ ? help"
 	if m.searchMode {
 		helpText = fmt.Sprintf("Search: %s█  (Enter: Apply, Esc: Cancel)", m.searchQuery)
 	} else if totalPods > maxVis {

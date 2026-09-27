@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 
 	"pod/pkg/audio"
 	"pod/pkg/backend"
+	"pod/pkg/config"
+	"pod/pkg/detect"
 	"pod/pkg/kitty"
 	"pod/pkg/podcast"
 	"pod/pkg/types"
@@ -88,6 +91,8 @@ type tuiModel struct {
 	policyAdRemoval         string
 	selectedEpisodes        map[string]bool
 	showEpisodePlayerPane   bool
+	showPodcastDetailPane   bool
+	summarizing             bool
 }
 
 type playerTickMsg time.Time
@@ -102,6 +107,11 @@ type loadedPodcastsMsg struct {
 	podcasts []tuiPodcast
 	queue    map[string][]string
 	err      string
+}
+
+type podcastSummariesMsg struct {
+	results map[string]detect.PodcastSummaryOutput
+	err     string
 }
 
 type episodeDurationMsg struct {
@@ -171,6 +181,10 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case podcastSummariesMsg:
+		m.handlePodcastSummariesMsg(msg)
+		return m, nil
+
 	case playerTickMsg:
 		globalPlayer.UpdatePosition()
 		return m, playerTickCmd()
@@ -186,6 +200,70 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+func (m *tuiModel) handlePodcastSummariesMsg(msg podcastSummariesMsg) {
+	m.summarizing = false
+	if msg.err != "" {
+		m.showToast("Summary error: "+msg.err, ToastWarning)
+		return
+	}
+	updated := 0
+	for i := range m.podcasts {
+		p := &m.podcasts[i]
+		key := p.name
+		res, ok := msg.results[key]
+		if !ok && p.config.ID != "" {
+			res, ok = msg.results[p.config.ID]
+		}
+		if ok {
+			if res.Summary != "" {
+				p.config.Summary = res.Summary
+			}
+			if res.Icon != "" {
+				p.config.Icon = res.Icon
+			}
+			_ = config.SavePodcastConfig(p.dir, p.config)
+			updated++
+		}
+	}
+	m.showToast(fmt.Sprintf("AI summaries generated for %d podcasts", updated), ToastSuccess)
+}
+
+func (m *tuiModel) cmdGenerateSummaries(pods []tuiPodcast) tea.Cmd {
+	cfg := m.cfg
+	return func() tea.Msg {
+		profile, err := config.SelectLLMProfile(cfg, "")
+		if err != nil {
+			return podcastSummariesMsg{err: err.Error()}
+		}
+		var inputs []detect.PodcastSummaryInput
+		for _, p := range pods {
+			id := p.config.ID
+			if id == "" {
+				id = p.name
+			}
+			inputs = append(inputs, detect.PodcastSummaryInput{
+				ID:          id,
+				Title:       p.name,
+				Author:      p.displayAuthor(),
+				Description: p.displayDescription(),
+			})
+		}
+		results, err := detect.BatchSummarizePodcasts(context.Background(), profile, inputs)
+		if err != nil {
+			return podcastSummariesMsg{err: err.Error()}
+		}
+		return podcastSummariesMsg{results: results}
+	}
+}
+
+func (m *tuiModel) podcastTableVisibleLines() int {
+	overhead := 11
+	if globalPlayer.View().Has {
+		overhead += 2
+	}
+	return max(3, m.height-overhead)
 }
 
 func (m *tuiModel) visibleLines(headerLines int) int {

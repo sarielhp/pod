@@ -10,6 +10,9 @@ import (
 )
 
 func (m *tuiModel) handleKeyPart2(s string) (tea.Model, tea.Cmd) {
+	if m.screen == screenPodcasts && (s == "s" || s == "S") {
+		return m.handleBatchSummarizeKey()
+	}
 	if handlePlayerControlKey(m, s) {
 		return m, nil
 	}
@@ -17,6 +20,26 @@ func (m *tuiModel) handleKeyPart2(s string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return handleNavigationAndSearchKey(m, s)
+}
+
+func (m *tuiModel) handleBatchSummarizeKey() (tea.Model, tea.Cmd) {
+	if m.summarizing {
+		m.showPopup("AI summarization already running in background")
+		return m, nil
+	}
+	var missing []tuiPodcast
+	for _, p := range m.podcasts {
+		if p.config.Summary == "" || p.config.Icon == "" {
+			missing = append(missing, p)
+		}
+	}
+	if len(missing) == 0 {
+		m.showPopup("All podcasts already have AI summaries")
+		return m, nil
+	}
+	m.summarizing = true
+	m.showPopup(fmt.Sprintf("Generating AI summaries for %d podcast(s)...", len(missing)))
+	return m, m.cmdGenerateSummaries(missing)
 }
 
 func handlePlayerControlKey(m *tuiModel, s string) bool {
@@ -165,8 +188,26 @@ func handleNavigationAndSearchKey(m *tuiModel, s string) (tea.Model, tea.Cmd) {
 		m.handleEscape()
 	case "r", "R":
 		m.handleQueueToggle()
+	case "tab":
+		if m.screen == screenPodcasts {
+			m.showPodcastDetailPane = !m.showPodcastDetailPane
+			if m.showPodcastDetailPane {
+				m.showPopup("Split view with podcast details")
+			} else {
+				m.showPopup("Full-width podcast table")
+			}
+		}
 	case "i", "I":
-		m.showCover = !m.showCover
+		if m.screen == screenPodcasts {
+			m.showPodcastDetailPane = !m.showPodcastDetailPane
+			if m.showPodcastDetailPane {
+				m.showPopup("Split view with podcast details")
+			} else {
+				m.showPopup("Full-width podcast table")
+			}
+		} else {
+			m.showCover = !m.showCover
+		}
 	case "b", "B":
 		m.showHelp = !m.showHelp
 	case "/":

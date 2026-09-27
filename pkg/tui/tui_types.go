@@ -54,6 +54,17 @@ func (p tuiPodcast) displayDescription() string {
 	return p.description
 }
 
+func (p tuiPodcast) displayIcon() string {
+	if p.config.Icon != "" {
+		return p.config.Icon
+	}
+	return "🎙️"
+}
+
+func (p tuiPodcast) displaySummary() string {
+	return p.config.Summary
+}
+
 type tuiEpisode struct {
 	filename      string
 	path          string

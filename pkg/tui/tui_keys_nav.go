@@ -29,7 +29,10 @@ func (m *tuiModel) handleDown() {
 		pods := m.filteredPodcasts()
 		if m.podIdx < len(pods)-1 {
 			m.podIdx++
-			maxVis := m.visibleLines(4)
+			maxVis := m.podcastTableVisibleLines()
+			if m.showPodcastDetailPane {
+				maxVis = m.visibleLines(4)
+			}
 			if m.podIdx >= m.podScroll+maxVis {
 				m.podScroll = m.podIdx - maxVis + 1
 			}

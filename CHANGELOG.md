@@ -5,6 +5,18 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.12] - 2026-09-27
+
+### Added
+- **Full-Line Podcast View in TUI**: By default, `pod tui` root screen now presents podcasts in a full-line table across the entire terminal width, displaying Icon, ID, Title, Episodes count with ad-free badge, Policy indicators, and Latest episode publication date.
+- **Policy Column with Emojis**: Added a dedicated Policy column in the table rendering compact emojis and badges for auto-download policy (`📥New`, `📥All`, `📥TopK`, `📥Off`), retention / auto-cleanup policy (`🗓️30d`, `⭐180d`, `⏱️1d`, `♾️Keep`), and ad removal policy (`✂️All`, `⚡New`, `🚫Off`).
+- **Bottom Policy Status Bar**: Detailed status line below the table describing the selected podcast's exact auto-download, retention, and ad removal policies (`Policy: 📥 Download: ... │ 🗓️ Retention: ... │ ✂️ Ad Removal: ...`).
+- **AI Batch Summaries & Icon Generator**:
+  - Pressing `s` on the root podcasts screen scans all podcasts missing summaries or icons, generates concise 2-3 sentence summaries and 1-character/emoji icons using the configured LLM profile in efficient batches, and permanently caches them in each podcast's `podcast.json`.
+  - Displayed in the bottom drawer below the policy status bar for the selected podcast.
+  - Supports user-defined or AI-generated emoji icons per podcast (`"icon": "..."`).
+- **Sidebar Detail Pane Toggle**: Pressing `Tab` or `i` toggles between the full-width podcast table and the split detail view with cover art.
+
 ## [0.5.10] - 2026-09-26
 
 ### Fixed

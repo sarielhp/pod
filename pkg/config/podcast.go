@@ -33,6 +33,8 @@ const (
 
 type PodcastConfig struct {
 	ID              string                      `json:"id,omitempty"`
+	Icon            string                      `json:"icon,omitempty"`
+	Summary         string                      `json:"summary,omitempty"`
 	Priority        int                         `json:"priority"`
 	Favorite        bool                        `json:"favorite,omitempty"`
 	FavoriteSince   *time.Time                  `json:"favorite_since,omitempty"`
@@ -435,6 +437,81 @@ func KeepPolicyBadge(policy string, days int) string {
 		}
 		return "[Keep: Always]"
 	}
+}
+
+func DownloadPolicyEmojiBadge(policy string, k int, enabled bool) string {
+	if !enabled {
+		return "📥Off"
+	}
+	switch NormalizeDownloadPolicy(policy) {
+	case DownloadPolicyLatest:
+		return "📥New"
+	case DownloadPolicyLatestK:
+		if k <= 0 {
+			k = 3
+		}
+		return fmt.Sprintf("📥Top%d", k)
+	case DownloadPolicyNew:
+		return "📥New"
+	case DownloadPolicyAll:
+		return "📥All"
+	default:
+		return "📥Off"
+	}
+}
+
+func KeepPolicyEmojiBadge(policy string, days int, enabled bool) string {
+	if !enabled || NormalizeKeepPolicy(policy) == KeepPolicyAlways {
+		return "♾️Keep"
+	}
+	switch NormalizeKeepPolicy(policy) {
+	case KeepPolicyMonth:
+		return "🗓️30d"
+	case KeepPolicyFavorite:
+		return "⭐180d"
+	case KeepPolicyHourly:
+		return "⏱️1d"
+	default:
+		if days > 0 {
+			return fmt.Sprintf("🗓️%dd", days)
+		}
+		if n, ok := ParseKeepPolicyDays(policy); ok && n > 0 {
+			return fmt.Sprintf("🗓️%dd", n)
+		}
+		return "♾️Keep"
+	}
+}
+
+func AdRemovalEmojiBadge(mode string) string {
+	switch NormalizeAdRemovalMode(mode) {
+	case AdRemovalAll:
+		return "✂️All"
+	case AdRemovalLatest:
+		return "⚡New"
+	default:
+		return "🚫Off"
+	}
+}
+
+func CompactPolicySummary(cfg PodcastConfig) string {
+	autoDl := cfg.IsAutoDownloadEnabled()
+	autoCl := true
+	if cfg.AutoCleanup != nil && !*cfg.AutoCleanup {
+		autoCl = false
+	} else if cfg.EffectiveKeepPolicy() == KeepPolicyAlways {
+		autoCl = false
+	}
+	dl := DownloadPolicyEmojiBadge(cfg.DownloadPolicy, cfg.DownloadK, autoDl)
+	ret := KeepPolicyEmojiBadge(cfg.EffectiveKeepPolicy(), cfg.EffectiveCleanupDays(), autoCl)
+	adr := AdRemovalEmojiBadge(cfg.AdRemoval)
+	return fmt.Sprintf("%s  %s  %s", dl, ret, adr)
+}
+
+func DetailedPolicySummary(cfg PodcastConfig) string {
+	dl := DownloadPolicyLabel(cfg.DownloadPolicy, cfg.DownloadK)
+	ret := KeepPolicyLabel(cfg.EffectiveKeepPolicy(), cfg.EffectiveCleanupDays())
+	adr := AdRemovalModeLabel(cfg.AdRemoval)
+	return fmt.Sprintf("Policy: 📥 Download: %s │ 🗓️ Retention: %s │ ✂️ Ad Removal: %s", dl, ret, adr)
 }
 
 func LoadPodcastConfig(dir string, def PodcastConfig) PodcastConfig {

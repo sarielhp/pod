@@ -173,7 +173,7 @@ func reportDownloadPlans(plans []podcast.DownloadPlan, elapsed time.Duration, cl
 		}
 	}
 	if unknown > 0 {
-		fmt.Fprintf(outFor(cli), "%d episode(s) cannot be requested until the server indexes them; run 'pod server feeds update'.\n", unknown)
+		fmt.Fprintf(outFor(cli), "%d episode(s) cannot be requested until the server indexes them; run 'pod server feeds'.\n", unknown)
 	}
 }
 

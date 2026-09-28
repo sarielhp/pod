@@ -123,14 +123,11 @@ func buildServerFeedsSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	return clihelp.Command{
 		Name:        "feeds",
 		Description: "Check podcast feeds directly for newly published episodes",
-		UsageLine:   "pod server feeds [command] [options] [podcast-id]",
-		Subcommands: []clihelp.Command{
-			buildServerFeedsUpdateSubcommand(opts, action),
-		},
+		UsageLine:   "pod server feeds [options] [podcast-id]",
 		Parameters: []clihelp.Param{
 			{Name: "[podcast-id]", Description: "Optional podcast identifier"},
 		},
-		Args: clihelp.MaximumNArgs(2),
+		Args: clihelp.MaximumNArgs(1),
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Specify podcast by name, index, or ID"),
 			clihelp.Bool(&opts.Refresh, "-F, --force", false, "Ignore cached feed validators and re-read every feed"),
@@ -144,52 +141,17 @@ func buildServerFeedsSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 				Description: "Check all feeds for new episodes, waking the server only for those that changed",
 			},
 			{
-				Line:        "pod server feeds update -v",
+				Line:        "pod server feeds -v",
 				Description: "Scan all podcast feeds and report the verdict for each one",
 			},
 			{
-				Line:        "pod server feeds update -p 'Huberman Lab'",
+				Line:        "pod server feeds -p 'Huberman Lab'",
 				Description: "Check the feed for a specific podcast",
 			},
 			{
-				Line:        "pod server feeds update --force -j 24",
+				Line:        "pod server feeds --force -j 24",
 				Description: "Re-read every feed, ignoring cached validators, 24 at a time",
 			},
-		},
-		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
-			opts.ServerSubcmd = "feeds"
-			opts.SyncSubcmd = "feeds"
-			opts.Args = ctx.Args
-			if len(ctx.Args) > 0 {
-				if ctx.Args[0] == "update" {
-					if len(ctx.Args) > 1 && opts.Podcast == "" {
-						opts.Podcast = ctx.Args[1]
-					}
-				} else if opts.Podcast == "" {
-					opts.Podcast = ctx.Args[0]
-				}
-			}
-			return nil
-		},
-	}
-}
-
-func buildServerFeedsUpdateSubcommand(opts *CLIOptions, action *string) clihelp.Command {
-	return clihelp.Command{
-		Name:        "update",
-		Description: "Check podcast feeds directly for newly published episodes",
-		UsageLine:   "pod server feeds update [options] [podcast-id]",
-		Parameters: []clihelp.Param{
-			{Name: "[podcast-id]", Description: "Optional podcast identifier"},
-		},
-		Args: clihelp.MaximumNArgs(1),
-		Options: []clihelp.Option{
-			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Specify podcast by name, index, or ID"),
-			clihelp.Bool(&opts.Refresh, "-F, --force", false, "Ignore cached feed validators and re-read every feed"),
-			clihelp.Int(&opts.FeedJobs, "-j, --jobs <number>", 0, "Feeds to fetch concurrently (default 16)"),
-			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
-			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug output"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "server"

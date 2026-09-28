@@ -54,14 +54,29 @@ func migratePodcastsManagerConfig(w io.Writer, cfg *Config) bool {
 		modified = true
 	}
 	if len(cfg.PostProcessors) == 0 && len(pmCfg.PostProcessors) > 0 {
-		cfg.PostProcessors = pmCfg.PostProcessors
-		modified = true
+		if valid := resolvedPostProcessors(w, pmCfg.PostProcessors); len(valid) > 0 {
+			cfg.PostProcessors = valid
+			modified = true
+		}
 	}
 
 	if modified {
 		fmt.Fprintf(w, "Migrated settings from podcast_manager config '%s'\n", pmConfigPath)
 	}
 	return modified
+}
+
+func resolvedPostProcessors(w io.Writer, progs []string) []string {
+	var out []string
+	for _, prog := range progs {
+		fullPath, err := resolveProcessorPath(prog)
+		if err != nil {
+			fmt.Fprintf(w, "Warning: skipping post-processor '%s': %v\n", prog, err)
+			continue
+		}
+		out = append(out, fullPath)
+	}
+	return out
 }
 
 func handleConfigMigrate(w io.Writer, cfg *Config, source string) error {

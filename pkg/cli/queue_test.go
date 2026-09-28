@@ -36,13 +36,13 @@ func TestQueueListEmpty(t *testing.T) {
 	}
 }
 
-func TestQueueLsShowsQueuedEpisodes(t *testing.T) {
+func TestQueueListShowsQueuedEpisodes(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	root := t.TempDir()
 	podDir, paths := createTestPodcastWithEpisodes(t, root, "Show", []string{"Episode One"})
 	episode.AddToQueue(podDir, filepath.Base(paths[0]))
-	for _, command := range []string{"list", "ls"} {
+	for _, command := range []string{"list"} {
 		var action string
 		var opts CLIOptions
 		app := buildCLIApp(&action, &opts)

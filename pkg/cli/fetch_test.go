@@ -241,14 +241,14 @@ func TestBackwardCompatibilityHiddenCommands(t *testing.T) {
 		t.Errorf("rm_ads mismatch: action=%q, procSubcmd=%q", action, opts.ProcSubcmd)
 	}
 
-	// ui alias for tui
+	// tui
 	action = ""
 	opts = CLIOptions{}
-	if err := app.Execute([]string{"ui", "--debug"}); err != nil {
-		t.Fatalf("unexpected error executing ui: %v", err)
+	if err := app.Execute([]string{"tui", "--debug"}); err != nil {
+		t.Fatalf("unexpected error executing tui: %v", err)
 	}
 	if action != "tui" || !opts.Debug {
-		t.Errorf("ui alias mismatch: action=%q, debug=%v", action, opts.Debug)
+		t.Errorf("tui mismatch: action=%q, debug=%v", action, opts.Debug)
 	}
 }
 

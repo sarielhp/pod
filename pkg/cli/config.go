@@ -43,7 +43,7 @@ func buildConfigBasicSubcommands(opts *CLIOptions, action *string) []clihelp.Com
 			Description: "Get the value of a configuration key",
 			UsageLine:   "pod config get <key>",
 			Parameters: []clihelp.Param{
-				{Name: "<key>", Description: "Configuration key name (e.g., 'podcasts-dir', 'rffmpeg', 'abs-url')"},
+				{Name: "<key>", Description: "Configuration key name (e.g., 'podcasts-dir', 'whisper-url', 'gemini-model')"},
 			},
 			Args: clihelp.ExactArgs(1),
 			Run: func(ctx *clihelp.Context) error {

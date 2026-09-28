@@ -71,7 +71,7 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
                                                           |    Clients / Players  |
                                                           |  - AntennaPod (Mobile)|
                                                           |  - Web Browser Player |
-                                                          |  - abs TUI & CLI      |
+                                                          |  - pod TUI & CLI      |
                                                           +-----------------------+
 ```
 
@@ -89,19 +89,19 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
   - `download_policy`: Retention and download strategy (`latest`, `all`, `none`, etc.)
   - `download_k`: Number of episodes to maintain
 - **CLI Commands**:
-  - `abs server add <feed-url> [title]`: Subscribe to a new podcast.
-  - `abs server remove <id-or-title>`: Remove a subscription.
-  - `abs server list`: List all active subscriptions with local episode counts.
+  - `pod server add <feed-url> [title]`: Subscribe to a new podcast.
+  - `pod server remove <id-or-title>`: Remove a subscription.
+  - `pod server list`: List all active subscriptions with local episode counts.
   - `pod server import [file.opml]`: Import feeds from OPML or PodFetch database.
 
 ### 2. Native Feed Checker & Downloader (`pkg/podcast/`)
 - **Feed Checking (`pkg/podcast/feed_check.go`)**:
-  - `abs server feeds`: Fetches upstream RSS feeds directly and concurrently using conditional HTTP GET (`ETag` and `If-Modified-Since` headers stored in `feed_cache.json`).
+  - `pod server feeds`: Fetches upstream RSS feeds directly and concurrently using conditional HTTP GET (`ETag` and `If-Modified-Since` headers stored in `feed_cache.json`).
   - Reports newly published episodes without requiring external servers.
 - **Episode Downloader (`pkg/podcast/downloader.go`)**:
-  - `abs server download`: Evaluates download policies, detects missing episodes, and downloads audio directly via HTTP with resume support.
+  - `pod server download`: Evaluates download policies, detects missing episodes, and downloads audio directly via HTTP with resume support.
 
-### 3. Static Webpage & RSS Generator (`pkg/podcast/webpage_generator.go`, `feed_generator.go`)
+### 3. Static Webpage & RSS Generator (`pkg/podsite/`, `pkg/podcast/publish.go`)
 - **RSS Feeds (`feed.xml`)**:
   - Fully compliant with Apple Podcasts / iTunes RSS specifications.
   - Uses local duration and exact byte counts.
@@ -111,11 +111,11 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
   - The root `podcasts_dir` contains a catalog `index.html` listing all shows, episode counts, artwork, and feed links.
   - Styled with clean CSS supporting system light/dark mode without external dependencies.
 - **Command**:
-  - `abs server feed [podcast]`: Regenerates `feed.xml` and `index.html` for specific shows or the entire catalog.
+  - `pod gen_rss [podcast] [N]`: Regenerates `feed.xml` and `index.html` for specific shows or the entire catalog.
 
 ### 4. Ad Removal Engine (`pkg/adremoval/`, `pkg/detect/`, `pkg/pipeline/`)
 - **Queue**:
-  - `abs queue run`: Processes pending audio files in the queue.
+  - `pod queue run`: Processes pending audio files in the queue.
 - **Transcription**:
   - Local `whisper.cpp` container/daemon or direct Gemini Flash 2.5 audio API.
 - **Ad Detection**:
@@ -126,7 +126,7 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
 
 ### 5. Playback Daemon & TUI (`pkg/player/`, `pkg/tui/`)
 - Headless background playback daemon with MPRIS D-Bus support.
-- Full-featured interactive terminal UI (`abs tui`) across 19 views.
+- Full-featured interactive terminal UI (`pod tui`) across 19 views.
 
 ---
 

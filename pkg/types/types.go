@@ -308,6 +308,9 @@ type CLIOptions struct {
 	// test unable to run in parallel with any other.
 	Out io.Writer
 	Err io.Writer
+
+	// In is where a command reads confirmations from; nil means stdin.
+	In io.Reader
 }
 
 type WhisperConfig struct {

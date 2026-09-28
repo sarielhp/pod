@@ -27,8 +27,13 @@ func TestFindMP3Files(t *testing.T) {
 	os.Symlink(extDir, d+"/ext_link")
 
 	files := util.FindMP3Files(d)
-	if len(files) != 4 {
-		t.Errorf("got %d files, want 4 (%v)", len(files), files)
+	if len(files) != 3 {
+		t.Errorf("got %d files, want 3: a symlink to an already-listed file must not list it again (%v)", len(files), files)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "link_a.mp3") {
+			t.Errorf("the symlink alias of a.mp3 was listed as its own file: %v", files)
+		}
 	}
 }
 

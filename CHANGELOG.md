@@ -5,6 +5,20 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Fixed
+- **Episodes were listed and processed twice when a show is reachable through
+  a symlink.** With a symlinked podcasts directory, or the alias symlinks pod
+  leaves beside a renamed show, the MP3 walker visited the same directory once
+  through the link and once directly, so `pod info latest` showed every such
+  episode twice (under two podcast IDs) and `pod rm_ads <dir>` visited each
+  file twice. Files are now deduplicated by resolved path, and the real
+  directory's path is the one reported. A test that had required the duplicate
+  was corrected.
+- `pod server prune` and `pod server prune --dry-run` now print a summary line
+  when no podcast has anything to prune, instead of nothing at all.
+
 ## [0.5.14] - 2026-09-27
 
 ### Fixed

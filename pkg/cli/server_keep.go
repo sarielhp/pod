@@ -101,6 +101,7 @@ func prunePodcastsByKeepPolicy(cfg Config, cli CLIOptions, b backend.Backend, po
 			}
 		}
 	}
+	reported := 0
 	for _, item := range podcasts {
 		title := item.Media.Metadata.Title
 		if title == "" {
@@ -121,17 +122,20 @@ func prunePodcastsByKeepPolicy(cfg Config, cli CLIOptions, b backend.Backend, po
 		if cli.Quiet {
 			continue
 		}
-		if cli.DryRun {
-			if res.DeletedEpisodes > 0 || cli.Verbose {
-				fmt.Fprintf(outFor(cli), "[dry-run] %s: would prune %d episode(s) (%s; %d transcript(s) preserved; policy: %s)\n",
-					title, res.DeletedEpisodes, formatDiskSize(res.FreedBytes), res.PreservedTranscripts, res.Policy)
-			}
-		} else {
-			if res.DeletedEpisodes > 0 || cli.Verbose {
-				fmt.Fprintf(outFor(cli), "✓ %s: pruned %d episode(s) (%s freed; %d transcript(s) preserved; policy: %s)\n",
-					title, res.DeletedEpisodes, formatDiskSize(res.FreedBytes), res.PreservedTranscripts, res.Policy)
-			}
+		if res.DeletedEpisodes == 0 && !cli.Verbose {
+			continue
 		}
+		reported++
+		if cli.DryRun {
+			fmt.Fprintf(outFor(cli), "[dry-run] %s: would prune %d episode(s) (%s; %d transcript(s) preserved; policy: %s)\n",
+				title, res.DeletedEpisodes, formatDiskSize(res.FreedBytes), res.PreservedTranscripts, res.Policy)
+			continue
+		}
+		fmt.Fprintf(outFor(cli), "✓ %s: pruned %d episode(s) (%s freed; %d transcript(s) preserved; policy: %s)\n",
+			title, res.DeletedEpisodes, formatDiskSize(res.FreedBytes), res.PreservedTranscripts, res.Policy)
+	}
+	if reported == 0 && !cli.Quiet {
+		fmt.Fprintf(outFor(cli), "Checked %d podcast(s); nothing to prune under their keep policies.\n", len(podcasts))
 	}
 	return nil
 }

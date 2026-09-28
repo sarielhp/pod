@@ -21,63 +21,72 @@ func FindMP3Files(dir string) []string {
 }
 
 func FindMP3FilesErr(dir string) ([]string, error) {
-	realPath, err := filepath.EvalSymlinks(dir)
-	if err != nil {
-		realPath = dir
-	}
-	visited := map[string]bool{realPath: true, dir: true}
+	visited := map[string]bool{canonicalPath(dir): true}
 	return findMP3FilesHelper(dir, visited)
 }
 
+// canonicalPath is the identity a directory or file is deduplicated by. A
+// library reached through a symlink, or a show with alias symlinks beside its
+// real directory, must yield each file once, and the resolved path is the only
+// name both routes share.
+func canonicalPath(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return filepath.Clean(path)
+}
+
+// findMP3FilesHelper walks dir, returning paths under dir as the caller named
+// it. Real entries are taken before symlinked ones so that, when a show is
+// reachable both ways, the path reported is the real directory's and matches
+// what the podcast index was built from.
 func findMP3FilesHelper(dir string, visited map[string]bool) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-
 	var files []string
+	var links []os.DirEntry
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == ".work" || strings.HasPrefix(name, ".") {
-			continue
-		}
-		fullPath := filepath.Join(dir, name)
-		if entry.IsDir() {
-			if visited[fullPath] {
-				continue
-			}
-			visited[fullPath] = true
-			subFiles, subErr := findMP3FilesHelper(fullPath, visited)
-			if subErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: cannot read subdirectory %s: %v\n", fullPath, subErr)
-			}
-			files = append(files, subFiles...)
+		if strings.HasPrefix(name, ".") {
 			continue
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
-			target, err := filepath.EvalSymlinks(fullPath)
-			if err != nil || visited[target] {
-				continue
-			}
-			fi, err := os.Stat(target)
-			if err != nil {
-				continue
-			}
-			if fi.IsDir() {
-				visited[target] = true
-				subFiles, subErr := findMP3FilesHelper(target, visited)
-				if subErr != nil {
-					fmt.Fprintf(os.Stderr, "Warning: cannot read subdirectory %s: %v\n", fullPath, subErr)
-				}
-				files = append(files, subFiles...)
-				continue
-			}
+			links = append(links, entry)
+			continue
 		}
-		if strings.HasSuffix(strings.ToLower(name), ".mp3") {
-			files = append(files, fullPath)
+		files = append(files, collectMP3Entry(dir, entry.Name(), entry.IsDir(), visited)...)
+	}
+	for _, entry := range links {
+		fi, err := os.Stat(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			continue
 		}
+		files = append(files, collectMP3Entry(dir, entry.Name(), fi.IsDir(), visited)...)
 	}
 	return files, nil
+}
+
+func collectMP3Entry(dir, name string, isDir bool, visited map[string]bool) []string {
+	fullPath := filepath.Join(dir, name)
+	key := canonicalPath(fullPath)
+	if visited[key] {
+		return nil
+	}
+	if isDir {
+		visited[key] = true
+		subFiles, err := findMP3FilesHelper(fullPath, visited)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: cannot read subdirectory %s: %v\n", fullPath, err)
+		}
+		return subFiles
+	}
+	if !strings.HasSuffix(strings.ToLower(name), ".mp3") {
+		return nil
+	}
+	visited[key] = true
+	return []string{fullPath}
 }
 
 var RenameFn = os.Rename

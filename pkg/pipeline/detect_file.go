@@ -120,7 +120,11 @@ func DetectFile(req DetectRequest, cfg types.Config, opts types.ProcOptions, rep
 	res.Segments = segments
 
 	if req.WriteCuts {
-		res.CutsPath = format.SaveCutsJSON(path, res.Duration, segments, &profile, opts.Quiet).CutsFile
+		saved := format.SaveCutsJSON(path, res.Duration, segments, &profile, opts.Quiet)
+		res.CutsPath = saved.CutsFile
+		if saved.Err != nil {
+			return res, saved.Err
+		}
 	}
 	return res, nil
 }

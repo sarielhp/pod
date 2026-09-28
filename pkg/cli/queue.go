@@ -101,7 +101,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 		return nil
 	case "audit":
 		cli.ProcSubcmd = "audit"
-		return adremoval.RunTranscriptAudit(cfg, args, cli.ProcOptions)
+		return adremoval.RunTranscriptAudit(cfg, args, cli.ProcOptions, reporter(cli))
 	default:
 		return fmt.Errorf("unknown queue action %q (use list, add, today, latest, remove, clear, run, recut, export, or audit)", subcmd)
 	}

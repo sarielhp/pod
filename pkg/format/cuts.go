@@ -125,24 +125,10 @@ func SaveCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdS
 
 	data, err := json.MarshalIndent(cutsData, "", "  ")
 	if err != nil {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "Error: could not serialize cuts metadata: %v\n", err)
-		}
-		return types.CutsResult{
-			CutsFile:     cutsFile,
-			KeepSegments: keep,
-			Changed:      false,
-		}
+		return failedCutsResult(cutsFile, keep, fmt.Errorf("serialize cuts metadata %s: %w", cutsFile, err), quiet)
 	}
 	if err := util.WriteFileAtomic(cutsFile, append(data, '\n'), 0644); err != nil {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "Error: could not write cuts metadata: %v\n", err)
-		}
-		return types.CutsResult{
-			CutsFile:     cutsFile,
-			KeepSegments: keep,
-			Changed:      false,
-		}
+		return failedCutsResult(cutsFile, keep, fmt.Errorf("write cuts metadata %s: %w", cutsFile, err), quiet)
 	}
 
 	if !quiet {
@@ -154,4 +140,11 @@ func SaveCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdS
 		KeepSegments: keep,
 		Changed:      true,
 	}
+}
+
+func failedCutsResult(cutsFile string, keep [][2]float64, err error, quiet bool) types.CutsResult {
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+	return types.CutsResult{CutsFile: cutsFile, KeepSegments: keep, Err: err}
 }

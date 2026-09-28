@@ -238,6 +238,9 @@ func runGeminiPipelineStep(job episodeJob) bool {
 	}
 
 	cutsResult := format.SaveCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet)
+	if cutsResult.Err != nil {
+		return false
+	}
 	t0Step3 := time.Now()
 	return executeLocalAudioCutting(job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, cutsResult.KeepSegments, ads, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1, t0Step2, t0Step3)
 }

@@ -71,6 +71,7 @@ type CutsResult struct {
 	CutsFile     string
 	KeepSegments [][2]float64
 	Changed      bool
+	Err          error
 }
 
 type LLMProfile struct {

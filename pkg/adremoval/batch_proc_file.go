@@ -234,6 +234,9 @@ func finalizeGeminiRaceWinner(sourceAudioFile, jsonFile, mainMP3File, precutFile
 		return true, true
 	}
 	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, ads, &selectedProfile, opts.Quiet)
+	if cutsResult.Err != nil {
+		return false, true
+	}
 	t0Step3 := time.Now()
 	cutSuccess := executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile, cutsResult.KeepSegments, ads, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1, t0Step2, t0Step3)
 	return cutSuccess, true
@@ -334,6 +337,9 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	}
 
 	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, adSegments, &selectedProfile, opts.Quiet)
+	if cutsResult.Err != nil {
+		return false
+	}
 	t0Step3 := time.Now()
 	return executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile, cutsResult.KeepSegments, adSegments, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1, t0Step2, t0Step3)
 }
@@ -500,7 +506,9 @@ func installNoAdsOutput(source, output string) error {
 		return err
 	}
 	tmp := filepath.Join(workDir, filepath.Base(output)+".tmp"+filepath.Ext(output))
-	util.VerifyTempFile(tmp)
+	if err := util.VerifyTempFile(tmp); err != nil {
+		return err
+	}
 
 	if err := util.CopyFileErr(source, tmp); err != nil {
 		_ = os.Remove(tmp)
@@ -523,7 +531,9 @@ func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalD
 			return
 		}
 	}
-	format.SaveCutsJSON(mainMP3File, totalDuration, nil, &selectedProfile, opts.Quiet)
+	if res := format.SaveCutsJSON(mainMP3File, totalDuration, nil, &selectedProfile, opts.Quiet); res.Err != nil {
+		return
+	}
 	if err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {
 		st.Status = types.StateDone
 		st.Cleaned = types.EpisodeAudioMeta{Filename: filepath.Base(outputFile), DurationSec: totalDuration}

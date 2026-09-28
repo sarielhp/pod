@@ -56,6 +56,21 @@ func discardTruncatedPreview(sourceAudioFile string) {
 	}
 }
 
+// episodeJob is one episode's resolved paths and settings, handed to each
+// processing stage as a unit instead of as ten positional arguments.
+type episodeJob struct {
+	sourceAudioFile string
+	jsonFile        string
+	mainMP3File     string
+	precutFile      string
+	outputFile      string
+	totalDuration   float64
+	cfg             types.Config
+	opts            types.ProcOptions
+	selectedProfile types.LLMProfile
+	fileStartTime   time.Time
+}
+
 func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, batchStartTime time.Time, selectedProfile types.LLMProfile, rep progress.Reporter) (Report, error) {
 	fileStartTime := time.Now()
 
@@ -92,12 +107,24 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	}
 
 	if hasStage(stages, pipeline.StageTranscribe) {
+		job := episodeJob{
+			sourceAudioFile: sourceAudioFile,
+			jsonFile:        jsonFile,
+			mainMP3File:     mainMP3File,
+			precutFile:      precutFile,
+			outputFile:      outputFile,
+			totalDuration:   totalDuration,
+			cfg:             config,
+			opts:            opts,
+			selectedProfile: selectedProfile,
+			fileStartTime:   fileStartTime,
+		}
 		var success, handled bool
 		switch {
 		case canRunSpeculativeRace(config, opts):
-			success, handled = handleSpeculativeStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
+			success, handled = handleSpeculativeStep(job)
 		case isGeminiEngine(config, opts):
-			success, handled = handleGeminiStepWithFallback(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime)
+			success, handled = handleGeminiStepWithFallback(job)
 		}
 		if handled {
 			discardTruncatedPreview(sourceAudioFile)
@@ -145,47 +172,47 @@ func canRunSpeculativeRace(cfg types.Config, opts types.ProcOptions) bool {
 	return true
 }
 
-func handleSpeculativeStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time) (bool, bool) {
+func handleSpeculativeStep(job episodeJob) (bool, bool) {
 	t0Step1 := time.Now()
-	speedFactor := cfg.WhisperSpeedFactor
+	speedFactor := job.cfg.WhisperSpeedFactor
 	if speedFactor <= 0 {
 		speedFactor = 7.0
 	}
-	id3Tags := audio.ExtractID3Tags(sourceAudioFile)
-	isHebrew := transcribe.IsHebrewAudio(sourceAudioFile, id3Tags, cfg.WhisperLanguage)
-	whisperPrompt := cfg.WhisperPrompt
+	id3Tags := audio.ExtractID3Tags(job.sourceAudioFile)
+	isHebrew := transcribe.IsHebrewAudio(job.sourceAudioFile, id3Tags, job.cfg.WhisperLanguage)
+	whisperPrompt := job.cfg.WhisperPrompt
 	if whisperPrompt == "" {
-		whisperPrompt = pipeline.ExtractMetadataPrompt(sourceAudioFile, id3Tags, selectedProfile, opts)
+		whisperPrompt = pipeline.ExtractMetadataPrompt(job.sourceAudioFile, id3Tags, job.selectedProfile, job.opts)
 	}
-	dockerContainer := cfg.WhisperDockerContainer
+	dockerContainer := job.cfg.WhisperDockerContainer
 	if dockerContainer == "" {
-		dockerContainer = transcribe.DetectWhisperDockerContainer(cfg.WhisperURL)
+		dockerContainer = transcribe.DetectWhisperDockerContainer(job.cfg.WhisperURL)
 	}
 
-	td, ads, geminiWon, err := pipeline.RunSpeculativeParallelRace(context.Background(), sourceAudioFile, cfg, opts, totalDuration, speedFactor, whisperPrompt, cfg.WhisperLanguage, dockerContainer, isHebrew)
+	td, ads, geminiWon, err := pipeline.RunSpeculativeParallelRace(context.Background(), job.sourceAudioFile, job.cfg, job.opts, job.totalDuration, speedFactor, whisperPrompt, job.cfg.WhisperLanguage, dockerContainer, isHebrew)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nSpeculative transcription error: %v\n\n", err)
 		return false, false
 	}
 
-	if opts.SaveTranscript {
-		pipeline.SaveJSONTranscript(mainMP3File, td, jsonFile, opts.Quiet, id3Tags)
+	if job.opts.SaveTranscript {
+		pipeline.SaveJSONTranscript(job.mainMP3File, td, job.jsonFile, job.opts.Quiet, id3Tags)
 	}
 
-	if handleExportOrPreviewReturns(td, totalDuration, fileStartTime, sourceAudioFile, jsonFile, opts) {
+	if handleExportOrPreviewReturns(td, job.totalDuration, job.fileStartTime, job.sourceAudioFile, job.jsonFile, job.opts) {
 		return true, true
 	}
 
 	if geminiWon {
-		return finalizeGeminiRaceWinner(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, td, ads, selectedProfile, cfg, opts, fileStartTime, t0Step1)
+		return finalizeGeminiRaceWinner(job.sourceAudioFile, job.jsonFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, td, ads, job.selectedProfile, job.cfg, job.opts, job.fileStartTime, t0Step1)
 	}
 
-	detectAndSanitizeTranscriptLanguage(td, cfg.WhisperLanguage, true, opts.Quiet)
-	if !validateTranscriptSanity(td, totalDuration, opts.Quiet) {
+	detectAndSanitizeTranscriptLanguage(td, job.cfg.WhisperLanguage, true, job.opts.Quiet)
+	if !validateTranscriptSanity(td, job.totalDuration, job.opts.Quiet) {
 		return false, true
 	}
 
-	cutSuccess := runLocalAdDetectionAndCutStep(td, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1)
+	cutSuccess := runLocalAdDetectionAndCutStep(td, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1)
 	return cutSuccess, true
 }
 
@@ -210,22 +237,22 @@ func finalizeGeminiRaceWinner(sourceAudioFile, jsonFile, mainMP3File, precutFile
 	return cutSuccess, true
 }
 
-func handleGeminiStepWithFallback(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time) (bool, bool) {
-	if runGeminiPipelineStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile, totalDuration, cfg, opts, selectedProfile, fileStartTime) {
+func handleGeminiStepWithFallback(job episodeJob) (bool, bool) {
+	if runGeminiPipelineStep(job) {
 		return true, true
 	}
-	if !opts.Quiet {
+	if !job.opts.Quiet {
 		fmt.Println()
 		fmt.Println("\n" + util.BoldYellow("Transcription: Gemini processing failed. Falling back to Whisper...") + "\n")
 	}
-	fallbackCfg := config.PrepareWhisperFallbackConfig(cfg)
-	fallbackOpts := opts
+	fallbackCfg := config.PrepareWhisperFallbackConfig(job.cfg)
+	fallbackOpts := job.opts
 	fallbackOpts.WhisperEngine = string(fallbackCfg.WhisperEngine)
-	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File, totalDuration, fallbackCfg, fallbackOpts, selectedProfile, fileStartTime)
+	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(job.sourceAudioFile, job.jsonFile, job.mainMP3File, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime)
 	if hasErr || !ok {
 		return false, true
 	}
-	cutSuccess := runLocalAdDetectionAndCutStep(transData, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, fallbackCfg, fallbackOpts, selectedProfile, fileStartTime, t0Step1)
+	cutSuccess := runLocalAdDetectionAndCutStep(transData, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime, t0Step1)
 	return cutSuccess, true
 }
 

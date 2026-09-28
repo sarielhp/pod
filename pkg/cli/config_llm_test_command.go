@@ -6,6 +6,7 @@ import (
 	"math"
 	"pod/pkg/config"
 	"pod/pkg/detect"
+	"pod/pkg/progress"
 	"pod/pkg/util"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ func testLLMProfile(w io.Writer, cfg Config, value string) error {
 			continue
 		}
 		fmt.Fprintln(w, "\n"+util.BoldCyan(fmt.Sprintf("Testing LLM [%d]: %s", id, profile.Name)))
-		detect.AnnounceAdDetection(profile, false)
+		detect.AnnounceAdDetection(profile, progress.Writer(w, w, false))
 		started := time.Now()
 		if err := probeLLMProfile(cfg, profile); err != nil {
 			fmt.Fprintln(w, "\n"+util.BoldRed(fmt.Sprintf("LLM [%d] test FAILED", id))+"\n")

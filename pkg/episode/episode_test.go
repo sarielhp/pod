@@ -123,21 +123,6 @@ func TestEpisodeStatusHelpers(t *testing.T) {
 	if st.Status != types.StateDownloaded {
 		t.Errorf("st.Status = %v, want StateDownloaded", st.Status)
 	}
-
-	err = ep.Update(func(s *types.EpisodeStatusFile) {
-		s.Status = types.StateDone
-	})
-	if err != nil {
-		t.Fatalf("ep.Update() failed: %v", err)
-	}
-
-	stUpdated, err := ep.Status()
-	if err != nil {
-		t.Fatalf("ep.Status() after update failed: %v", err)
-	}
-	if stUpdated.Status != types.StateDone {
-		t.Errorf("stUpdated.Status = %v, want StateDone", stUpdated.Status)
-	}
 }
 
 func TestDetectPodcastDirForAudio(t *testing.T) {

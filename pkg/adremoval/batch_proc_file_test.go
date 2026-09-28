@@ -4,11 +4,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"pod/pkg/episode"
 	"pod/pkg/podcast/podtest"
+	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
@@ -66,7 +68,7 @@ func TestTranscribeFailureReturnsInsteadOfPanicking(t *testing.T) {
 	_, err := processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, time.Now(), offlineProfile())
+		}, types.Config{}, time.Now(), offlineProfile(), progress.Discard)
 
 	if err == nil {
 		t.Errorf("expected error when the transcript cannot be parsed")
@@ -94,7 +96,32 @@ func TestRecutDoesNotFallThroughIntoTheFullPipeline(t *testing.T) {
 	}
 	optsRecut.Recut = true
 	_, _ = processSingleAudioFile(0, 1, 0, mp3,
-		optsRecut, types.Config{}, time.Now(), offlineProfile())
+		optsRecut, types.Config{}, time.Now(), offlineProfile(), progress.Discard)
+}
+
+func TestRecutReportsThroughTheCallersReporter(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	mp3 := filepath.Join(dir, "ep.mp3")
+	writeRealMP3(t, mp3, 10)
+	cuts := `{"version":1,"generator":"test","target_file":"ep.mp3","original_duration_sec":10,
+	  "cut_intervals":[{"start_sec":2,"end_sec":3,"reason":"ad"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "ep.cuts.json"), []byte(cuts), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var rep progress.Lines
+	opts := types.ProcOptions{Quiet: true}
+	opts.Recut = true
+	if _, err := ProcessFiles([]string{mp3}, opts, types.Config{}, &rep); err != nil {
+		t.Fatalf("ProcessFiles: %v", err)
+	}
+	for _, line := range rep.Info {
+		if strings.Contains(line, "Recut") {
+			return
+		}
+	}
+	t.Errorf("recut reported nothing through the caller's reporter; got %q", rep.All())
 }
 
 func TestTranscribeMinDoesNotWriteCutMetadata(t *testing.T) {
@@ -114,7 +141,7 @@ func TestTranscribeMinDoesNotWriteCutMetadata(t *testing.T) {
 	}
 	optsTMin.TranscribeMin = "1"
 	_, _ = processSingleAudioFile(0, 1, 0, mp3,
-		optsTMin, types.Config{}, time.Now(), offlineProfile())
+		optsTMin, types.Config{}, time.Now(), offlineProfile(), progress.Discard)
 
 	if util.FileExists(filepath.Join(dir, "ep.cuts.json")) {
 		t.Errorf("--tminutes wrote ep.cuts.json; a preview run must not touch cut metadata")
@@ -146,7 +173,7 @@ func TestNoAdsDetectedDoesNotReEncodeOrCreatePrecut(t *testing.T) {
 	_, _ = processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, time.Now(), offlineProfile())
+		}, types.Config{}, time.Now(), offlineProfile(), progress.Discard)
 
 	if util.FileExists(mp3 + ".precut") {
 		t.Errorf("no ads were detected, but the original was moved to .precut")
@@ -179,7 +206,7 @@ func TestAdDetectionFailureDoesNotMarkEpisodeClean(t *testing.T) {
 	_, err := processSingleAudioFile(0, 1, 0, mp3,
 		types.ProcOptions{
 			Quiet: true,
-		}, types.Config{}, time.Now(), failingProfile)
+		}, types.Config{}, time.Now(), failingProfile, progress.Discard)
 
 	if err == nil {
 		t.Errorf("expected error when LLM ad detection fails")

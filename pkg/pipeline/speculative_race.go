@@ -9,6 +9,7 @@ import (
 
 	"pod/pkg/config"
 	"pod/pkg/gemini"
+	"pod/pkg/progress"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
 )
@@ -27,12 +28,12 @@ type SpeculativeCandidateResult struct {
 	Err         error
 }
 
-func runLocalCandidateTranscription(ctx context.Context, audioPath string, wp types.WhisperProfile, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string) (td *types.TranscriptionData, err error) {
+func runLocalCandidateTranscription(ctx context.Context, audioPath string, wp types.WhisperProfile, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string, rep progress.Reporter) (td *types.TranscriptionData, err error) {
 	defer func() { transcribe.StampBackend(td, wp.Engine, wp.Model) }()
 	if wp.Engine == types.WhisperEngineLocal {
 		return transcribe.RunWhisperCLITranscriptionContext(ctx, audioPath, wp, opts.Quiet, opts.Verbose, whisperPrompt, whisperLang)
 	}
-	transcribe.AnnounceWhisperServer(wp.URL, wp.Engine, dockerContainer, opts.Quiet)
+	transcribe.AnnounceWhisperServer(wp.URL, wp.Engine, dockerContainer, rep)
 	chunkDuration := cfg.ChunkDurationSec
 	useChunks := opts.UseChunks || (chunkDuration > 0 && totalDuration > float64(chunkDuration)*1.5)
 	if useChunks {
@@ -126,8 +127,9 @@ func matchWhisperProfileForRacer(cfg types.Config, target, lang string) (types.W
 	return types.WhisperProfile{}, false
 }
 
-func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string, isHebrew bool) (*types.TranscriptionData, []types.AdSegment, bool, error) {
-	transcribe.AnnounceStart(totalDuration, opts.Quiet)
+func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string, isHebrew bool, rep progress.Reporter) (*types.TranscriptionData, []types.AdSegment, bool, error) {
+	rep = progress.Or(rep)
+	transcribe.AnnounceStart(totalDuration, rep)
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -154,7 +156,7 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 	for _, racer := range racers {
 		if racer.IsGemini {
 			go func() {
-				td, ads, err := gemini.ProcessWithGeminiConfig(ctx, audioPath, cfg, chunkDur)
+				td, ads, err := gemini.ProcessWithGeminiConfig(ctx, audioPath, cfg, chunkDur, rep)
 				if err == nil && td != nil {
 					transcribe.StampBackend(td, types.WhisperEngineGemini, cfg.GetGeminiModel())
 				}
@@ -168,7 +170,7 @@ func RunSpeculativeParallelRace(parentCtx context.Context, audioPath string, cfg
 			}()
 		} else {
 			go func(r SpeculativeRacer) {
-				td, err := runLocalCandidateTranscription(ctx, audioPath, r.Profile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLang, dockerContainer)
+				td, err := runLocalCandidateTranscription(ctx, audioPath, r.Profile, cfg, opts, totalDuration, speedFactor, whisperPrompt, whisperLang, dockerContainer, rep)
 				resultCh <- SpeculativeCandidateResult{
 					ServiceName: r.Name,
 					TD:          td,

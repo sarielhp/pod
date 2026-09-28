@@ -52,6 +52,9 @@ A5, A6 (partial), A7 (one cluster). Each is one commit, gated by `tools/check`.
 - L11 says `config show` "does not list keys"; it prints settings by name,
   just not the `get` key set.
 - T11's "20 package dirs": `go list ./...` reports 22 packages.
+- L3 names a `pod info list` command that does not exist; the write was in
+  the status label shared by `pod info latest`, `pod info <podcast>` and
+  `pod info <episode>`.
 - The "Side effect" note below: the fix pass's own first `go test` run
   overwrote `~/.config/pod/play_queue.json` once more before T1 landed
   (mtime 20:10:32); after that commit no test run touches it.

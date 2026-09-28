@@ -38,7 +38,7 @@ by their IDs there.
 - **`pod player stop` kills the process a seek started** rather than the stale
   original, so playback no longer continues after stop (H3). The player's
   control socket is created mode 0600 (M10).
-- **`pod info list` no longer rewrites episode status files** while listing (L3).
+- **`pod info latest`, `pod info <podcast>` and `pod info <episode>` no longer rewrite episode status files** while rendering (L3).
 - **`pod cut` and `pod transcribe` take the per-episode lock** and refuse an
   episode another `pod` instance holds (L1).
 - **`--quiet` silences Gemini transcription and ad-detection announcements**, and

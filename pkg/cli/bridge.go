@@ -131,7 +131,7 @@ func library(cfg Config, cli CLIOptions, b backend.Backend) *podcast.Library {
 // one, otherwise stdout.
 //
 // It deliberately does NOT consult --quiet. For most commands quiet means "no
-// progress chatter", but for `info ls --quiet` it means "print bare IDs and
+// progress chatter", but for `info --quiet` it means "print bare IDs and
 // nothing else" — output that must survive. Conflating the two silently
 // emptied that command.
 // inFor is where a command reads a confirmation from: the caller's reader if

@@ -70,7 +70,6 @@ install: build
 	@rm -f "$$HOME/bin/abs"
 	@echo "Installed to $$HOME/bin/pod"
 
-ci: check
 snapshot:
 	@./tools/snapshot $(ARGS)
 

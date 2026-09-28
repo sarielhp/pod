@@ -195,8 +195,11 @@ func buildPlayerCommand(opts *CLIOptions, action *string) clihelp.Command {
 			{
 				Name:        "play",
 				Description: "Play an episode or resume playback",
-				UsageLine:   "pod player play [id]",
+				UsageLine:   "pod player play [id] [options]",
 				Args:        clihelp.RangeArgs(0, 1),
+				Options: []clihelp.Option{
+					clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress the note about which player is in use"),
+				},
 				Run: func(ctx *clihelp.Context) error {
 					*action = "player"
 					opts.PlayerSubcmd = "play"

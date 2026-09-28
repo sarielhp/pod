@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"pod/pkg/util"
 )
@@ -56,8 +55,8 @@ func (p *FFmpegProcessor) ExtractTags(ctx context.Context, audioPath string) (ma
 func (p *FFmpegProcessor) PreserveMetadata(ctx context.Context, srcPath, dstPath string) error {
 	workDir := util.WorkDirFor(dstPath)
 	tagged := filepath.Join(workDir, filepath.Base(dstPath)+".meta"+filepath.Ext(dstPath))
-	if !strings.Contains(tagged, "/.work/") {
-		tagged = dstPath + ".meta" + filepath.Ext(dstPath)
+	if err := util.VerifyTempFile(tagged); err != nil {
+		return err
 	}
 	if !CopyTagsAndArt(dstPath, srcPath, tagged) {
 		return fmt.Errorf("failed to copy tags and art from '%s' to '%s'", srcPath, dstPath)

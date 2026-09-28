@@ -69,6 +69,7 @@ type episodeJob struct {
 	opts            types.ProcOptions
 	selectedProfile types.LLMProfile
 	fileStartTime   time.Time
+	rep             progress.Reporter
 }
 
 func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, batchStartTime time.Time, selectedProfile types.LLMProfile, rep progress.Reporter) (Report, error) {
@@ -118,6 +119,7 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 			opts:            opts,
 			selectedProfile: selectedProfile,
 			fileStartTime:   fileStartTime,
+			rep:             rep,
 		}
 		var success, handled bool
 		switch {
@@ -135,7 +137,7 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 		}
 	}
 
-	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File, totalDuration, config, opts, selectedProfile, fileStartTime)
+	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File, totalDuration, config, opts, selectedProfile, fileStartTime, rep)
 	if hasErr {
 		return Report{Processed: true}, fmt.Errorf("transcription failed for %s", inputFile)
 	}
@@ -143,7 +145,7 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 		return Report{Processed: true}, nil
 	}
 
-	cutSuccess := runLocalAdDetectionAndCutStep(transData, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime, t0Step1)
+	cutSuccess := runLocalAdDetectionAndCutStep(transData, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime, t0Step1, rep)
 	if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
 		os.Remove(sourceAudioFile)
 	}
@@ -189,7 +191,7 @@ func handleSpeculativeStep(job episodeJob) (bool, bool) {
 		dockerContainer = transcribe.DetectWhisperDockerContainer(job.cfg.WhisperURL)
 	}
 
-	td, ads, geminiWon, err := pipeline.RunSpeculativeParallelRace(context.Background(), job.sourceAudioFile, job.cfg, job.opts, job.totalDuration, speedFactor, whisperPrompt, job.cfg.WhisperLanguage, dockerContainer, isHebrew)
+	td, ads, geminiWon, err := pipeline.RunSpeculativeParallelRace(context.Background(), job.sourceAudioFile, job.cfg, job.opts, job.totalDuration, speedFactor, whisperPrompt, job.cfg.WhisperLanguage, dockerContainer, isHebrew, job.rep)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nSpeculative transcription error: %v\n\n", err)
 		return false, false
@@ -212,7 +214,7 @@ func handleSpeculativeStep(job episodeJob) (bool, bool) {
 		return false, true
 	}
 
-	cutSuccess := runLocalAdDetectionAndCutStep(td, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1)
+	cutSuccess := runLocalAdDetectionAndCutStep(td, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1, job.rep)
 	return cutSuccess, true
 }
 
@@ -248,15 +250,15 @@ func handleGeminiStepWithFallback(job episodeJob) (bool, bool) {
 	fallbackCfg := config.PrepareWhisperFallbackConfig(job.cfg)
 	fallbackOpts := job.opts
 	fallbackOpts.WhisperEngine = string(fallbackCfg.WhisperEngine)
-	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(job.sourceAudioFile, job.jsonFile, job.mainMP3File, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime)
+	transData, t0Step1, ok, hasErr := runLocalTranscriptionStep(job.sourceAudioFile, job.jsonFile, job.mainMP3File, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime, job.rep)
 	if hasErr || !ok {
 		return false, true
 	}
-	cutSuccess := runLocalAdDetectionAndCutStep(transData, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime, t0Step1)
+	cutSuccess := runLocalAdDetectionAndCutStep(transData, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime, t0Step1, job.rep)
 	return cutSuccess, true
 }
 
-func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time) (*types.TranscriptionData, time.Time, bool, bool) {
+func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time, rep progress.Reporter) (*types.TranscriptionData, time.Time, bool, bool) {
 	speedFactor := cfg.WhisperSpeedFactor
 	if speedFactor <= 0 {
 		speedFactor = 7.0
@@ -265,7 +267,7 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 	isNewlyTranscribed := false
 	id3Tags := map[string]string{}
 
-	transcriptionData, err := pipeline.LoadOrTranscribe(sourceAudioFile, jsonFile, cfg, opts, selectedProfile, totalDuration, speedFactor, cfg.WhisperLanguage, cfg.WhisperPrompt, id3Tags, &isNewlyTranscribed, &t0Step1)
+	transcriptionData, err := pipeline.LoadOrTranscribe(sourceAudioFile, jsonFile, cfg, opts, selectedProfile, totalDuration, speedFactor, cfg.WhisperLanguage, cfg.WhisperPrompt, id3Tags, &isNewlyTranscribed, &t0Step1, rep)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError: %v\n\n", err)
 		return nil, t0Step1, false, true
@@ -286,7 +288,7 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 	return transcriptionData, t0Step1, true, false
 }
 
-func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, sourceAudioFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime, t0Step1 time.Time) bool {
+func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, sourceAudioFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime, t0Step1 time.Time, rep progress.Reporter) bool {
 	formattedTranscript := pipeline.FormatTranscript(transcriptionData, totalDuration)
 	t0Step2 := time.Now()
 	if !opts.Quiet {
@@ -297,7 +299,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	if jsonFile == "" {
 		jsonFile = util.StripExt(mainMP3File) + ".transcript.json"
 	}
-	detect.AnnounceAdDetection(selectedProfile, opts.Quiet)
+	detect.AnnounceAdDetection(selectedProfile, rep)
 	detector := detect.NewLLMAdDetector(selectedProfile, selectedProfile.APIKey, detect.DefaultLLMTimeout)
 	adSegments, err := detector.DetectAds(context.Background(), formattedTranscript)
 	if err != nil {

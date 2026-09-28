@@ -202,12 +202,12 @@ func updateTranscriptAdDetectionStatus(jsonFile string, successful bool, status,
 }
 
 func runGeminiPipelineStep(job episodeJob) bool {
-	transcribe.AnnounceStart(job.totalDuration, job.opts.Quiet)
+	transcribe.AnnounceStart(job.totalDuration, job.rep)
 	ctx := context.Background()
 	t0Step1 := time.Now()
 
 	chunkDur := job.cfg.GeminiChunkSecCapped(job.cfg.ChunkDurationSec)
-	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, job.sourceAudioFile, job.cfg, chunkDur)
+	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, job.sourceAudioFile, job.cfg, chunkDur, job.rep)
 	transcribe.StampBackend(td, types.WhisperEngineGemini, job.cfg.GetGeminiModel())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError processing with Gemini Flash: %v\n\n", err)

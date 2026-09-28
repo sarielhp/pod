@@ -51,10 +51,10 @@ func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, re
 		return Report{Total: len(targets)}, nil
 	}
 
-	return executeLocalBatchProcessing(targets, opts, cfg)
+	return executeLocalBatchProcessing(targets, opts, cfg, r)
 }
 
-func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, cfg types.Config) (Report, error) {
+func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, cfg types.Config, r progress.Reporter) (Report, error) {
 	wp := config.GetActiveWhisperProfile(&cfg)
 	if opts.WhisperEngine != "" {
 		wp.Engine = types.WhisperEngine(opts.WhisperEngine)
@@ -71,7 +71,7 @@ func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, 
 	failures := 0
 
 	for idx, inputFile := range expandedArgs {
-		report, err := processSingleAudioFile(idx, len(expandedArgs), processedCount, inputFile, opts, cfg, batchStartTime, selectedProfile)
+		report, err := processSingleAudioFile(idx, len(expandedArgs), processedCount, inputFile, opts, cfg, batchStartTime, selectedProfile, r)
 		if errors.Is(err, errLimitReached) {
 			break
 		}

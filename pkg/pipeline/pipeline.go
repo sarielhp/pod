@@ -46,12 +46,8 @@ func HandleTranscribeMin(sourceAudioFile *string, totalDuration float64, transcr
 	return durSec, nil
 }
 
-func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time, rep ...progress.Reporter) error {
-	var r progress.Reporter
-	if len(rep) > 0 {
-		r = rep[0]
-	}
-	r = progress.Or(r)
+func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time, rep progress.Reporter) error {
+	r := progress.Or(rep)
 
 	cutsFile := baseName + ".cuts.json"
 	res, err := CutFile(CutRequest{

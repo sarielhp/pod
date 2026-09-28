@@ -15,6 +15,7 @@ import (
 	"pod/pkg/format"
 	"pod/pkg/gemini"
 	"pod/pkg/pipeline"
+	"pod/pkg/progress"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -55,7 +56,7 @@ func discardTruncatedPreview(sourceAudioFile string) {
 	}
 }
 
-func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, batchStartTime time.Time, selectedProfile types.LLMProfile) (Report, error) {
+func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile string, opts types.ProcOptions, config types.Config, batchStartTime time.Time, selectedProfile types.LLMProfile, rep progress.Reporter) (Report, error) {
 	fileStartTime := time.Now()
 
 	if strings.HasSuffix(inputFile, ".json") {
@@ -86,7 +87,7 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
 	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
 	if opts.Recut && artifacts.HasCuts {
-		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime)
+		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime, rep)
 		return Report{Processed: true}, err
 	}
 

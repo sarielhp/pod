@@ -5,7 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [Unreleased]
+## [0.5.14] - 2026-09-27
 
 ### Fixed
 - **`pod player play` on a machine without mpv never played anything.** The

@@ -88,17 +88,19 @@ func TestFileLock(t *testing.T) {
 
 func TestDisplayNameRTL(t *testing.T) {
 	t.Parallel()
-	testCases := []string{
-		"השבוע - פודקאסט הארץ",
-		"המרקרים",
-		"207be",
-		"שיר אחד One Song",
-		"Kan Hourly News כאן רשת ב חדשות - מהדורת השעה",
-		"תרבות יום א' - הפודקאסט של גלריה",
-		"שלום (עולם)",
+	testCases := []struct{ in, want string }{
+		{"207be", "207be"},
+		{"Plain Latin Title", "Plain Latin Title"},
+		{"המרקרים", "םירקרמה"},
+		{"השבוע - פודקאסט הארץ", "ץראה טסאקדופ - עובשה"},
+		{"שיר אחד One Song", "דחא ריש One Song"},
+		{"Kan Hourly News כאן רשת ב חדשות - מהדורת השעה", "Kan Hourly News העשה תרודהמ - תושדח ב תשר ןאכ"},
+		{"תרבות יום א' - הפודקאסט של גלריה", "הירלג לש טסאקדופה - 'א םוי תוברת"},
 	}
 	for _, tc := range testCases {
-		t.Logf("In: %q -> Out: %q", tc, DisplayName(tc))
+		if got := DisplayName(tc.in); got != tc.want {
+			t.Errorf("DisplayName(%q) = %q, want %q", tc.in, got, tc.want)
+		}
 	}
 }
 

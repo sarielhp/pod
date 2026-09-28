@@ -1,12 +1,40 @@
 package podtest
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+type recordingTB struct {
+	testing.TB
+	skipped string
+	fatal   string
+}
+
+func (r *recordingTB) Helper()                        {}
+func (r *recordingTB) Skip(args ...any)               { r.skipped = fmt.Sprint(args...) }
+func (r *recordingTB) Fatalf(format string, a ...any) { r.fatal = fmt.Sprintf(format, a...) }
+
+func TestRequireFFmpegIsLoudWhenFFmpegIsMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("POD_TEST_REQUIRE_FFMPEG", "")
+	rec := &recordingTB{TB: t}
+	RequireFFmpeg(rec)
+	if !strings.Contains(rec.skipped, "SKIPPED") || !strings.Contains(rec.skipped, "POD_TEST_REQUIRE_FFMPEG") || rec.fatal != "" {
+		t.Fatalf("without the env var a missing ffmpeg must skip with a visible message: skip=%q fatal=%q", rec.skipped, rec.fatal)
+	}
+
+	t.Setenv("POD_TEST_REQUIRE_FFMPEG", "1")
+	rec = &recordingTB{TB: t}
+	RequireFFmpeg(rec)
+	if rec.fatal == "" || rec.skipped != "" {
+		t.Fatalf("with the env var a missing ffmpeg must fail: skip=%q fatal=%q", rec.skipped, rec.fatal)
+	}
+}
 
 func TestIsLoopback(t *testing.T) {
 	cases := map[string]bool{

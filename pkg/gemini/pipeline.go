@@ -155,7 +155,11 @@ func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg
 		if err != nil {
 			return nil, fmt.Errorf("chunk %d studio upload failed:\n   %w", ch.Index, err)
 		}
-		defer DeleteGeminiStudioFile(ctx, apiKey, fileName)
+		defer func() {
+			if err := DeleteGeminiStudioFile(apiKey, fileName); err != nil {
+				fmt.Printf("Warning: chunk %d: uploaded file %s was not deleted from Gemini: %v\n", ch.Index, fileName, err)
+			}
+		}()
 
 		payload, err := callStudioAcrossModels(ctx, apiKey, fileURI, AudioMIMEType(ch.FilePath), models)
 		if err != nil {

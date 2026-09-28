@@ -8,15 +8,14 @@ import (
 	"time"
 
 	"pod/pkg/episode"
+	"pod/pkg/podcast/podtest"
 	"pod/pkg/types"
 	"pod/pkg/util"
 )
 
 func writeRealMP3(t *testing.T, path string, seconds int) {
 	t.Helper()
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not available")
-	}
+	podtest.RequireFFmpeg(t)
 	cmd := exec.Command("ffmpeg", "-y", "-loglevel", "error",
 		"-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
 		"-t", itoa(seconds), "-c:a", "libmp3lame", "-b:a", "64k", path)

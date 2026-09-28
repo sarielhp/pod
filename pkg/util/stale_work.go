@@ -86,7 +86,7 @@ func removeStaleWorkDir(root, path string, cutoff time.Time) (bool, error) {
 	if err != nil || !stale {
 		return false, err
 	}
-	release, err := lockWorkDirAudio(root, filepath.Dir(path))
+	release, err := lockWorkDirAudio(filepath.Dir(path))
 	if err != nil || release == nil {
 		return false, err
 	}
@@ -101,7 +101,7 @@ func removeStaleWorkDir(root, path string, cutoff time.Time) (bool, error) {
 	return true, nil
 }
 
-func lockWorkDirAudio(root, dir string) (func(), error) {
+func lockWorkDirAudio(dir string) (func(), error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -110,28 +110,6 @@ func lockWorkDirAudio(root, dir string) (func(), error) {
 	release := func() {
 		for _, lock := range locks {
 			lock.Release()
-		}
-	}
-	for parent := dir; ; parent = filepath.Dir(parent) {
-		for _, name := range []string{".worker", ".collect"} {
-			target := filepath.Join(parent, name)
-			_, err := os.Lstat(target + ".lock")
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil {
-				release()
-				return nil, err
-			}
-			lock, err := AcquireFileLock(target)
-			if err != nil || lock == nil {
-				release()
-				return nil, err
-			}
-			locks = append(locks, lock)
-		}
-		if parent == root || parent == filepath.Dir(parent) {
-			break
 		}
 	}
 	for _, entry := range entries {

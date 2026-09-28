@@ -304,8 +304,12 @@ func TestParseGeminiStudioResponse(t *testing.T) {
 
 func TestDeleteGeminiStudioFileNoop(t *testing.T) {
 	t.Parallel()
-	DeleteGeminiStudioFile(context.Background(), "", "")
-	DeleteGeminiStudioFile(context.Background(), "key", "")
+	if err := DeleteGeminiStudioFile("", ""); err != nil {
+		t.Fatalf("no key and no file must be a silent no-op, got %v", err)
+	}
+	if err := DeleteGeminiStudioFile("key", ""); err != nil {
+		t.Fatalf("no file must be a silent no-op, got %v", err)
+	}
 }
 
 func TestGeminiStudioNoKeyInURLError(t *testing.T) {

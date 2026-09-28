@@ -3,6 +3,7 @@ package tui
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"pod/pkg/types"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestRenderImageToHalfBlocks(t *testing.T) {
@@ -33,12 +35,20 @@ func TestRenderImageFile(t *testing.T) {
 }
 
 func TestTUIApplyColorConfig(t *testing.T) {
-	cfg := &types.TUIColorConfig{
-		Cyan:   "#ff0000",
-		Yellow: "#00ff00",
+	origCyan, origYellow, origGreen := colorCyan, colorYellow, colorGreen
+	t.Cleanup(func() { colorCyan, colorYellow, colorGreen = origCyan, origYellow, origGreen })
+
+	applyTUIColorConfig(&types.TUIColorConfig{Cyan: "#ff0000", Yellow: "#00ff00"})
+	if colorCyan != lipgloss.Color("#ff0000") || colorYellow != lipgloss.Color("#00ff00") {
+		t.Fatalf("configured colours not applied: cyan %v yellow %v", colorCyan, colorYellow)
 	}
-	applyTUIColorConfig(cfg)
+	if colorGreen != origGreen {
+		t.Fatalf("an unset colour must keep its default, got %v", colorGreen)
+	}
 	applyTUIColorConfig(nil)
+	if colorCyan != lipgloss.Color("#ff0000") {
+		t.Fatalf("a nil config must be a no-op, cyan became %v", colorCyan)
+	}
 }
 
 func TestTUINewModelWithConfig(t *testing.T) {
@@ -65,19 +75,40 @@ func TestTUINewModelWithConfig(t *testing.T) {
 }
 
 func TestTUISetTerminalTitle(t *testing.T) {
-	m := makeTestModel()
-	m.setTerminalTitle("test title")
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	origStdout := os.Stdout
+	os.Stdout = w
+	makeTestModel().setTerminalTitle("test title")
+	os.Stdout = origStdout
+	_ = w.Close()
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); got != "\033]0;test title\007" {
+		t.Fatalf("terminal title escape = %q", got)
+	}
 }
 
-func TestKittyFunctionsExist(t *testing.T) {
-	_ = kitty.IsKittySupported()
-	_ = kitty.FindCoverImage("/tmp")
-	_ = kitty.KittyClearGraphics()
-}
-
-func TestDetectImageFormat(t *testing.T) {
-	if kitty.DetectImageFormat("/path/image.jpg") != 100 {
-		t.Error("detectImageFormat should always return 100")
+func TestFindCoverImage(t *testing.T) {
+	bare := t.TempDir()
+	generated := kitty.FindCoverImage(bare)
+	if !strings.HasPrefix(generated, config.CacheDirForPodcast(bare)) || filepath.Base(generated) != "cover.png" {
+		t.Fatalf("a directory without art must get a generated cover.png in its cache dir, got %q", generated)
+	}
+	if fi, err := os.Stat(generated); err != nil || fi.Size() == 0 {
+		t.Fatalf("generated cover is not a real file: %v", err)
+	}
+	dir := t.TempDir()
+	cover := filepath.Join(dir, "cover.jpg")
+	if err := os.WriteFile(cover, []byte("jpeg bytes"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := kitty.FindCoverImage(dir); got != cover {
+		t.Fatalf("FindCoverImage = %q, want %q", got, cover)
 	}
 }
 

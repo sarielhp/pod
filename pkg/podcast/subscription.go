@@ -69,8 +69,28 @@ func (s *SubscriptionStore) Load() error {
 	if err := json.Unmarshal(data, &sf); err != nil {
 		return fmt.Errorf("parse subscriptions file %s: %w", s.filePath, err)
 	}
+	for i := range sf.Subscriptions {
+		sub := &sf.Subscriptions[i]
+		sub.Folder = sanitizeSubscriptionFolder(sub.Folder, sub.Title)
+	}
 	s.items = sf.Subscriptions
 	return nil
+}
+
+func subscriptionFolderIsContained(folder string) bool {
+	clean := filepath.Clean(folder)
+	return !filepath.IsAbs(clean) && clean != "." && clean != ".." && !strings.HasPrefix(clean, "../")
+}
+
+func sanitizeSubscriptionFolder(folder, title string) string {
+	folder = strings.TrimSpace(folder)
+	if folder == "" {
+		return ""
+	}
+	if !subscriptionFolderIsContained(folder) {
+		return SanitizeTitle(title)
+	}
+	return filepath.Clean(folder)
 }
 
 func (s *SubscriptionStore) Save() error {
@@ -137,6 +157,7 @@ func (s *SubscriptionStore) Add(sub Subscription) error {
 	if sub.ID == "" {
 		sub.ID = GeneratePodcastShortID(sub.Title)
 	}
+	sub.Folder = sanitizeSubscriptionFolder(sub.Folder, sub.Title)
 	if sub.Folder == "" {
 		sub.Folder = SanitizeTitle(sub.Title)
 	}
@@ -268,7 +289,7 @@ func (s *SubscriptionStore) ImportFromBackend(reader backend.PodcastReader) (int
 }
 
 func resolvePodcastDirForSub(sub Subscription, podcastsDir string) string {
-	if sub.Folder != "" {
+	if sub.Folder != "" && subscriptionFolderIsContained(sub.Folder) {
 		target := filepath.Join(podcastsDir, sub.Folder)
 		if fi, err := os.Stat(target); err == nil && fi.IsDir() {
 			return target

@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -79,4 +80,20 @@ func IsolateMain(m *testing.M, setup func()) int {
 		setup()
 	}
 	return m.Run()
+}
+
+// RequireFFmpeg skips the calling test when ffmpeg is not installed, saying
+// so loudly, and fails it instead when POD_TEST_REQUIRE_FFMPEG is set, so a
+// CI machine can insist that the ffmpeg-backed tests really ran rather than
+// quietly reporting a green suite that never exercised the cutter.
+func RequireFFmpeg(t testing.TB) {
+	t.Helper()
+	if _, err := exec.LookPath("ffmpeg"); err == nil {
+		return
+	}
+	if os.Getenv("POD_TEST_REQUIRE_FFMPEG") != "" {
+		t.Fatalf("ffmpeg is not installed and POD_TEST_REQUIRE_FFMPEG is set")
+		return
+	}
+	t.Skip("SKIPPED: ffmpeg is not installed, so this ffmpeg-backed test did not run (set POD_TEST_REQUIRE_FFMPEG=1 to fail instead)")
 }

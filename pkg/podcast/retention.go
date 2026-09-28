@@ -114,8 +114,11 @@ func pruneExpiredEpisode(path string, dryRun bool) (int64, bool, error) {
 	}
 
 	lock, err := util.AcquireFileLock(path)
-	if err != nil || lock == nil {
+	if err != nil {
 		return 0, false, fmt.Errorf("lock %s: %w", path, err)
+	}
+	if lock == nil {
+		return 0, false, fmt.Errorf("%s is being processed by another pod instance", path)
 	}
 	defer lock.Release()
 

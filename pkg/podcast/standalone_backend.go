@@ -389,13 +389,18 @@ func (b *StandaloneBackend) ApplyKeepPolicy(podcastID, podcastTitle string, keep
 	})
 	toDelete := files[:len(files)-keep]
 	deleted := 0
+	var failures []error
 	for _, f := range toDelete {
-		if !dryRun {
-			_ = os.Remove(f)
+		_, removed, err := pruneExpiredEpisode(f, dryRun)
+		if err != nil {
+			failures = append(failures, err)
+			continue
 		}
-		deleted++
+		if removed {
+			deleted++
+		}
 	}
-	return deleted, nil
+	return deleted, errors.Join(failures...)
 }
 
 func (b *StandaloneBackend) UpdatePodcastSettings(podcastID string, autoDownload, autoCleanup bool, autoCleanupDays int) error {

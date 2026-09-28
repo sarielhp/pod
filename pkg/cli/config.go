@@ -342,13 +342,13 @@ func runConfigCommand(config *Config, cli CLIOptions) error {
 	case "llm-test":
 		return testLLMProfile(outFor(cli), *config, cli.ConfigVal)
 	case "llm-default":
-		if id, err := strconv.Atoi(cli.ConfigVal); err == nil && id > 0 {
-			setDefaultProfile(outFor(cli), config, id)
-		} else {
+		id, err := strconv.Atoi(cli.ConfigVal)
+		if err != nil || id <= 0 {
 			return fmt.Errorf("invalid profile ID %q", cli.ConfigVal)
 		}
+		return setDefaultProfile(outFor(cli), config, id)
 	case "llm-import":
-		copyLLMFromOpenCode(outFor(cli), config)
+		return copyLLMFromOpenCode(outFor(cli), config)
 	case "whisper-list", "whisper-default", "whisper-add", "whisper-del":
 		return runWhisperConfig(config, cli)
 	case "cache-show":
@@ -363,15 +363,15 @@ func runConfigCommand(config *Config, cli CLIOptions) error {
 		}
 		fmt.Fprintln(progressFor(cli), "Cache reset successfully.")
 	case "migrate":
-		handleConfigMigrate(outFor(cli), config, cli.ConfigVal)
+		return handleConfigMigrate(outFor(cli), config, cli.ConfigVal)
 	default:
 		if cli.ProcessorCmd != "" {
-			handleConfigProcessor(outFor(cli), config, cli.ProcessorCmd, cli.ProcessorValue)
-		} else if cli.PodcastsDir != "" {
-			setPodcastsDir(outFor(cli), config, cli.PodcastsDir)
-		} else {
-			printConfig(outFor(cli), *config)
+			return handleConfigProcessor(outFor(cli), config, cli.ProcessorCmd, cli.ProcessorValue)
 		}
+		if cli.PodcastsDir != "" {
+			return setPodcastsDir(outFor(cli), config, cli.PodcastsDir)
+		}
+		printConfig(outFor(cli), *config)
 	}
 	return nil
 }
@@ -381,19 +381,19 @@ func runWhisperConfig(config *Config, cli CLIOptions) error {
 	case "whisper-list":
 		listWhispers(outFor(cli), *config)
 	case "whisper-default":
-		if id, err := strconv.Atoi(cli.ConfigVal); err == nil && id > 0 {
-			setDefaultWhisperProfile(outFor(cli), config, id)
-		} else {
+		id, err := strconv.Atoi(cli.ConfigVal)
+		if err != nil || id <= 0 {
 			return fmt.Errorf("invalid Whisper profile ID %q", cli.ConfigVal)
 		}
+		return setDefaultWhisperProfile(outFor(cli), config, id)
 	case "whisper-add":
-		addWhisperProfile(outFor(cli), config, cli.ConfigVal)
+		return addWhisperProfile(outFor(cli), config, cli.ConfigVal)
 	case "whisper-del":
-		if id, err := strconv.Atoi(cli.ConfigVal); err == nil && id > 0 {
-			removeWhisperProfile(outFor(cli), config, id)
-		} else {
+		id, err := strconv.Atoi(cli.ConfigVal)
+		if err != nil || id <= 0 {
 			return fmt.Errorf("invalid Whisper profile ID %q", cli.ConfigVal)
 		}
+		return removeWhisperProfile(outFor(cli), config, id)
 	}
 	return nil
 }

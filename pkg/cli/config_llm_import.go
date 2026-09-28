@@ -11,10 +11,10 @@ import (
 	"pod/pkg/util"
 )
 
-func copyLLMFromOpenCode(w io.Writer, cfg *Config) {
+func copyLLMFromOpenCode(w io.Writer, cfg *Config) error {
 	cleanModel, cleanSmallModel, ok := readOpenCodeConfig()
 	if !ok {
-		return
+		return nil
 	}
 
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
@@ -56,9 +56,12 @@ func copyLLMFromOpenCode(w io.Writer, cfg *Config) {
 				break
 			}
 		}
-		_ = config.SaveConfig(cfg)
+		if err := saveConfig(cfg); err != nil {
+			return err
+		}
 		fmt.Fprintln(w, "Successfully imported OpenCode configuration!")
 	}
+	return nil
 }
 
 func readOpenCodeConfig() (string, string, bool) {

@@ -64,7 +64,7 @@ func migratePodcastsManagerConfig(w io.Writer, cfg *Config) bool {
 	return modified
 }
 
-func handleConfigMigrate(w io.Writer, cfg *Config, source string) {
+func handleConfigMigrate(w io.Writer, cfg *Config, source string) error {
 	migrated := false
 	source = strings.ToLower(strings.TrimSpace(source))
 
@@ -76,12 +76,15 @@ func handleConfigMigrate(w io.Writer, cfg *Config, source string) {
 		}
 	}
 
-	if migrated {
-		_ = config.SaveConfig(cfg)
-		fmt.Fprintf(w, "Configuration saved to '%s'\n", config.ConfigPath())
-	} else {
+	if !migrated {
 		fmt.Fprintln(w, "No legacy configuration found to migrate or settings already up-to-date.")
+		return nil
 	}
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "Configuration saved to '%s'\n", config.ConfigPath())
+	return nil
 }
 
 func resolveProcessorPath(prog string) (string, error) {
@@ -95,7 +98,7 @@ func resolveProcessorPath(prog string) (string, error) {
 	return "", fmt.Errorf("program '%s' not found or not executable", prog)
 }
 
-func handleConfigProcessor(w io.Writer, cfg *Config, cmd string, value string) {
+func handleConfigProcessor(w io.Writer, cfg *Config, cmd string, value string) error {
 	switch cmd {
 	case "set":
 		if value == "" {
@@ -114,7 +117,9 @@ func handleConfigProcessor(w io.Writer, cfg *Config, cmd string, value string) {
 		}
 		if !exists {
 			cfg.PostProcessors = append(cfg.PostProcessors, fullPath)
-			_ = config.SaveConfig(cfg)
+			if err := saveConfig(cfg); err != nil {
+				return err
+			}
 		}
 		fmt.Fprintf(w, "Added post-processor: %s\n", fullPath)
 
@@ -138,10 +143,13 @@ func handleConfigProcessor(w io.Writer, cfg *Config, cmd string, value string) {
 		}
 		removed := cfg.PostProcessors[idx-1]
 		cfg.PostProcessors = append(cfg.PostProcessors[:idx-1], cfg.PostProcessors[idx:]...)
-		_ = config.SaveConfig(cfg)
+		if err := saveConfig(cfg); err != nil {
+			return err
+		}
 		fmt.Fprintf(w, "Deleted post-processor #%d: %s\n", idx, removed)
 
 	default:
-		fatalError("%s\n", fmt.Sprintf("Error: unknown processor command '%s'", cmd))
+		return fmt.Errorf("unknown processor command '%s'", cmd)
 	}
+	return nil
 }

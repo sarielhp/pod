@@ -21,6 +21,8 @@ import (
 
 const defaultGeminiModel = "gemini-flash-latest"
 
+var studioBaseURL = "https://generativelanguage.googleapis.com"
+
 type geminiStudioFileUploadResponse struct {
 	File struct {
 		Name     string `json:"name"`
@@ -124,9 +126,10 @@ func UploadAudioToGeminiStudio(ctx context.Context, apiKey, localAudioPath strin
 
 	go PipeMultipartAudio(pw, mpw, localAudioPath, AudioMIMEType(localAudioPath))
 
-	url := "https://generativelanguage.googleapis.com/upload/v1beta/files"
+	url := studioBaseURL + "/upload/v1beta/files"
 	req, err := http.NewRequestWithContext(ctx, "POST", url, pr)
 	if err != nil {
+		_ = pr.CloseWithError(err)
 		return "", "", fmt.Errorf("failed to create upload request: %w", err)
 	}
 	req.Header.Set("x-goog-api-key", apiKey)
@@ -161,7 +164,7 @@ func DeleteGeminiStudioFile(ctx context.Context, apiKey, fileName string) {
 	if err != nil {
 		return
 	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/%s", fileName)
+	url := fmt.Sprintf("%s/v1beta/%s", studioBaseURL, fileName)
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
 		return
@@ -236,7 +239,7 @@ func callGeminiStudioOnce(ctx context.Context, apiKey, modelName, fileURI, mimeT
 		return nil, port.Fail(err)
 	}
 
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName)
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", studioBaseURL, modelName)
 	client := &http.Client{Timeout: 5 * time.Minute}
 
 	body, statusCode, reqErr := executeStudioRequest(ctx, client, url, apiKey, reqBytes)

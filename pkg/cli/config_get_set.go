@@ -185,7 +185,7 @@ func handleConfigGet(w io.Writer, cfg Config, key string) error {
 	case "competing-services", "speculative-services":
 		fmt.Fprintln(w, strings.Join(cfg.GetCompetingServices(), ", "))
 	default:
-		return fmt.Errorf("unknown configuration key %q; run 'pod config show' to list keys", key)
+		return fmt.Errorf("unknown configuration key %q; 'pod config show' prints the current settings by name", key)
 	}
 	return nil
 }

@@ -16,3 +16,4 @@ reports/
 .bw.jsonc
 bws-agent-*
 
+.claude/worktrees/

@@ -155,26 +155,32 @@ func UploadAudioToGeminiStudio(ctx context.Context, apiKey, localAudioPath strin
 	return res.File.URI, res.File.Name, nil
 }
 
-func DeleteGeminiStudioFile(ctx context.Context, apiKey, fileName string) {
+func DeleteGeminiStudioFile(apiKey, fileName string) error {
 	if fileName == "" || apiKey == "" {
-		return
+		return nil
 	}
-	var err error
-	apiKey, err = validateKey(apiKey)
+	apiKey, err := validateKey(apiKey)
 	if err != nil {
-		return
+		return err
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	url := fmt.Sprintf("%s/v1beta/%s", studioBaseURL, fileName)
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to create delete request: %w", err)
 	}
 	req.Header.Set("x-goog-api-key", apiKey)
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err == nil && resp != nil {
-		_ = resp.Body.Close()
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return fmt.Errorf("gemini file delete failed: %w", err)
 	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("gemini file delete HTTP %d: %s", resp.StatusCode, FormatGeminiErrorBody(body))
+	}
+	return nil
 }
 
 type geminiErrorDetail struct {

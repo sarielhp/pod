@@ -69,3 +69,28 @@ func TestPlayerSocketIsOwnerOnly(t *testing.T) {
 		t.Fatalf("socket mode %o, want 0600", perm)
 	}
 }
+
+func TestWaitForPlayerSocketReportsAPlayerThatNeverStarted(t *testing.T) {
+	redirectPlayerSocket(t)
+	err := waitForPlayerSocket(100*time.Millisecond, "/tmp/x.log")
+	if err == nil {
+		t.Fatal("no socket ever appeared, yet the start was reported as successful")
+	}
+	l, lerr := listenPlayerSocket(PlayerSocketPath)
+	if lerr != nil {
+		t.Fatal(lerr)
+	}
+	defer l.Close()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	if err := waitForPlayerSocket(time.Second, ""); err != nil {
+		t.Fatalf("a live socket was reported as missing: %v", err)
+	}
+}

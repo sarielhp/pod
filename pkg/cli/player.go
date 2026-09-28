@@ -48,7 +48,7 @@ func runPlayerCommand(cfg Config, cli CLIOptions) error {
 	case "status":
 		return handlePlayerStatus(outFor(cli))
 	case "daemon":
-		return handlePlayerDaemon(args)
+		return handlePlayerDaemon(args, cli.PlayerTitle, cli.Podcast)
 	default:
 		return fmt.Errorf("unknown player action %q (use play, stop, pause, or status)", subcmd)
 	}
@@ -148,23 +148,11 @@ func handlePlayerStatus(w io.Writer) error {
 	return nil
 }
 
-func handlePlayerDaemon(args []string) error {
+func handlePlayerDaemon(args []string, title, podcast string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("missing audio path for player daemon")
 	}
-	audioPath := args[0]
-	title := ""
-	podcast := ""
-	for i := 1; i < len(args); i++ {
-		if args[i] == "--title" && i+1 < len(args) {
-			title = args[i+1]
-			i++
-		} else if args[i] == "--podcast" && i+1 < len(args) {
-			podcast = args[i+1]
-			i++
-		}
-	}
-	return player.RunPlayerDaemon(audioPath, title, podcast)
+	return player.RunPlayerDaemon(args[0], title, podcast)
 }
 
 func printTranscriptText(w io.Writer, jsonPath string) error {
@@ -249,6 +237,12 @@ func buildPlayerCommand(opts *CLIOptions, action *string) clihelp.Command {
 				Name:        "daemon",
 				Hidden:      true,
 				Description: "Internal background player daemon",
+				UsageLine:   "pod player daemon <audio> [--title <title>] [--podcast <name>]",
+				Args:        clihelp.ExactArgs(1),
+				Options: []clihelp.Option{
+					clihelp.String(&opts.PlayerTitle, "--title <title>", "", "Track title to announce"),
+					clihelp.String(&opts.Podcast, "--podcast <name>", "", "Podcast the track belongs to"),
+				},
 				Run: func(ctx *clihelp.Context) error {
 					*action = "player"
 					opts.PlayerSubcmd = "daemon"

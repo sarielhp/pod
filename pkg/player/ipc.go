@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -217,17 +218,62 @@ func SpawnDetachedMpv(audioPath, title string) error {
 
 	cmd := exec.Command("mpv", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	logFile := attachPlayerLog(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	return waitForPlayerSocket(playerStartTimeout, logFile)
+}
 
-	for i := 0; i < 20; i++ {
-		time.Sleep(25 * time.Millisecond)
+const playerStartTimeout = 3 * time.Second
+
+// waitForPlayerSocket polls until the control socket answers. A player that
+// never opens it has died, and saying so beats reporting a start that did
+// not happen; the log path is where its stderr went.
+func waitForPlayerSocket(timeout time.Duration, logFile string) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
 		if IsPlayerSocketAlive() {
 			return nil
 		}
+		time.Sleep(25 * time.Millisecond)
 	}
-	return nil
+	if logFile != "" {
+		return fmt.Errorf("player did not open %s within %s; see %s", PlayerSocketPath, timeout, logFile)
+	}
+	return fmt.Errorf("player did not open %s within %s", PlayerSocketPath, timeout)
+}
+
+// PlayerLogPath is where a detached player's stdout and stderr are appended,
+// so a player that dies on startup leaves its reason somewhere.
+func PlayerLogPath() string {
+	cacheHome := os.Getenv("XDG_CACHE_HOME")
+	if cacheHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		cacheHome = filepath.Join(home, ".cache")
+	}
+	return filepath.Join(cacheHome, "pod", "player.log")
+}
+
+func attachPlayerLog(cmd *exec.Cmd) string {
+	path := PlayerLogPath()
+	if path == "" {
+		return ""
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return ""
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return ""
+	}
+	fmt.Fprintf(f, "\n=== %s %s\n", time.Now().Format(time.RFC3339), strings.Join(cmd.Args, " "))
+	cmd.Stdout = f
+	cmd.Stderr = f
+	return path
 }
 
 func FindMprisScript() string {
@@ -258,17 +304,11 @@ func SpawnDetachedDaemon(audioPath, title, podcast string) error {
 	args := []string{"player", "daemon", audioPath, "--title", title, "--podcast", podcast}
 	cmd := exec.Command(execPath, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	logFile := attachPlayerLog(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-
-	for i := 0; i < 20; i++ {
-		time.Sleep(25 * time.Millisecond)
-		if IsPlayerSocketAlive() {
-			return nil
-		}
-	}
-	return nil
+	return waitForPlayerSocket(playerStartTimeout, logFile)
 }
 
 // listenPlayerSocket opens the control socket and restricts it to its owner.

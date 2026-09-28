@@ -312,6 +312,9 @@ type CLIOptions struct {
 
 	// In is where a command reads confirmations from; nil means stdin.
 	In io.Reader
+
+	// PlayerTitle is the track title the player daemon announces.
+	PlayerTitle string
 }
 
 type WhisperConfig struct {

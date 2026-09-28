@@ -5,6 +5,19 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Fixed
+- **`pod player play` on a machine without mpv never played anything.** The
+  fallback spawns `pod player daemon <file> --title ... --podcast ...`, and the
+  daemon subcommand rejected those two flags as unknown, so it exited before
+  opening the socket while `play` still printed "Started background playback".
+  The daemon now declares the flags, and `play` fails with an error if the
+  player has not opened its control socket within three seconds.
+- **A detached player's stdout and stderr are appended to
+  `~/.cache/pod/player.log`** (honouring `XDG_CACHE_HOME`), so a player that
+  dies on startup leaves its reason behind.
+
 ## [0.5.13] - 2026-09-27
 
 Fixes from the 2026-09-27 deep review (`issues/review.md`). Findings are cited

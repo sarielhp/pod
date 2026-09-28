@@ -46,9 +46,10 @@ type DownloadQueue struct {
 	testHookMu    util.Mutex
 	testHook      func(item DownloadQueueItem) error
 
-	workerMu      util.Mutex
-	workerRunning bool
-	workerPending bool
+	workerMu       util.Mutex
+	workerRunning  bool
+	workerPending  bool
+	workerExitHook func()
 }
 
 func NewDownloadQueue(path string) *DownloadQueue {
@@ -104,6 +105,18 @@ func (q *DownloadQueue) SetTestHook(hook func(item DownloadQueueItem) error) {
 	q.testHookMu.Lock()
 	defer q.testHookMu.Unlock()
 	q.testHook = hook
+}
+
+func (q *DownloadQueue) SetWorkerExitHookForTest(hook func()) {
+	q.testHookMu.Lock()
+	defer q.testHookMu.Unlock()
+	q.workerExitHook = hook
+}
+
+func (q *DownloadQueue) getWorkerExitHook() func() {
+	q.testHookMu.Lock()
+	defer q.testHookMu.Unlock()
+	return q.workerExitHook
 }
 
 func (q *DownloadQueue) getTestHook() func(item DownloadQueueItem) error {
@@ -187,11 +200,53 @@ func (q *DownloadQueue) IsEpisodeInQueue(guid, encURL, title string) bool {
 	return false
 }
 
-func (q *DownloadQueue) Enqueue(item DownloadQueueItem) (bool, string) {
+var queueLockTimeout = 5 * time.Second
+
+func queueLockTimeoutForTest(d time.Duration) time.Duration {
+	prev := queueLockTimeout
+	queueLockTimeout = d
+	return prev
+}
+
+// withQueueFile runs fn over the queue's on-disk state under both the
+// in-process mutex and the cross-process file lock, then saves whatever fn
+// left in persist when it asks to. Every read-modify-write goes through here:
+// the TUI and a CLI command are separate processes over one file, and a
+// mutex alone let one of them overwrite the other's update.
+func (q *DownloadQueue) withQueueFile(fn func(persist *DownloadQueuePersist) (save bool, err error)) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	lock, err := util.AcquireFileLockWithTimeout(q.filePath, queueLockTimeout)
+	if err != nil {
+		return err
+	}
+	if lock == nil {
+		return fmt.Errorf("download queue %s is locked by another process", q.filePath)
+	}
+	defer lock.Release()
+
 	persist := q.Load()
+	save, err := fn(persist)
+	if err != nil || !save {
+		return err
+	}
+	return q.Save(persist)
+}
+
+func (q *DownloadQueue) Enqueue(item DownloadQueueItem) (bool, string) {
+	ok, status := false, "save_error"
+	err := q.withQueueFile(func(persist *DownloadQueuePersist) (bool, error) {
+		ok, status = enqueueInto(persist, item)
+		return ok, nil
+	})
+	if err != nil {
+		return false, "save_error"
+	}
+	return ok, status
+}
+
+func enqueueInto(persist *DownloadQueuePersist, item DownloadQueueItem) (bool, string) {
 	for _, existing := range persist.Items {
 		if existing.Status == "completed" || existing.Status == "failed" {
 			continue
@@ -206,9 +261,6 @@ func (q *DownloadQueue) Enqueue(item DownloadQueueItem) (bool, string) {
 			persist.Items[i].Status = "queued"
 			persist.Items[i].Error = ""
 			persist.Items[i].AddedAt = time.Now().UTC()
-			if err := q.Save(persist); err != nil {
-				return false, "save_error"
-			}
 			return true, "queued"
 		}
 	}
@@ -220,39 +272,31 @@ func (q *DownloadQueue) Enqueue(item DownloadQueueItem) (bool, string) {
 	item.AddedAt = time.Now().UTC()
 
 	persist.Items = append(persist.Items, item)
-	if err := q.Save(persist); err != nil {
-		return false, "save_error"
-	}
 	return true, "queued"
 }
 
 func (q *DownloadQueue) Remove(id string) bool {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	persist := q.Load()
-	var updated []DownloadQueueItem
 	found := false
-	for _, item := range persist.Items {
-		if item.ID == id {
-			found = true
-			continue
+	err := q.withQueueFile(func(persist *DownloadQueuePersist) (bool, error) {
+		updated := persist.Items[:0:0]
+		for _, item := range persist.Items {
+			if item.ID == id {
+				found = true
+				continue
+			}
+			updated = append(updated, item)
 		}
-		updated = append(updated, item)
-	}
-	if found {
 		persist.Items = updated
-		_ = q.Save(persist)
-	}
-	return found
+		return found, nil
+	})
+	return found && err == nil
 }
 
 func (q *DownloadQueue) Clear() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	persist := &DownloadQueuePersist{Items: []DownloadQueueItem{}}
-	_ = q.Save(persist)
+	_ = q.withQueueFile(func(persist *DownloadQueuePersist) (bool, error) {
+		persist.Items = []DownloadQueueItem{}
+		return true, nil
+	})
 }
 
 func (q *DownloadQueue) Items() []DownloadQueueItem {
@@ -264,41 +308,33 @@ func (q *DownloadQueue) Items() []DownloadQueueItem {
 }
 
 func (q *DownloadQueue) Claim() (DownloadQueueItem, bool, error) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	lock, err := util.AcquireFileLock(q.filePath)
-	if err != nil || lock == nil {
+	var claimed DownloadQueueItem
+	found := false
+	err := q.withQueueFile(func(persist *DownloadQueuePersist) (bool, error) {
+		for i := range persist.Items {
+			if persist.Items[i].Status != "queued" {
+				continue
+			}
+			persist.Items[i].Status = "downloading"
+			persist.Items[i].OwnerPID = os.Getpid()
+			claimed, found = persist.Items[i], true
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
 		return DownloadQueueItem{}, false, err
 	}
-	defer lock.Release()
-
-	persist := q.Load()
-	for i := range persist.Items {
-		if persist.Items[i].Status != "queued" {
-			continue
-		}
-		persist.Items[i].Status = "downloading"
-		persist.Items[i].OwnerPID = os.Getpid()
-		if err := q.Save(persist); err != nil {
-			return DownloadQueueItem{}, false, err
-		}
-		return persist.Items[i], true, nil
-	}
-	return DownloadQueueItem{}, false, nil
+	return claimed, found, nil
 }
 
 func (q *DownloadQueue) Finalize(itemID string, dlErr error) error {
-	q.mu.Lock()
-	defer q.mu.Unlock()
+	return q.withQueueFile(func(persist *DownloadQueuePersist) (bool, error) {
+		return finalizeItem(persist, itemID, dlErr), nil
+	})
+}
 
-	lock, err := util.AcquireFileLock(q.filePath)
-	if err != nil || lock == nil {
-		return err
-	}
-	defer lock.Release()
-
-	persist := q.Load()
+func finalizeItem(persist *DownloadQueuePersist, itemID string, dlErr error) bool {
 	for i := range persist.Items {
 		if persist.Items[i].ID == itemID {
 			if dlErr != nil {
@@ -308,10 +344,10 @@ func (q *DownloadQueue) Finalize(itemID string, dlErr error) error {
 				persist.Items[i].Status = "completed"
 			}
 			persist.Items[i].OwnerPID = 0
-			break
+			return true
 		}
 	}
-	return q.Save(persist)
+	return false
 }
 
 func isNilBackend(b backend.Backend) bool {
@@ -389,12 +425,16 @@ func (q *DownloadQueue) TriggerWorker(client backend.Backend) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("panic in download worker: %v\n%s", r, debug.Stack())
+				q.workerMu.Lock()
+				q.workerRunning = false
+				q.workerPending = false
+				q.workerMu.Unlock()
 			}
-			q.workerMu.Lock()
-			q.workerRunning = false
-			q.workerMu.Unlock()
 		}()
 		q.runWorkerLoop(client)
+		if hook := q.getWorkerExitHook(); hook != nil {
+			hook()
+		}
 	}()
 }
 

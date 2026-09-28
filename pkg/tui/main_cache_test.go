@@ -14,5 +14,6 @@ func TestMain(m *testing.M) {
 		zero := time.Duration(0)
 		podcast.SetFeedRetryDelay(&zero)
 		podcast.SetFeedTransport(podtest.OfflineTransport())
+		podcast.SetAllowPrivateHosts(true)
 	}))
 }

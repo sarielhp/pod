@@ -372,6 +372,7 @@ type Config struct {
 	SubscriptionsFile string          `json:"subscriptions_file,omitempty"`
 	ChunkDurationSec  int             `json:"chunk_duration_sec"`
 	MaxEpisodeMB      int             `json:"max_episode_mb,omitempty"`
+	AllowPrivateHosts bool            `json:"allow_private_hosts,omitempty"`
 	ActiveProfileID   int             `json:"active_profile_id"`
 	Profiles          []LLMProfile    `json:"profiles"`
 	PostProcessors    []string        `json:"post_processors,omitempty"`

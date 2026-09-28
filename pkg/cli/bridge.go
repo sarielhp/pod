@@ -98,6 +98,7 @@ func loadConfig() Config {
 		return c
 	}
 	podcast.SetMaxEpisodeBytes(int64(cfg.MaxEpisodeMB) << 20)
+	podcast.SetAllowPrivateHosts(cfg.AllowPrivateHosts)
 	return *cfg
 }
 

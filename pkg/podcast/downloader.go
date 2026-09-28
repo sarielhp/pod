@@ -24,6 +24,8 @@ const DefaultMaxEpisodeBytes int64 = 2 << 30
 
 var episodeByteLimit = DefaultMaxEpisodeBytes
 
+var remoteTransport = newGuardedTransport()
+
 // SetMaxEpisodeBytes sets the cap NewDownloader gives each Downloader;
 // values below one leave the default in place.
 func SetMaxEpisodeBytes(n int64) {
@@ -40,7 +42,8 @@ type Downloader struct {
 func NewDownloader() *Downloader {
 	return &Downloader{
 		Client: &http.Client{
-			Timeout: 30 * time.Minute,
+			Transport: remoteTransport,
+			Timeout:   30 * time.Minute,
 		},
 		MaxBytes: episodeByteLimit,
 	}
@@ -164,7 +167,7 @@ func downloadCoverImage(imageURL, destPath string) error {
 	}
 	req.Header.Set("User-Agent", PodcastUserAgent)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Transport: remoteTransport, Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

@@ -83,13 +83,7 @@ var maxFeedSize int64 = defaultMaxFeedSize
 // to dozens of hosts at once and repeats the sweep on later runs, so pooling
 // connections and TLS sessions across calls is worth far more than the
 // isolation a per-call transport would buy.
-var feedTransport = &http.Transport{
-	Proxy:               http.ProxyFromEnvironment,
-	MaxIdleConns:        128,
-	MaxIdleConnsPerHost: 4,
-	IdleConnTimeout:     90 * time.Second,
-	TLSHandshakeTimeout: 10 * time.Second,
-}
+var feedTransport = newGuardedTransport()
 
 func feedHTTPClient(timeout time.Duration) *http.Client {
 	if timeout <= 0 {

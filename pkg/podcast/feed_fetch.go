@@ -74,8 +74,10 @@ const (
 	feedUserAgent            = "Mozilla/5.0 (compatible; ABSPodcastManager/1.0)"
 	defaultFeedFetchTimeout  = 15 * time.Second
 	defaultFeedFetchAttempts = 2
-	maxFeedSize              = 32 * 1024 * 1024
+	defaultMaxFeedSize       = 32 * 1024 * 1024
 )
+
+var maxFeedSize int64 = defaultMaxFeedSize
 
 // feedTransport is shared by every feed fetch. A feed sweep opens connections
 // to dozens of hosts at once and repeats the sweep on later runs, so pooling
@@ -192,9 +194,12 @@ func readFeedResponse(resp *http.Response, opts FeedFetchOptions) (FeedFetchResu
 		res.LastModified = opts.LastModified
 	}
 
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedSize))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedSize+1))
 	if err != nil {
 		return FeedFetchResult{}, true, err
+	}
+	if int64(len(data)) > maxFeedSize {
+		return FeedFetchResult{}, false, fmt.Errorf("feed exceeds the %d MB limit", maxFeedSize>>20)
 	}
 	doc, err := parseRSSFeed(data)
 	if err != nil {

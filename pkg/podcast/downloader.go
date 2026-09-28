@@ -16,8 +16,25 @@ import (
 
 const PodcastUserAgent = "pod/1.0 (+https://github.com/sarielhp/pod; Podcast Downloader)"
 
+// DefaultMaxEpisodeBytes bounds a single episode download when no
+// max_episode_mb is configured. A feed controls the URL it points at, so
+// without a cap one enclosure could fill the volume for the length of the
+// client timeout.
+const DefaultMaxEpisodeBytes int64 = 2 << 30
+
+var episodeByteLimit = DefaultMaxEpisodeBytes
+
+// SetMaxEpisodeBytes sets the cap NewDownloader gives each Downloader;
+// values below one leave the default in place.
+func SetMaxEpisodeBytes(n int64) {
+	if n > 0 {
+		episodeByteLimit = n
+	}
+}
+
 type Downloader struct {
-	Client *http.Client
+	Client   *http.Client
+	MaxBytes int64
 }
 
 func NewDownloader() *Downloader {
@@ -25,6 +42,7 @@ func NewDownloader() *Downloader {
 		Client: &http.Client{
 			Timeout: 30 * time.Minute,
 		},
+		MaxBytes: episodeByteLimit,
 	}
 }
 
@@ -75,6 +93,16 @@ func (d *Downloader) fetchToFile(ctx context.Context, enclosureURL, tempPath str
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return fmt.Errorf("download HTTP %d %s", resp.StatusCode, resp.Status)
 	}
+	if ct := resp.Header.Get("Content-Type"); isDocumentContentType(ct) {
+		return fmt.Errorf("server returned %s instead of audio for %s", ct, enclosureURL)
+	}
+	limit := d.MaxBytes
+	if limit <= 0 {
+		limit = DefaultMaxEpisodeBytes
+	}
+	if resp.ContentLength > limit {
+		return fmt.Errorf("episode is %d MB, over the %d MB limit (max_episode_mb)", resp.ContentLength>>20, limit>>20)
+	}
 
 	out, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
@@ -82,9 +110,12 @@ func (d *Downloader) fetchToFile(ctx context.Context, enclosureURL, tempPath str
 	}
 	defer out.Close()
 
-	written, err := io.Copy(out, resp.Body)
+	written, err := io.Copy(out, io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return fmt.Errorf("stream audio: %w", err)
+	}
+	if written > limit {
+		return fmt.Errorf("episode exceeds the %d MB limit (max_episode_mb)", limit>>20)
 	}
 	if written == 0 {
 		return fmt.Errorf("downloaded 0 bytes from %s", enclosureURL)
@@ -92,6 +123,15 @@ func (d *Downloader) fetchToFile(ctx context.Context, enclosureURL, tempPath str
 
 	progress.Or(rep).Infof("Downloaded %s (%.2f MB)", filepath.Base(tempPath), float64(written)/(1024*1024))
 	return nil
+}
+
+func isDocumentContentType(ct string) bool {
+	mediaType := strings.ToLower(strings.TrimSpace(strings.SplitN(ct, ";", 2)[0]))
+	switch mediaType {
+	case "text/html", "application/xhtml+xml", "text/xml", "application/xml", "application/rss+xml", "application/json":
+		return true
+	}
+	return false
 }
 
 func downloadCoverImage(imageURL, destPath string) error {

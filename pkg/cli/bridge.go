@@ -97,6 +97,7 @@ func loadConfig() Config {
 		c := config.DefaultConfig()
 		return c
 	}
+	podcast.SetMaxEpisodeBytes(int64(cfg.MaxEpisodeMB) << 20)
 	return *cfg
 }
 

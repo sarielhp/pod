@@ -368,6 +368,7 @@ type Config struct {
 	ServerBaseURL     string          `json:"server_base_url,omitempty"`
 	SubscriptionsFile string          `json:"subscriptions_file,omitempty"`
 	ChunkDurationSec  int             `json:"chunk_duration_sec"`
+	MaxEpisodeMB      int             `json:"max_episode_mb,omitempty"`
 	ActiveProfileID   int             `json:"active_profile_id"`
 	Profiles          []LLMProfile    `json:"profiles"`
 	PostProcessors    []string        `json:"post_processors,omitempty"`

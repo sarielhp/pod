@@ -5,7 +5,6 @@ import "github.com/sarielhp/clihelp"
 func buildUICommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "tui",
-		Aliases:     []string{"ui"},
 		Description: "Interactive TUI browser for podcasts and episodes",
 		UsageLine:   "pod tui [options] [directory]",
 		Args:        clihelp.MaximumNArgs(1),

@@ -85,11 +85,6 @@ func (e Episode) Status() (types.EpisodeStatusFile, error) {
 	return *st, nil
 }
 
-// Update mutates the episode status file atomically using the provided update function.
-func (e Episode) Update(fn func(*types.EpisodeStatusFile)) error {
-	return UpdateEpisodeStatus(e.Main, fn)
-}
-
 // IsClean reports whether this episode has completed ad removal and has a valid transcript.
 func (e Episode) IsClean() bool {
 	return IsEpisodeClean(e.Main)

@@ -51,8 +51,3 @@ func ReaderFromAppConfig(cfg *types.Config, rep progress.Reporter) (PodcastReade
 	}
 	return FromAppConfig(cfg, rep)
 }
-
-// SyncEpisodeDuration is a no-op in standalone mode.
-func SyncEpisodeDuration(cfg *types.Config, filePath string, duration float64) error {
-	return nil
-}

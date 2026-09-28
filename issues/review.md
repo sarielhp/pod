@@ -59,6 +59,21 @@ A5, A6 (partial), A7 (one cluster). Each is one commit, gated by `tools/check`.
   overwrote `~/.config/pod/play_queue.json` once more before T1 landed
   (mtime 20:10:32); after that commit no test run touches it.
 
+**Found by running the binary against the real library after the fixes
+(the review never executed anything):**
+- `pod player play` on a machine without mpv never played: the daemon
+  subcommand rejected the `--title`/`--podcast` flags its own spawner passes,
+  and both spawners reported success without waiting for the socket. Fixed in
+  0.5.14; the player now logs to `~/.cache/pod/player.log`.
+- With a symlinked podcasts root and alias symlinks beside renamed shows,
+  `FindMP3Files` walked each such show twice, so `pod info latest` listed every
+  episode twice under two podcast IDs and `pod rm_ads <dir>` visited each file
+  twice. A test in `pkg/cli` had required the duplicate. Fixed.
+- `pod queue list` showed no publication date for a just-downloaded episode
+  because it never read the status file's `published_at`. Fixed.
+- `pod server prune` printed nothing when there was nothing to prune. Now
+  prints a one-line summary.
+
 **Found while fixing (not in the review):**
 - `pod queue audit` called `RunTranscriptAudit` without the CLI reporter, so
   its output was discarded (same class as A5). Fixed.

@@ -177,29 +177,41 @@ func QueryPlayerStatus() (*types.PlayerStatusDTO, error) {
 }
 
 func StartPlayerTrack(audioPath, title, podcast string) error {
+	_, err := StartPlayerTrackWith(audioPath, title, podcast)
+	return err
+}
+
+// StartPlayerTrackWith starts playback and reports which Backend is doing it,
+// so the caller can tell the user when the better player is missing. With no
+// supported player on PATH it fails before spawning anything.
+func StartPlayerTrackWith(audioPath, title, podcast string) (Backend, error) {
 	if IsAudioSpawnDisabled() {
-		return nil
+		return Backend{}, nil
 	}
 
 	if _, err := os.Stat(audioPath); err != nil {
-		return err
+		return Backend{}, err
+	}
+
+	backend, err := SelectedBackend()
+	if err != nil {
+		return Backend{}, err
 	}
 
 	if IsPlayerSocketAlive() {
 		if err := LoadfilePlayerSocket(audioPath); err == nil {
 			_ = ResumePlayerSocket()
-			return nil
+			return backend, nil
 		}
 		_ = StopPlayerSocket()
 	}
 
 	_ = os.Remove(PlayerSocketPath)
 
-	if _, err := exec.LookPath("mpv"); err == nil {
-		return SpawnDetachedMpv(audioPath, title)
+	if backend.Name == "mpv" {
+		return backend, SpawnDetachedMpv(audioPath, title)
 	}
-
-	return SpawnDetachedDaemon(audioPath, title, podcast)
+	return backend, SpawnDetachedDaemon(audioPath, title, podcast)
 }
 
 func SpawnDetachedMpv(audioPath, title string) error {

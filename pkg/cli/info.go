@@ -169,13 +169,14 @@ func buildInfoStatusSubcommand(opts *CLIOptions, action *string) clihelp.Command
 func buildInfoCheckSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "check",
-		Description: "Test external services (Whisper, Gemini, Kitty)",
-		UsageLine:   "pod info check [options] [target]",
+		Description: "Test external services (Whisper, Gemini, Kitty, audio player)",
+		UsageLine:   "pod info check [options] [whisper|kitty|gemini|player]",
 		Args:        clihelp.RangeArgs(0, 2),
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.TestWhisper, "--test-whisper", false, "Test whisper server connection"),
 			clihelp.Bool(&opts.TestKitty, "--test-kitty", false, "Test Kitty cover image display"),
 			clihelp.Bool(&opts.TestGemini, "--test-gemini", false, "Test Gemini API key and quota status"),
+			clihelp.Bool(&opts.TestPlayer, "--test-player", false, "Report which audio players are installed and which one playback will use"),
 			clihelp.Bool(&opts.TestModels, "--models", false, "Compare the Gemini model chain with what the key can reach"),
 		},
 		Run: func(ctx *clihelp.Context) error {

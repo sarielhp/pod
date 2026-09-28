@@ -7,6 +7,15 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Added
+- **`pod info check player`** lists which of mpv, cvlc, ffplay and mpg123 are
+  installed, which one `pod player play` will use, and what is lost without
+  mpv (in-place seeking, MPRIS media keys). It fails when none is installed.
+- **`pod player play` says when it is not using mpv** ("Playing with cvlc
+  (install mpv for in-place seeking and media keys)"), on the progress stream
+  so `--quiet` hides it, and fails with the list of players to install when
+  none exists instead of timing out on the socket.
+
 ### Fixed
 - **Episodes were listed and processed twice when a show is reachable through
   a symlink.** With a symlinked podcasts directory, or the alias symlinks pod

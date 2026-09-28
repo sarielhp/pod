@@ -40,7 +40,7 @@ func runPlayerCommand(cfg Config, cli CLIOptions) error {
 
 	switch subcmd {
 	case "play":
-		return handlePlayerPlay(outFor(cli), podcastsDir, args)
+		return handlePlayerPlay(outFor(cli), progressFor(cli), podcastsDir, args)
 	case "stop":
 		return handlePlayerStop(outFor(cli))
 	case "pause":
@@ -54,7 +54,7 @@ func runPlayerCommand(cfg Config, cli CLIOptions) error {
 	}
 }
 
-func handlePlayerPlay(w io.Writer, podcastsDir string, args []string) error {
+func handlePlayerPlay(w, prog io.Writer, podcastsDir string, args []string) error {
 	if len(args) == 0 {
 		if player.IsPlayerSocketAlive() {
 			if err := player.ResumePlayerSocket(); err == nil {
@@ -78,8 +78,12 @@ func handlePlayerPlay(w io.Writer, podcastsDir string, args []string) error {
 	fmt.Fprintf(w, "Playing: %s [%s]\n", util.Bold(ep.Title), util.BoldCyan(ep.ShortID))
 	fmt.Fprintf(w, "Audio file: %s\n", ep.Path)
 
-	if err := player.StartPlayerTrack(ep.Path, ep.Title, ep.PodcastTitle); err != nil {
+	backend, err := player.StartPlayerTrackWith(ep.Path, ep.Title, ep.PodcastTitle)
+	if err != nil {
 		return fmt.Errorf("failed to start player: %w", err)
+	}
+	if backend.Name != "" && backend.Name != "mpv" {
+		fmt.Fprintf(prog, "Playing with %s (install mpv for in-place seeking and media keys)\n", backend.Name)
 	}
 
 	track := types.PlayerTrack{

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"pod/pkg/gemini"
+	"pod/pkg/player"
 )
 
 // reportModelChain compares the configured Gemini model chain against the
@@ -63,9 +64,35 @@ func runCheckCommand(config Config, cli CLIOptions) error {
 	case cli.TestKitty:
 		testKittyImage(outFor(cli), cli.Args)
 		return nil
+	case cli.TestPlayer:
+		return reportPlayerBackends(outFor(cli))
 	}
 	if !testWhisperServer(outFor(cli), config.WhisperURL, config.WhisperWakeCommand, cli.Quiet) {
 		return fmt.Errorf("whisper test failed")
+	}
+	return nil
+}
+
+// reportPlayerBackends says which players are installed and which one
+// 'pod player play' will pick, because the choice changes what playback can
+// do and nothing else tells the user which one they got.
+func reportPlayerBackends(w io.Writer) error {
+	fmt.Fprintln(w, "Audio players (tried in this order):")
+	for _, b := range player.Backends() {
+		state := "not found"
+		if b.Path != "" {
+			state = b.Path
+		}
+		fmt.Fprintf(w, "  %-7s %-40s %s\n", b.Name, state, b.Note)
+	}
+	selected, err := player.SelectedBackend()
+	if err != nil {
+		fmt.Fprintln(w, "\nERROR: pod player play cannot work until one of them is installed.")
+		return err
+	}
+	fmt.Fprintf(w, "\npod player play will use: %s\n", selected.Name)
+	if selected.Name != "mpv" {
+		fmt.Fprintln(w, "mpv is absent: seeking restarts the player and desktop media keys (MPRIS) are unavailable. Install mpv to get both.")
 	}
 	return nil
 }

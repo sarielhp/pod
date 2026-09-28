@@ -196,6 +196,7 @@ func (p *AudioPlayer) stopLocked() {
 }
 
 func (p *AudioPlayer) TogglePause() {
+	st := pollSocketStatus()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -207,9 +208,9 @@ func (p *AudioPlayer) TogglePause() {
 		return
 	}
 
-	p.updatePositionLocked()
+	p.updatePositionLocked(st)
 
-	if !IsAudioSpawnDisabled() && IsPlayerSocketAlive() {
+	if st != nil {
 		paused, err := PausePlayerSocket()
 		if err == nil {
 			p.IsPaused = paused
@@ -228,13 +229,14 @@ func (p *AudioPlayer) TogglePause() {
 }
 
 func (p *AudioPlayer) Seek(deltaSec float64) {
+	st := pollSocketStatus()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if p.Current == nil {
 		return
 	}
-	p.updatePositionLocked()
+	p.updatePositionLocked(st)
 	newPos := p.Position + deltaSec
 	if newPos < 0 {
 		newPos = 0
@@ -243,7 +245,7 @@ func (p *AudioPlayer) Seek(deltaSec float64) {
 		newPos = p.Duration
 	}
 	p.Position = newPos
-	if !IsAudioSpawnDisabled() && IsPlayerSocketAlive() {
+	if st != nil {
 		_ = SeekPlayerSocket(deltaSec)
 		return
 	}
@@ -308,23 +310,37 @@ func (p *AudioPlayer) PlayQueueIndex(idx int) {
 	p.playTrackLocked(track)
 }
 
+// UpdatePosition is the TUI's 500 ms tick. The socket round-trips happen
+// before p.mu is taken: each carries a one-second deadline, and holding the
+// lock across them froze every other player call for seconds whenever the
+// daemon stalled.
 func (p *AudioPlayer) UpdatePosition() {
+	st := pollSocketStatus()
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.updatePositionLocked()
+	p.updatePositionLocked(st)
 }
 
-func (p *AudioPlayer) updatePositionLocked() {
-	if !IsAudioSpawnDisabled() && IsPlayerSocketAlive() {
-		if st, err := QueryPlayerStatus(); err == nil && st != nil {
-			p.Position = st.Position
-			if st.Duration > 0 {
-				p.Duration = st.Duration
-			}
-			p.IsPaused = st.IsPaused
-			p.IsPlaying = st.IsRunning
-			return
+func pollSocketStatus() *types.PlayerStatusDTO {
+	if IsAudioSpawnDisabled() || !IsPlayerSocketAlive() {
+		return nil
+	}
+	st, err := QueryPlayerStatus()
+	if err != nil {
+		return nil
+	}
+	return st
+}
+
+func (p *AudioPlayer) updatePositionLocked(st *types.PlayerStatusDTO) {
+	if st != nil {
+		p.Position = st.Position
+		if st.Duration > 0 {
+			p.Duration = st.Duration
 		}
+		p.IsPaused = st.IsPaused
+		p.IsPlaying = st.IsRunning
+		return
 	}
 	if p.IsPlaying && !p.IsPaused {
 		elapsed := time.Since(p.startPlayTime).Seconds()

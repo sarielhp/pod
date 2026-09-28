@@ -382,8 +382,8 @@ func TestGetEpisodeStatusLabelStaleActive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloaded.Status != types.StateNeedsAdR {
-		t.Fatalf("expected healed status %s, got %s", types.StateNeedsAdR, reloaded.Status)
+	if reloaded.Status != StateTranscribingLocally {
+		t.Fatalf("a listing rewrote the status file to %s; 'info list' is a read command", reloaded.Status)
 	}
 
 	lock, err := util.AcquireFileLock(mp3Path)

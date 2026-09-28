@@ -97,6 +97,8 @@ func loadConfig() Config {
 		c := config.DefaultConfig()
 		return c
 	}
+	podcast.SetMaxEpisodeBytes(int64(cfg.MaxEpisodeMB) << 20)
+	podcast.SetAllowPrivateHosts(cfg.AllowPrivateHosts)
 	return *cfg
 }
 
@@ -132,6 +134,15 @@ func library(cfg Config, cli CLIOptions, b backend.Backend) *podcast.Library {
 // progress chatter", but for `info ls --quiet` it means "print bare IDs and
 // nothing else" — output that must survive. Conflating the two silently
 // emptied that command.
+// inFor is where a command reads a confirmation from: the caller's reader if
+// it supplied one, otherwise stdin.
+func inFor(cli CLIOptions) io.Reader {
+	if cli.In != nil {
+		return cli.In
+	}
+	return os.Stdin
+}
+
 func outFor(cli CLIOptions) io.Writer {
 	if cli.Out != nil {
 		return cli.Out

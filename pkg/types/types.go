@@ -71,6 +71,7 @@ type CutsResult struct {
 	CutsFile     string
 	KeepSegments [][2]float64
 	Changed      bool
+	Err          error
 }
 
 type LLMProfile struct {
@@ -308,6 +309,9 @@ type CLIOptions struct {
 	// test unable to run in parallel with any other.
 	Out io.Writer
 	Err io.Writer
+
+	// In is where a command reads confirmations from; nil means stdin.
+	In io.Reader
 }
 
 type WhisperConfig struct {
@@ -368,6 +372,8 @@ type Config struct {
 	ServerBaseURL     string          `json:"server_base_url,omitempty"`
 	SubscriptionsFile string          `json:"subscriptions_file,omitempty"`
 	ChunkDurationSec  int             `json:"chunk_duration_sec"`
+	MaxEpisodeMB      int             `json:"max_episode_mb,omitempty"`
+	AllowPrivateHosts bool            `json:"allow_private_hosts,omitempty"`
 	ActiveProfileID   int             `json:"active_profile_id"`
 	Profiles          []LLMProfile    `json:"profiles"`
 	PostProcessors    []string        `json:"post_processors,omitempty"`

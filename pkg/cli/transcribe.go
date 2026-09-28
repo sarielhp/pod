@@ -45,6 +45,21 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 	}
 }
 
+func transcribeOneLocked(path string, cfg Config, cli CLIOptions, opts ProcOptions) (pipeline.TranscribeResult, error) {
+	release, err := lockEpisodeForProcessing(path)
+	if err != nil {
+		return pipeline.TranscribeResult{}, err
+	}
+	defer release()
+	return pipeline.TranscribeFile(pipeline.TranscribeRequest{
+		Path:       path,
+		OutputDir:  cli.Output,
+		Formats:    strings.Split(cli.ExportFormat, ","),
+		MaxMinutes: transcribeMinutes(cli.TranscribeMin),
+		KeepAudio:  cli.KeepAudio,
+	}, cfg, opts, reporter(cli))
+}
+
 func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 	paths, err := expandTranscribeTargets(cli.Args)
 	if err != nil {
@@ -59,13 +74,7 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 
 	var failures []string
 	for _, path := range paths {
-		res, err := pipeline.TranscribeFile(pipeline.TranscribeRequest{
-			Path:       path,
-			OutputDir:  cli.Output,
-			Formats:    strings.Split(cli.ExportFormat, ","),
-			MaxMinutes: transcribeMinutes(cli.TranscribeMin),
-			KeepAudio:  cli.KeepAudio,
-		}, cfg, opts, reporter(cli))
+		res, err := transcribeOneLocked(path, cfg, cli, opts)
 		if err != nil {
 			fmt.Fprintf(errFor(cli), "%v\n", err)
 			failures = append(failures, filepath.Base(path))

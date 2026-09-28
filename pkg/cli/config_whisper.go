@@ -256,7 +256,7 @@ func parseWhisperProfileSpec(spec string, nextID int) WhisperProfile {
 	return parseURLFirstSpec(parts, nextID, name, sec)
 }
 
-func addWhisperProfile(w io.Writer, cfg *Config, spec string) {
+func addWhisperProfile(w io.Writer, cfg *Config, spec string) error {
 	nextID := 1
 	for _, wp := range cfg.WhisperProfiles {
 		if wp.ID >= nextID {
@@ -269,12 +269,15 @@ func addWhisperProfile(w io.Writer, cfg *Config, spec string) {
 		cfg.ActiveWhisperID = nextID
 	}
 	resolveActiveWhisperProfile(cfg)
-	_ = config.SaveConfig(cfg)
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
 	badge := config.WhisperEngineBadge(newProfile.Engine)
 	fmt.Fprintf(w, "Added Whisper server profile [%d] %s %s\n", nextID, newProfile.Name, badge)
+	return nil
 }
 
-func removeWhisperProfile(w io.Writer, cfg *Config, targetID int) {
+func removeWhisperProfile(w io.Writer, cfg *Config, targetID int) error {
 	foundIndex := -1
 	for i, wp := range cfg.WhisperProfiles {
 		if wp.ID == targetID {
@@ -295,31 +298,38 @@ func removeWhisperProfile(w io.Writer, cfg *Config, targetID int) {
 		}
 	}
 	resolveActiveWhisperProfile(cfg)
-	_ = config.SaveConfig(cfg)
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
 	fmt.Fprintf(w, "Removed Whisper server profile [%d] %s\n", targetID, profileName)
+	return nil
 }
 
-func setDefaultWhisperProfile(w io.Writer, cfg *Config, targetID int) {
+func setDefaultWhisperProfile(w io.Writer, cfg *Config, targetID int) error {
 	if targetID == 0 {
 		cfg.ActiveWhisperID = 0
 		resolveActiveWhisperProfile(cfg)
-		_ = config.SaveConfig(cfg)
+		if err := saveConfig(cfg); err != nil {
+			return err
+		}
 		fmt.Fprintln(w, "Default Whisper server updated to fallback/legacy configuration.")
-		return
+		return nil
 	}
 	for _, wp := range cfg.WhisperProfiles {
 		if wp.ID == targetID {
 			cfg.ActiveWhisperID = targetID
 			resolveActiveWhisperProfile(cfg)
-			_ = config.SaveConfig(cfg)
+			if err := saveConfig(cfg); err != nil {
+				return err
+			}
 			engine := wp.Engine
 			if engine == "" {
 				engine = config.InferWhisperEngine(wp)
 			}
 			badge := config.WhisperEngineBadge(engine)
 			fmt.Fprintf(w, "Default Whisper server profile updated to [%d] %s %s\n", targetID, wp.Name, badge)
-			return
+			return nil
 		}
 	}
-	fatalError("Error: Whisper server profile [%d] not found in configuration.\n", targetID)
+	return fmt.Errorf("whisper server profile [%d] not found in configuration", targetID)
 }

@@ -10,10 +10,22 @@ import (
 // silentPackages must not write to stdout or stderr directly. They describe
 // what they are doing through a Reporter and let the caller decide where it
 // goes — the TUI's caller, for one, is a full-screen alt-screen that a stray
-// fmt.Println corrupts. New packages in the podcast library belong on this
-// list; the processing packages (pipeline, adremoval, remote) do not qualify
-// yet and are tracked in review/002.md.
-var silentPackages = []string{"../podcast", "../backend", "../podsite"}
+// fmt.Println corrupts. Every package that is already clean is listed, so it
+// stays clean. The ones still printing directly — adremoval, transcribe,
+// audio, format, gemini, detect, util — join the list as each is converted.
+var silentPackages = []string{
+	"../backend",
+	"../config",
+	"../episode",
+	"../kitty",
+	"../pipeline",
+	"../player",
+	"../podcast",
+	"../podsite",
+	"../port",
+	"../progress",
+	"../types",
+}
 
 // Writing to an io.Writer the caller supplied is fine, so these must match the
 // unqualified builtins and the fmt helpers that target the process streams —

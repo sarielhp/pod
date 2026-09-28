@@ -177,8 +177,11 @@ func UpdateEpisodeStatus(audioPath string, mutate func(*types.EpisodeStatusFile)
 
 	statPath := StatusPathFor(audioPath)
 	lock, err := util.AcquireFileLockWithTimeout(statPath, 5*time.Second)
-	if err != nil || lock == nil {
-		return fmt.Errorf("status file is locked: %w", err)
+	if err != nil {
+		return fmt.Errorf("lock status file: %w", err)
+	}
+	if lock == nil {
+		return fmt.Errorf("status file %s is locked by another pod instance", statPath)
 	}
 	defer lock.Release()
 

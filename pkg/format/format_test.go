@@ -1,6 +1,7 @@
 package format
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -68,5 +69,19 @@ func TestSaveCutsJSON(t *testing.T) {
 	res2 := SaveCutsJSON(mainFile, 100.0, ads, nil, true)
 	if res2.Changed {
 		t.Error("expected unchanged cuts to return Changed=false")
+	}
+}
+
+func TestSaveCutsJSONReportsAWriteFailure(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	res := SaveCutsJSON(filepath.Join(blocker, "ep.mp3"), 60, []types.AdSegment{{Start: 1, End: 2}}, nil, true)
+	if res.Err == nil {
+		t.Fatal("a cuts file that could not be written was reported as saved")
+	}
+	if res.Changed {
+		t.Fatal("Changed is true although nothing was written")
 	}
 }

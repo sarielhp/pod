@@ -188,7 +188,7 @@ func TestUnplayableTrackDoesNotPersistAnEmptiedQueue(t *testing.T) {
 
 	data, err := os.ReadFile(GetPlayQueueFilePath())
 	if err != nil {
-		t.Skipf("no play queue file was written: %v", err)
+		t.Fatalf("no play queue file was written: %v", err)
 	}
 	var persisted types.PlayQueuePersist
 	if err := json.Unmarshal(data, &persisted); err != nil {
@@ -197,5 +197,16 @@ func TestUnplayableTrackDoesNotPersistAnEmptiedQueue(t *testing.T) {
 	if len(persisted.Queue) != 2 {
 		t.Errorf("persisted queue holds %d tracks, want 2; the drain was written to disk",
 			len(persisted.Queue))
+	}
+}
+
+func TestPlayQueuePathIsIsolatedFromTheRealHome(t *testing.T) {
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome == "" {
+		t.Fatal("XDG_CONFIG_HOME is unset: the test binary is not isolated from ~/.config")
+	}
+	got := GetPlayQueueFilePath()
+	if !strings.HasPrefix(got, configHome+string(filepath.Separator)) {
+		t.Fatalf("play queue path %q is outside the isolated config home %q", got, configHome)
 	}
 }

@@ -239,7 +239,7 @@ func RunWhisperCLITranscription(audioPath string, profile types.WhisperProfile, 
 
 func RunWhisperCLITranscriptionContext(ctx context.Context, audioPath string, profile types.WhisperProfile, quiet, verbose bool, prompt, lang string) (*types.TranscriptionData, error) {
 	bin := ResolveWhisperCLIBinary(profile.CliBinary)
-	AnnounceUsing(types.WhisperEngineLocal, fmt.Sprintf("(%s, model: %s)", bin, profile.Model), quiet)
+	AnnounceUsing(types.WhisperEngineLocal, fmt.Sprintf("(%s, model: %s)", bin, profile.Model), terminalReporter(quiet, verbose))
 	modelPath, err := ResolveWhisperModelPath(profile.Model)
 	if err != nil {
 		return nil, err

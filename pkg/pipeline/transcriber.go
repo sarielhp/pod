@@ -120,13 +120,16 @@ func (r *racingTranscriber) Transcribe(ctx context.Context, wav string, duration
 type geminiTranscriber struct {
 	cfg      types.Config
 	chunkDur float64
+	rep      progress.Reporter
 }
 
-// NewGeminiTranscriber creates a transcriber backed by Gemini Flash audio processing.
-func NewGeminiTranscriber(cfg types.Config, chunkDurSec float64) Transcriber {
+// NewGeminiTranscriber creates a transcriber backed by Gemini Flash audio
+// processing, reporting progress to rep. A nil Reporter is silent.
+func NewGeminiTranscriber(cfg types.Config, chunkDurSec float64, rep progress.Reporter) Transcriber {
 	return &geminiTranscriber{
 		cfg:      cfg,
 		chunkDur: chunkDurSec,
+		rep:      progress.Or(rep),
 	}
 }
 
@@ -135,7 +138,7 @@ func (g *geminiTranscriber) Transcribe(ctx context.Context, wav string, duration
 	if chunkDur <= 0 {
 		chunkDur = g.cfg.GeminiChunkSecCapped(g.cfg.ChunkDurationSec)
 	}
-	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, wav, g.cfg, chunkDur)
+	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, wav, g.cfg, chunkDur, g.rep)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +158,7 @@ type WhisperConfig struct {
 	Prompt          string
 	Language        string
 	DockerContainer string
+	Progress        progress.Reporter
 }
 
 type whisperTranscriber struct {
@@ -185,6 +189,7 @@ func (w *whisperTranscriber) Transcribe(ctx context.Context, wav string, duratio
 		w.cfg.Prompt,
 		w.cfg.Language,
 		w.cfg.DockerContainer,
+		w.cfg.Progress,
 	)
 }
 
@@ -197,7 +202,7 @@ func BuildTranscriber(cfg types.Config, opts types.ProcOptions, prompt, lang, do
 			if racer.IsGemini {
 				named = append(named, NamedTranscriber{
 					Name:        "Gemini",
-					Transcriber: NewGeminiTranscriber(cfg, 0),
+					Transcriber: NewGeminiTranscriber(cfg, 0, r),
 				})
 			} else {
 				named = append(named, NamedTranscriber{
@@ -209,6 +214,7 @@ func BuildTranscriber(cfg types.Config, opts types.ProcOptions, prompt, lang, do
 						Prompt:          prompt,
 						Language:        lang,
 						DockerContainer: dockerContainer,
+						Progress:        r,
 					}),
 				})
 			}
@@ -219,7 +225,7 @@ func BuildTranscriber(cfg types.Config, opts types.ProcOptions, prompt, lang, do
 	activeProfile := config.GetActiveWhisperProfile(&cfg)
 	if opts.WhisperEngine == string(types.WhisperEngineGemini) ||
 		(opts.WhisperEngine == "" && activeProfile.Engine == types.WhisperEngineGemini) {
-		primary := NewGeminiTranscriber(cfg, 0)
+		primary := NewGeminiTranscriber(cfg, 0, r)
 		fallbackCfg := config.PrepareWhisperFallbackConfig(cfg)
 		fallbackProfile := config.GetActiveWhisperProfile(&fallbackCfg)
 		backup := NewWhisperTranscriber(WhisperConfig{
@@ -229,6 +235,7 @@ func BuildTranscriber(cfg types.Config, opts types.ProcOptions, prompt, lang, do
 			Prompt:          prompt,
 			Language:        lang,
 			DockerContainer: dockerContainer,
+			Progress:        r,
 		})
 		return NewFallbackTranscriber(primary, backup, r)
 	}

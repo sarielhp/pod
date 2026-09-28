@@ -1,26 +1,31 @@
 package transcribe
 
 import (
-	"fmt"
 	"net/url"
+	"os"
 	"pod/pkg/format"
+	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
 	"strings"
 )
 
-func AnnounceStart(duration float64, quiet bool) {
+// terminalReporter bridges this package's quiet/verbose flags to a Reporter
+// for the functions whose callers still pass the flags rather than one.
+func terminalReporter(quiet, verbose bool) progress.Reporter {
 	if quiet {
-		return
+		return progress.Discard
 	}
-	fmt.Println("\n" + util.BoldYellow("--transcribing---"))
-	fmt.Println(util.BoldCyan("Episode length: " + format.FormatMinutes(duration)))
+	return progress.Writer(os.Stdout, os.Stderr, verbose)
 }
 
-func AnnounceWhisperServer(endpoint string, engine types.WhisperEngine, container string, quiet bool) {
-	if quiet {
-		return
-	}
+func AnnounceStart(duration float64, rep progress.Reporter) {
+	r := progress.Or(rep)
+	r.Infof("\n%s", util.BoldYellow("--transcribing---"))
+	r.Infof("%s", util.BoldCyan("Episode length: "+format.FormatMinutes(duration)))
+}
+
+func AnnounceWhisperServer(endpoint string, engine types.WhisperEngine, container string, rep progress.Reporter) {
 	var parts []string
 	if engine == types.WhisperEngineDocker && container != "" {
 		parts = append(parts, "container: "+container)
@@ -29,7 +34,7 @@ func AnnounceWhisperServer(endpoint string, engine types.WhisperEngine, containe
 		parts = append(parts, "host: "+u.Hostname())
 	}
 	parts = append(parts, "model: chosen by server")
-	AnnounceUsing(engine, "("+strings.Join(parts, ", ")+")", false)
+	AnnounceUsing(engine, "("+strings.Join(parts, ", ")+")", rep)
 }
 
 // BackendLabel names the backend that actually performs the transcription.
@@ -53,17 +58,14 @@ func BackendLabel(engine types.WhisperEngine) string {
 	}
 }
 
-// AnnounceUsing prints the single line identifying the running backend.
+// AnnounceUsing reports the single line identifying the running backend.
 // detail is an already-formatted parenthesised suffix, or empty.
-func AnnounceUsing(engine types.WhisperEngine, detail string, quiet bool) {
-	if quiet {
-		return
-	}
+func AnnounceUsing(engine types.WhisperEngine, detail string, rep progress.Reporter) {
 	line := "\n" + util.BoldGreen("Using: "+BackendLabel(engine))
 	if detail != "" {
 		line += " " + util.Cyan(detail)
 	}
-	fmt.Println(line)
+	progress.Or(rep).Infof("%s", line)
 }
 
 // StampBackend records on the transcript which backend and model produced

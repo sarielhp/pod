@@ -354,7 +354,17 @@ func runSubscriptionDirectDownloads(store *podcast.SubscriptionStore, cfg Config
 	if !cli.Quiet && res.Downloaded > 0 {
 		fmt.Fprintf(outFor(cli), "Downloaded %d episode(s) across %d podcast(s).\n", res.Downloaded, res.Podcasts)
 	}
-	return nil
+	return downloadFailuresError(res)
+}
+
+// downloadFailuresError turns per-podcast download failures, already printed
+// as warnings, into the command's exit status. A run in which something
+// failed must not exit 0: scripts and cron jobs only see the code.
+func downloadFailuresError(res podcast.SubscriptionDownloadResult) error {
+	if len(res.Failures) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d podcast download(s) failed", len(res.Failures))
 }
 
 // feedCheckProgress returns the in-place counter shown while feeds are read,

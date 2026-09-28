@@ -100,6 +100,8 @@ func detectStability(s pipeline.DetectStability) *DetectStabilityResult {
 	}
 }
 
+var detectFileRepeated = pipeline.DetectFileRepeated
+
 func runDetectCommand(cfg Config, cli CLIOptions) error {
 	opts := cli.ProcOptions
 	opts.Normalize()
@@ -115,13 +117,16 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 			NoMerge:     cli.DetectRaw,
 			WriteCuts:   cli.DetectWriteCuts,
 		}
-		runs, stability, err := pipeline.DetectFileRepeated(req, cli.DetectRepeat, cfg, opts, reporter(cli))
+		runs, stability, err := detectFileRepeated(req, cli.DetectRepeat, cfg, opts, reporter(cli))
+		if err == nil && len(runs) == 0 {
+			err = fmt.Errorf("%s: detection produced no result", path)
+		}
 		if err != nil {
 			fmt.Fprintf(errFor(cli), "%v\n", err)
 			failures = append(failures, path)
-			if len(runs) == 0 {
-				continue
-			}
+		}
+		if len(runs) == 0 {
+			continue
 		}
 		out := detectFileResult(runs[0])
 		if stability.Runs > 1 {

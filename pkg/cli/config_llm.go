@@ -43,16 +43,18 @@ func listProfiles(w io.Writer, cfg Config) {
 	fmt.Fprintf(w, "%s\n\n", util.RepeatStr("=", 70))
 }
 
-func setDefaultProfile(w io.Writer, cfg *Config, targetID int) {
+func setDefaultProfile(w io.Writer, cfg *Config, targetID int) error {
 	if err := config.SetDefaultProfile(cfg, targetID); err != nil {
-		fatalError("Error: Profile ID [%d] not found in configuration.\n", targetID)
-		return
+		return fmt.Errorf("profile ID [%d] not found in configuration", targetID)
 	}
-	_ = config.SaveConfig(cfg)
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
 	for _, p := range cfg.Profiles {
 		if p.ID == targetID {
 			fmt.Fprintf(w, "Default LLM profile updated to [%d] %s\n", targetID, p.Name)
-			return
+			return nil
 		}
 	}
+	return nil
 }

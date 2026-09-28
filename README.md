@@ -30,11 +30,11 @@ Automatically detects and removes advertisement, sponsor, and promotional segmen
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/abs.git
-cd abs
+git clone https://github.com/yourusername/pod.git
+cd pod
 
 # Build the Go binary
-go build -o pod . # (or ./tools/build_local to build ./pod and ./abs symlink)
+go build -o pod . # (or ./tools/build_local, which builds ./pod inside the repository)
 
 # Or use the Makefile
 make build
@@ -52,7 +52,6 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
   "chunk_duration_sec": 0,
   "parallel_chunks": 1,
   "active_profile_id": 1,
-  "podcasts_dir": "",
   "whisper_language": "",
   "whisper_prompt": "",
   "profiles": [
@@ -141,7 +140,7 @@ pod info e12345 --transcript # Display transcript text
 pod info transcript e12345  # Read transcript in $PAGER or the system pager
 pod info e12345 --export srt # Export transcript to SRT
 pod info status             # Show library summary and worker status
-pod info check              # Test external services (Whisper, ABS, Kitty)
+pod info check              # Test external services (Whisper, Gemini, Kitty)
 
 # Feed sync & server operations (all under `server`)
 pod server feeds            # Check upstream RSS feeds for new episodes (reads remote)
@@ -187,25 +186,32 @@ pod detect --raw episode.mp3            # Segments as the model returned them, u
 pod detect --write-cuts episode.mp3     # Also save a .cuts.json
 
 # Interactive TUI browser
-pod ui
+pod tui
 ```
 
 ### Commands Overview
 
-Every canonical command begins with a distinct letter (`c`, `d`, `g`, `i`, `p`, `q`, `r`, `s`, `t`, `u`), so any command may be abbreviated to a single letter.
+Commands resolve by unique prefix, and every command has exactly one name (no aliases). The seven visible commands each start with a different letter, so each abbreviates to that letter (`c`, `f`, `i`, `p`, `q`, `s`, `t`).
 
 | Command | Prefix | Usage | Description |
 |---------|--------|-------|-------------|
-| `config` | `c` | `pod config [command]` | View and manage application configuration, profiles, and cache |
-| `detect` | `d` | `pod detect [options] <path...>` | Detect ad segments in an existing transcript, without re-transcribing or cutting |
-| `gen_rss` | `g` | `pod gen_rss [id-or-title]` | Generate the RSS feed and web pages for local podcasts |
-| `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts breakdown, transcripts, and status diagnostics |
+| `config` | `c` | `pod config [command]` | View and manage application configuration |
+| `fetch` | `f` | `pod fetch [podcast-id] [options]` | Fetch latest podcast episodes and remove ad segments |
+| `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts and transcripts |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
-| `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue (`list`, `add`, `remove`, `clear`) |
-| `rm_ads` | `r` | `pod rm_ads [command] [paths...]` | Process audio files for ad removal (`recut`, `export`, `audit`) |
-| `server` | `s` | `pod server [command] [options]` | Podcast RSS feed sync, episode downloads, and retention policies |
-| `transcribe` | `t` | `pod transcribe <path...>` | Transcribe an audio or video file; extracts the audio track from video |
-| `ui` | `u` | `pod ui [directory]` | Interactive TUI browser for podcasts and episodes |
+| `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue |
+| `server` | `s` | `pod server [command] [options] [podcast-id]` | Manage podcast server feeds, downloads, and policies |
+| `tui` | `t` | `pod tui [options] [directory]` | Interactive TUI browser for podcasts and episodes |
+
+The processing commands below are hidden: they do not appear in `pod --help` and are excluded from prefix matching, so they must be spelled out in full (`pod d` and `pod r` do not resolve).
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| `cut` | `pod cut [options] <episode>` | Cut advertisements from audio using cuts metadata |
+| `detect` | `pod detect [options] <path...>` | Detect ad segments in an existing transcript |
+| `gen_rss` | `pod gen_rss [podcast] [N]` | Generate the RSS feed and web pages for local podcasts |
+| `rm_ads` | `pod rm_ads [command]` | Process audio files for ad removal (`recut`, `export`, `audit`) |
+| `transcribe` | `pod transcribe [options] <path...>` | Transcribe an audio or video file |
 
 ### Chunked Transcription
 

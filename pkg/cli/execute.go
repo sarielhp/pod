@@ -75,7 +75,7 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runQueueCommand(*config, cli)
 	case "rm_ads":
 		return runRmAdsCommand(*config, cli)
-	case "server", "sync":
+	case "server":
 		return handleServerCommand(*config, cli)
 	case "transcribe":
 		return runTranscribeCommand(*config, cli)
@@ -85,7 +85,7 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runDetectCommand(*config, cli)
 	case "cut":
 		return runCutCommand(*config, cli)
-	case "ui", "tui":
+	case "tui":
 		return tui.RunTUI(config, cli.PodcastsDir)
 	}
 	return nil

@@ -9,7 +9,7 @@ import (
 
 func TestCleanupStaleWorkDirs(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"stale", "fresh child", "boundary", "locked", "worker", "symlink"} {
+	for _, scenario := range []string{"stale", "fresh child", "boundary", "locked", "symlink"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			root := t.TempDir()
@@ -46,12 +46,8 @@ func TestCleanupStaleWorkDirs(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if scenario == "locked" || scenario == "worker" {
-				target := audio
-				if scenario == "worker" {
-					target = filepath.Join(root, ".worker")
-				}
-				lock, err := AcquireFileLock(target)
+			if scenario == "locked" {
+				lock, err := AcquireFileLock(audio)
 				if err != nil || lock == nil {
 					t.Fatalf("lock: %v", err)
 				}

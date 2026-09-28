@@ -13,6 +13,7 @@ import (
 	"pod/pkg/audio"
 	"pod/pkg/config"
 	"pod/pkg/format"
+	"pod/pkg/progress"
 	"pod/pkg/transcribe"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -155,7 +156,11 @@ func processSingleGeminiChunk(ctx context.Context, ch types.GeminiChunkInfo, cfg
 		if err != nil {
 			return nil, fmt.Errorf("chunk %d studio upload failed:\n   %w", ch.Index, err)
 		}
-		defer DeleteGeminiStudioFile(ctx, apiKey, fileName)
+		defer func() {
+			if err := DeleteGeminiStudioFile(apiKey, fileName); err != nil {
+				fmt.Printf("Warning: chunk %d: uploaded file %s was not deleted from Gemini: %v\n", ch.Index, fileName, err)
+			}
+		}()
 
 		payload, err := callStudioAcrossModels(ctx, apiKey, fileURI, AudioMIMEType(ch.FilePath), models)
 		if err != nil {
@@ -281,31 +286,34 @@ func MergeGeminiChunkResults(results []*types.GeminiChunkResult) *types.GeminiRe
 	return merged
 }
 
-func ProcessWithGeminiFlash(ctx context.Context, audioPath, projectID, bucketName string) (*types.TranscriptionData, []types.AdSegment, error) {
+func ProcessWithGeminiFlash(ctx context.Context, audioPath, projectID, bucketName string, rep progress.Reporter) (*types.TranscriptionData, []types.AdSegment, error) {
 	var cfg types.Config
 	cfg.GeminiProjectID = projectID
 	cfg.GeminiStagingBucket = bucketName
-	return ProcessWithGeminiConfig(ctx, audioPath, cfg, DefaultGeminiChunkSec)
+	return ProcessWithGeminiConfig(ctx, audioPath, cfg, DefaultGeminiChunkSec, rep)
 }
 
-func ProcessWithGeminiFlashChunks(ctx context.Context, audioPath, projectID, bucketName string, chunkDurSec float64) (*types.TranscriptionData, []types.AdSegment, error) {
+func ProcessWithGeminiFlashChunks(ctx context.Context, audioPath, projectID, bucketName string, chunkDurSec float64, rep progress.Reporter) (*types.TranscriptionData, []types.AdSegment, error) {
 	var cfg types.Config
 	cfg.GeminiProjectID = projectID
 	cfg.GeminiStagingBucket = bucketName
-	return ProcessWithGeminiConfig(ctx, audioPath, cfg, chunkDurSec)
+	return ProcessWithGeminiConfig(ctx, audioPath, cfg, chunkDurSec, rep)
 }
 
-func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Config, chunkDurSec float64) (*types.TranscriptionData, []types.AdSegment, error) {
+// ProcessWithGeminiConfig transcribes audioPath and detects its ads in one
+// Gemini pass, reporting progress to rep. A nil Reporter is silent.
+func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Config, chunkDurSec float64, rep progress.Reporter) (*types.TranscriptionData, []types.AdSegment, error) {
 	if isOpen, until, reason := IsCircuitBreakerOpen(); isOpen {
 		return nil, nil, fmt.Errorf("gemini in cooldown until %s: %s", until.Format("15:04:05"), reason)
 	}
+	r := progress.Or(rep)
 
 	backendLabel, model := "Vertex AI", "gemini-1.5-flash"
 	if config.ResolveGeminiAPIKey(&cfg) != "" {
 		backendLabel, model = "Google AI Studio", cfg.GetGeminiModel()
 	}
-	transcribe.AnnounceUsing(types.WhisperEngineGemini, fmt.Sprintf("(%s, model: %s)", backendLabel, model), false)
-	fmt.Println(util.BoldCyan(fmt.Sprintf("Ad detection: Gemini via %s (model: %s; combined with transcription)", backendLabel, model)))
+	transcribe.AnnounceUsing(types.WhisperEngineGemini, fmt.Sprintf("(%s, model: %s)", backendLabel, model), r)
+	r.Infof("%s", util.BoldCyan(fmt.Sprintf("Ad detection: Gemini via %s (model: %s; combined with transcription)", backendLabel, model)))
 	totDur := audio.GetAudioDuration(audioPath)
 	if totDur <= 0 {
 		totDur = DefaultGeminiChunkSec
@@ -318,11 +326,11 @@ func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Co
 	defer cleanup()
 
 	if len(prepared) > 1 {
-		fmt.Printf("Splitting '%s' (%s) into %d parallel chunks of %s for Gemini [%s]...\n",
+		r.Infof("Splitting '%s' (%s) into %d parallel chunks of %s for Gemini [%s]...",
 			filepath.Base(audioPath), format.FormatTime(totDur), len(prepared),
 			format.FormatMinutes(chunkDurSec), backendLabel)
 	} else {
-		fmt.Printf("Processing '%s' with Gemini [%s]...\n", filepath.Base(audioPath), backendLabel)
+		r.Infof("Processing '%s' with Gemini [%s]...", filepath.Base(audioPath), backendLabel)
 	}
 
 	t0 := time.Now()
@@ -330,7 +338,7 @@ func ProcessWithGeminiConfig(ctx context.Context, audioPath string, cfg types.Co
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Printf("Gemini processing finished in %s across %d chunk(s)!\n",
+	r.Infof("Gemini processing finished in %s across %d chunk(s)!",
 		format.FormatClock(time.Since(t0).Seconds()), len(prepared))
 
 	merged := MergeGeminiChunkResults(results)

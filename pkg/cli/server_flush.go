@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -19,11 +21,12 @@ func buildServerFlushSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	return clihelp.Command{
 		Name:        "flush",
 		Description: "Remove a podcast's audio and precut copies, keep transcripts, and disable automatic downloads",
-		UsageLine:   "pod server flush <podcast-id> [--dry-run]",
+		UsageLine:   "pod server flush <podcast-id> [--dry-run] [--force]",
 		Parameters:  []clihelp.Param{{Name: "<podcast-id>", Description: "Exact podcast ID, local short ID, or title"}},
 		Args:        clihelp.ExactArgs(1),
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.DryRun, "--dry-run", false, "Preview audio removal and download-policy changes"),
+			clihelp.Bool(&opts.ForceDelete, "-f, --force", false, "Delete without asking for confirmation"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress output"),
 		},
 		Run: func(ctx *clihelp.Context) error {
@@ -51,7 +54,34 @@ func handleServerFlush(cfg Config, cli CLIOptions) error {
 	if err != nil {
 		return err
 	}
+	if !cli.DryRun && !cli.ForceDelete {
+		files, err := flushAudioFiles(dir)
+		if err != nil {
+			return err
+		}
+		confirmed, err := confirmFlush(cli, item.Media.Metadata.Title, len(files))
+		if err != nil || !confirmed {
+			return err
+		}
+	}
 	return flushPodcastAudio(b, item, dir, cli, library(cfg, cli, b).Queue())
+}
+
+// confirmFlush asks before an irreversible deletion. The prompt goes to
+// outFor even under --quiet, since reading stdin with nothing shown looks
+// like a hang; --force skips it for scripts.
+func confirmFlush(cli CLIOptions, title string, count int) (bool, error) {
+	fmt.Fprintf(outFor(cli), "Delete %d audio file(s) from %q and disable its automatic downloads? Transcripts are kept. [y/N]: ", count, title)
+	line, err := bufio.NewReader(inFor(cli)).ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false, fmt.Errorf("read confirmation: %w", err)
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	if answer != "y" && answer != "yes" {
+		fmt.Fprintln(outFor(cli), "Aborted. Nothing was deleted.")
+		return false, nil
+	}
+	return true, nil
 }
 
 func resolveFlushPodcast(root, query string, items []backend.Podcast) (backend.Podcast, string, error) {

@@ -85,15 +85,11 @@ func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 		if err != nil {
 			return err
 		}
-		_ = config.SaveConfig(cfg)
-		fmt.Fprintf(w, "Updated '%s' = '%s'\n", key, val)
-		return nil
+		return saveConfigAndReport(w, cfg, key, val)
 	}
 	normKey := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
 	if handleConfigSetBackend(cfg, normKey, val) {
-		_ = config.SaveConfig(cfg)
-		fmt.Fprintf(w, "Updated '%s' = '%s'\n", key, val)
-		return nil
+		return saveConfigAndReport(w, cfg, key, val)
 	}
 	switch normKey {
 	case "whisper-url", "whisper.url":
@@ -133,8 +129,21 @@ func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 	default:
 		return fmt.Errorf("unknown configuration key: '%s'", key)
 	}
-	_ = config.SaveConfig(cfg)
+	return saveConfigAndReport(w, cfg, key, val)
+}
+
+func saveConfigAndReport(w io.Writer, cfg *Config, key, val string) error {
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
 	fmt.Fprintf(w, "Updated '%s' = '%s'\n", key, val)
+	return nil
+}
+
+func saveConfig(cfg *Config) error {
+	if err := config.SaveConfig(cfg); err != nil {
+		return fmt.Errorf("save configuration to %s: %w", config.ConfigPath(), err)
+	}
 	return nil
 }
 
@@ -185,15 +194,18 @@ func handleConfigGet(w io.Writer, cfg Config, key string) error {
 	case "competing-services", "speculative-services":
 		fmt.Fprintln(w, strings.Join(cfg.GetCompetingServices(), ", "))
 	default:
-		return fmt.Errorf("unknown configuration key %q; run 'pod config show' to list keys", key)
+		return fmt.Errorf("unknown configuration key %q; 'pod config show' prints the current settings by name", key)
 	}
 	return nil
 }
 
-func setPodcastsDir(w io.Writer, cfg *Config, dir string) {
+func setPodcastsDir(w io.Writer, cfg *Config, dir string) error {
 	cfg.PodcastsDir = dir
-	_ = config.SaveConfig(cfg)
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
 	fmt.Fprintf(w, "Default podcasts directory updated to: '%s'\n", dir)
+	return nil
 }
 
 func printConfig(w io.Writer, cfg Config) {

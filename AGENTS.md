@@ -2,9 +2,9 @@
 
 ## Build & Quality
 
-- **Go 1.26+** — single `main` package with files organized by concern
+- **Go 1.26+** — a lean `main.go` over modular packages under `pkg/` (see **File Organization**)
 - Build: `./tools/build_local` (or `make build`)
-- Test: `go test -timeout 30s ./...` (all tests use `t.TempDir()` for isolation)
+- Test: `go test -timeout 180s ./...` (the gate's timeout; all tests use `t.TempDir()` for isolation)
 - Lint: `go vet ./...` then `staticcheck ./...`
 - Format: `gofmt -s -w .` before committing
 
@@ -13,7 +13,7 @@
 | Script | Purpose |
 |--------|---------|
 | `tools/build_local` | Build local `./pod` binary strictly within repo directory |
-| `tools/check` | Full quality gate: format → tidy → vet → staticcheck → test → build |
+| `tools/check` | Full quality gate: format → config template → vet → staticcheck → go-audit → test → build (`--full` adds the race detector and govulncheck) |
 | `tools/format.sh` | Run `gofmt -s -w .` only |
 | `tools/lint` | Static analysis: `go vet` + `staticcheck` (respecting baseline) + `go-audit` |
 | `go-audit` | Cognitive complexity and role-tiered sizing, per `~/prog/standards/go/GUIDELINES.md`; baselined in `tools/go-audit-baseline.txt` |
@@ -28,6 +28,24 @@
 | `tools/commit <msg>` | Quality gate + stage + commit + records .verified_head (silent, outputs "Success <msg>") |
 | `tools/snapshot [msg]` | Fast WIP commit without gating (<0.1s, never pushes) |
 | `tools/checkpoint.sh` | Auto micro-commit of all changes (delegates to `tools/snapshot`) |
+
+### Unreferenced one-off scripts
+
+The scripts below are one-off migration and refactoring aids from earlier
+restructurings (splitting the original single `main` package, renaming `abs` to
+`pod`, the fatal-helper rewrites). Nothing in `Makefile`, `tools/check`,
+`tools/lint` or this file invokes them, and most read files that no longer
+exist. They are kept only until their owner decides to delete them; do not
+build on them or extend them:
+
+`tools/extract_tui_types`, `tools/extract_tui_types_more`,
+`tools/extract_tui_views`, `tools/fix_cli`, `tools/kitty_fix_hebrew`,
+`tools/refactor_os_exit`, `tools/revert_main`, `tools/revert_signatures`,
+`tools/review_cycle`, `tools/ruby_split`, `tools/safe_fatal`,
+`tools/split_player`, `tools/split_pm`, `tools/split_transcribe`,
+`tools/split_tui_keys`, `tools/split_tui_test`, `tools/strip_comments`,
+`tools/update_main`, `tools/use_fatal`, `tools/use_fatal2`, and everything
+under `tools/oneoff/`.
 
 ## Makefile
 
@@ -78,7 +96,7 @@ During active development, use lightweight commands to maximize iteration speed:
 ## Version Management
 
 - Version is stored in `VERSION` file (semver: `major.minor.patch`)
-- Current version: 0.1.3
+- `VERSION` is authoritative (0.5.12 when this line was last checked; it moves on every push)
 - After every successful push, the patch version is automatically bumped by 0.0.1
 - Run `make bump` to bump, commit, and push version in one silent step
 - The version is not embedded in the Go binary (VERSION file is the source of truth)
@@ -175,7 +193,7 @@ its output as a hypothesis, and never accept a boundary that falls inside a func
 ## Temp File Policy
 
 All temporary/intermediate files **must** be written to a `.work/` subdirectory
-alongside the source audio file. The `verifyTempFile()` function enforces this
+alongside the source audio file. The `util.VerifyTempFile()` function enforces this
 at runtime — any temp file path outside `.work/` causes an immediate abort.
 
 ### Rules
@@ -189,21 +207,28 @@ at runtime — any temp file path outside `.work/` causes an immediate abort.
 
 ### Adding new temp files
 
-Always use `workDirFor(path)` to compute the `.work/` path, then call
-`verifyTempFile(path)` before writing via ffmpeg or any other tool.
+Always use `util.WorkDirFor(path)` to compute the `.work/` path, then call
+`util.VerifyTempFile(path)` before writing via ffmpeg or any other tool.
 
 ## Code Style
 
-- Go 1.26+, no external dependencies beyond stdlib
+- Go 1.26+; the direct dependencies are the ones in `go.mod` (Bubbletea and
+  Lipgloss for the TUI, `clihelp` for the CLI, `go-sqlite3` for the PodFetch
+  importer, the Google Cloud clients for Gemini, and a few small libraries).
+  Add one only when the standard library genuinely cannot do the job
 - No comments in code (keep it self-documenting), except doc comments on exported
   library API — a package boundary has to say what it is for
-- **Library packages must not write to the terminal.** `pkg/podcast`, `pkg/backend`
-  and `pkg/podsite` take a `progress.Reporter` and let the caller decide where
-  output goes; a nil Reporter is silent. `fmt.Print*` and `os.Stdout`/`os.Stderr`
-  are banned there and the ban is enforced by
+- **Library packages must not write to the terminal.** `pkg/podcast`, `pkg/backend`,
+  `pkg/podsite`, `pkg/pipeline`, `pkg/episode`, `pkg/config`, `pkg/player`,
+  `pkg/kitty`, `pkg/port`, `pkg/types` and `pkg/progress` take a
+  `progress.Reporter` (or a caller-supplied `io.Writer`) and let the caller decide
+  where output goes; a nil Reporter is silent. `fmt.Print*` and
+  `os.Stdout`/`os.Stderr` are banned there and the ban is enforced by
   `TestLibraryPackagesDoNotWriteToTheTerminal` in `pkg/progress`. Writing to an
-  `io.Writer` the caller supplied is fine. The processing packages (`pipeline`,
-  `adremoval`, `remote`) still print and are not yet on the list
+  `io.Writer` the caller supplied is fine. `pkg/adremoval`, `pkg/transcribe`,
+  `pkg/audio`, `pkg/format`, `pkg/gemini` (one site) and `pkg/util` still print
+  directly and are not yet on the list; add a package to the list the moment
+  its last direct write goes
 - **In `pkg/cli`, print through `outFor(cli)`, not `fmt.Printf`.** `outFor`
   returns stdout, or `io.Discard` under `--quiet`, so honouring the flag is a
   property of the writer instead of something each call site remembers. A
@@ -213,7 +238,10 @@ Always use `workDirFor(path)` to compute the `.work/` path, then call
 - `os/exec` for external commands (ffmpeg, ffprobe, docker)
 - Custom `syncMu` / `syncMutex` / `syncWG` for thread safety (no sync package)
 - All errors are returned; `os.Exit(1)` only in `main()` and fatal helpers
-- Functions must be at most 80 lines; files warn over 800 and are capped at 1100 (see **Sizing**)
+- Function length is tiered by role (see **Sizing**): 80 lines is the soft
+  warning for standard logic, 110 the hard limit, with higher tiers for
+  builders, dispatchers and table-driven tests; files warn over 800 and are
+  capped at 1100
 
 ## File Organization
 
@@ -222,10 +250,10 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 | Directory / Package | Purpose |
 |---------------------|---------|
 | `main.go` | The single entrypoint: embeds `VERSION` and delegates to `pkg/cli.Execute(os.Args[1:])` |
-| `pkg/types` | Core domain types, state enums, configuration data structures, manifests |
+| `pkg/types` | Core domain types, state enums, configuration data structures, manifests, and the podcast/feed domain model (`Podcast`, `Episode`, `FeedEpisode`) with its pure helpers |
 | `pkg/util` | Cross-cutting utilities: safe atomic file operations, locks, shell quoting, ANSI colors |
 | `pkg/config` | Configuration loading/saving, profile cost estimation, environment overrides, podcast configs |
-| `pkg/backend` | Standalone backend interface and legacy import adapters |
+| `pkg/backend` | Standalone backend interface and legacy import adapters; aliases the domain model from `pkg/types` so call sites need not change |
 | `pkg/audio` | Audio processing via ffmpeg/ffprobe: duration probing, cutting, filtering, ID3 tags |
 | `pkg/format` | Formatting routines: time formatters, cut intervals merging, SRT/TXT export |
 | `pkg/transcribe` | Whisper API client, audio WAV preparation, chunking, Docker container log progress |
@@ -246,7 +274,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 
 - All packages contain focused, isolated unit and integration tests in `*_test.go` files
 - Tests use `t.TempDir()` for strict isolation and never write to real filesystem paths
-- Run `go test -timeout 30s ./...` to execute the full test suite across all 17 packages
+- Run `go test -timeout 180s ./...` to execute the full test suite across all 22 packages (`go list ./...`; 20 directories under `pkg/`)
 
 ## External Dependencies
 
@@ -294,8 +322,10 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 6. **Plan Before Build**: For multi-step refactoring or subtle bug fixes, always
    use `plan` mode / consult the `planner` subagent to formulate the exact steps
    before modifying code in `build` mode.
-7. **Function Length**: No function over 80 lines — decompose it in place, into
-   named helpers in the same file. Files warn at 800 lines and are capped at 1100.
+7. **Function Length**: Respect the tiered limits in **Sizing** (standard logic
+   warns at 80 and fails at 110; builders 160; dispatchers 200; table-driven
+   tests 250) — decompose an over-limit function in place, into named helpers
+   in the same file. Files warn at 800 lines and are capped at 1100.
    Never split a file through a function body: that edit is unchecked by the
    compiler and has silently dropped control flow here twice (see **Sizing**).
 8. **Commit Messages**: Use conventional commits format:
@@ -315,7 +345,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 
 ## Test Suite
 
-- All tests in `*_test.go` files (single package)
+- All tests in `*_test.go` files, one test package per `pkg/` package
 - Use `t.TempDir()` for temp files — never write to real filesystem paths
 - Key test categories:
   - Time formatting (`formatTime`, `formatClock`, `formatSRTTime`)

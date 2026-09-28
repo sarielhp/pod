@@ -58,7 +58,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 		Description:         "Automatic Ad Segment Remover & Podcast Manager",
 		UsageLine:           "pod [OPTIONS] <COMMAND>",
 		Version:             getVersion(),
-		GlobalNote:          "Run 'pod <command> --help' or 'abs help <command>' for command-specific options.",
+		GlobalNote:          "Run 'pod <command> --help' or 'pod help <command>' for command-specific options.",
 		AbbrevCommands:      true,
 		Pager:               true,
 		InteractiveFallback: true,

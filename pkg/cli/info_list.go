@@ -355,16 +355,12 @@ func getEpisodeStatusLabel(mp3Path string) (string, string) {
 	if st.Status == StateTranscribingLocally || st.Status == StateCuttingLocally {
 		if lock, err := util.AcquireFileLock(mp3Path); err == nil && lock != nil {
 			lock.Release()
-			st.Status = types.StateNeedsAdR
-			_ = episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st)
 			return "NeedAdR", "yellow"
 		}
 		return "In Progress", "yellow"
 	}
 	if st.Status == StateTranscribingRemotely || st.Status == StateCuttingRemotely {
 		if isStaleRemoteStatus(st) {
-			st.Status = types.StateNeedsAdR
-			_ = episode.SaveEpisodeStatus(episode.StatusPathFor(mp3Path), st)
 			return "NeedAdR", "yellow"
 		}
 		return "In Progress", "yellow"

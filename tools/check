@@ -124,18 +124,50 @@ end
 
 run_complexity_audit
 
+# govulncheck's verdict is its summary line, not its exit status. It exits 3
+# for any reachable vulnerable symbol, including one in the standard library
+# of the toolchain that built the binary, which this module cannot fix by
+# updating a dependency. The summary distinguishes the two sources:
+#
+#   Your code is affected by 0 vulnerabilities.
+#   Your code is affected by 1 vulnerability from the Go standard library.
+#   Your code is affected by 2 vulnerabilities from 1 module and the Go standard library.
+#
+# A count that cites a module names a dependency this module can update and
+# fails the gate. A count that cites only the standard library is printed and
+# tolerated, as before. No summary at all means the scan did not run, and a
+# release gate must not report that as a pass.
+def run_govulncheck(bin)
+  out, err, status = Open3.capture3("#{bin} ./...")
+  summary = out.match(/^Your code is affected by (\d+) vulnerabilit(?:y|ies)[^\n]*/)
+  if summary.nil?
+    if status.success? && out.include?('No vulnerabilities found.')
+      puts "Govulncheck: Passed (0 vulnerabilities)"
+      return
+    end
+    puts "\e[31m✗ Govulncheck did not produce a verdict (exit #{status.exitstatus})\e[0m"
+    puts out unless out.empty?
+    puts err unless err.empty?
+    exit 1
+  end
+
+  count = summary[1].to_i
+  if count.zero?
+    puts "Govulncheck: Passed (0 vulnerabilities)"
+  elsif summary[0] =~ /from \d+ modules?/
+    puts "\e[31m✗ Govulncheck: #{summary[0]}\e[0m"
+    puts out
+    exit 1
+  else
+    puts "Govulncheck: Passed with advisories against the Go standard library only (#{summary[0]})"
+  end
+end
+
 # 5. Go test
 if full_mode
   run_cmd("Go test (race detector)", "go test -race -timeout 90s ./...")
   vuln_bin = [ENV['HOME'] + '/.go/bin/govulncheck', 'govulncheck'].find { |b| system("which #{b} > /dev/null 2>&1") }
-  if vuln_bin
-    v_out, _, _ = Open3.capture3("#{vuln_bin} ./...")
-    if v_out.include?("Your code is affected by")
-      puts "Govulncheck: Passed (dependencies clean; system Go compiler has upstream advisories)"
-    else
-      puts "Govulncheck: Passed (0 vulnerabilities)"
-    end
-  end
+  run_govulncheck(vuln_bin) if vuln_bin
 else
   # No race detector here. It costs ~4s on this suite and, more importantly,
   # -race keeps its own build cache: a developer who runs `go test ./...` and

@@ -175,3 +175,14 @@ func SafeMove(src, dst string) error {
 	}
 	return os.Remove(src)
 }
+
+// RejectSymlink fails when path is a symbolic link. Writers that open a file
+// with O_CREATE|O_TRUNC follow links, so a planted link would let them write
+// through to whatever it points at.
+func RejectSymlink(path string) error {
+	info, err := os.Lstat(path)
+	if err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%q is a symlink, refusing to write through it", path)
+	}
+	return nil
+}

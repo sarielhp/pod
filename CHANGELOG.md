@@ -5,6 +5,78 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+Fixes from the 2026-09-27 deep review (`issues/review.md`). Findings are cited
+by their IDs there.
+
+### Changed (behaviour a user or script will notice)
+- **Retention ages episodes from arrival, not the feed's pubDate** (H1). A newly
+  downloaded episode whose feed date is older than the keep window is no longer
+  deleted by the same `pod sync` that fetched it, so the download/delete loop on
+  back-catalogue feeds is gone. An episode that has genuinely sat on disk past the
+  window is still pruned.
+- **`pod cut` aborts instead of overwriting the original** when the `.precut`
+  backup cannot be created, and refuses a symlinked `.precut` (H2).
+- **`pod server clean-orphans` exits 1 when any deletion fails** and names the
+  failed podcasts on stderr, even under `--quiet` (H6).
+- **`pod server download` and `pod fetch` exit 1 when any podcast's download
+  failed**, after reporting what did succeed (M13).
+- **`pod server flush` now asks for confirmation**, naming the file count; pass
+  `-f`/`--force` to skip the prompt in scripts (M12).
+- **`pod server keep <N>` locks each episode, skips episodes being transcribed or
+  cut remotely, and reports the ones it could not remove** instead of counting
+  them as deleted (M2).
+- **Feeds, enclosures and covers on private or local addresses are refused**
+  (loopback, RFC 1918, link-local, cloud metadata). Set `allow_private_hosts`
+  in `config.json` for feeds that really live on the LAN (M7).
+- **Episode downloads are capped** at `max_episode_mb` (default 2048), and a
+  server that answers with an HTML, XML or JSON document where audio was expected
+  is refused; a feed over 32 MiB is an error instead of a truncated parse (H5, L13).
+- **`pod config set` and every other config mutator report a failed save** with
+  a non-zero exit instead of printing "Updated" over an unwritten file (M3).
+- **`pod player stop` kills the process a seek started** rather than the stale
+  original, so playback no longer continues after stop (H3). The player's
+  control socket is created mode 0600 (M10).
+- **`pod info list` no longer rewrites episode status files** while listing (L3).
+- **`pod cut` and `pod transcribe` take the per-episode lock** and refuse an
+  episode another `pod` instance holds (L1).
+- **`--quiet` silences Gemini transcription and ad-detection announcements**, and
+  batch `--recut` prints its cutting and success lines again (A4, A5).
+- **Removed the four command aliases**: `pod ui` (use `pod tui`), `pod queue ls`
+  (use `pod queue list`), `pod server feeds update` (use `pod server feeds`),
+  `pod info check whisper-server` (use `whisper`). A test now forbids aliases (M14).
+- **`pod config migrate` skips legacy post-processor entries that do not resolve
+  to an executable**, with a warning, instead of importing them verbatim (L14).
+- **`pod detect` reports a path that produced no result as a failure** instead of
+  panicking (L7).
+- **A `folder` in `podcasts.json` that is absolute or climbs out of the podcasts
+  directory is ignored** and replaced by the sanitised title (L15).
+- **A failed delete of an uploaded Gemini studio file is reported** instead of
+  silently ignored (L6).
+- **`make ci` runs the gate once, and a govulncheck finding against a dependency
+  now fails it** (T10).
+
+### Fixed (no visible change in normal use)
+- The transcript JSON status rewrite and `podcast.json` are written atomically; a
+  corrupt `podcast.json` is preserved as `podcast.json.corrupt-<timestamp>`
+  rather than silently replaced with defaults (H4, M1).
+- The download queue takes its file lock on every write, so the TUI and a CLI
+  command over one queue file no longer lose each other's updates; a busy lock is
+  an error rather than a silent success; the worker can no longer run twice
+  (M4, M5, M8).
+- The TUI no longer freezes while a stalled player daemon is polled (M9).
+- `pod rm_ads <dir>` no longer deletes a live worker's `.work/` (M6).
+- A failed cuts-metadata write aborts the cut instead of marking the episode
+  done without it (L8); the temp-file policy is enforced on the no-ads path (M11).
+- Lock-busy errors no longer print `%!w(<nil>)` (L2).
+- Help text named the old `abs` binary; `config get` listed nonexistent keys;
+  README's command table and config example, AGENTS.md and architecture.md were
+  corrected against the tree (L9, L10, L11, L12, M15, T5, T11, T12).
+- Tests no longer write to the real `~/.config/pod` (every test binary runs under
+  `podtest.IsolateMain`); `POD_TEST_REQUIRE_FFMPEG=1` makes ffmpeg-backed tests
+  fail rather than skip (T1, T3, T13).
+
 ## [0.5.12] - 2026-09-27
 
 ### Added

@@ -17,10 +17,11 @@ import (
 	"pod/pkg/util"
 )
 
-const (
-	PlayerSocketPath       = "/tmp/pod_player.sock"
-	LegacyPlayerSocketPath = "/tmp/abs_player.sock"
-)
+const LegacyPlayerSocketPath = "/tmp/abs_player.sock"
+
+// PlayerSocketPath is the daemon's control socket. It is a variable so tests
+// can point it into a temporary directory instead of the real /tmp path.
+var PlayerSocketPath = "/tmp/pod_player.sock"
 
 type mpvCommand struct {
 	Command []any `json:"command"`
@@ -270,9 +271,25 @@ func SpawnDetachedDaemon(audioPath, title, podcast string) error {
 	return nil
 }
 
+// listenPlayerSocket opens the control socket and restricts it to its owner.
+// /tmp is shared, and a socket created under a permissive umask would let any
+// local user stop, seek, or query playback.
+func listenPlayerSocket(path string) (net.Listener, error) {
+	_ = os.Remove(path)
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(path, 0600); err != nil {
+		_ = listener.Close()
+		_ = os.Remove(path)
+		return nil, err
+	}
+	return listener, nil
+}
+
 func RunPlayerDaemon(audioPath, title, podcast string) error {
-	_ = os.Remove(PlayerSocketPath)
-	listener, err := net.Listen("unix", PlayerSocketPath)
+	listener, err := listenPlayerSocket(PlayerSocketPath)
 	if err != nil {
 		return err
 	}
@@ -407,8 +424,8 @@ func ProcessDaemonCommand(args []any, state *daemonState, cmd *exec.Cmd) mpvResp
 	cname, _ := args[0].(string)
 	switch cname {
 	case "quit", "stop":
-		if cmd != nil && cmd.Process != nil {
-			_ = cmd.Process.Kill()
+		if active := activeDaemonCmd(state, cmd); active != nil && active.Process != nil {
+			_ = active.Process.Kill()
 		}
 		_ = os.Remove(PlayerSocketPath)
 		return mpvResponse{Error: "success"}
@@ -423,6 +440,21 @@ func ProcessDaemonCommand(args []any, state *daemonState, cmd *exec.Cmd) mpvResp
 	default:
 		return mpvResponse{Error: "success"}
 	}
+}
+
+// activeDaemonCmd is the process currently playing: a seek replaces the one
+// RunPlayerDaemon started, so the *exec.Cmd threaded through the IPC handlers
+// is only a fallback for the moment before state.cmd is set.
+func activeDaemonCmd(state *daemonState, fallback *exec.Cmd) *exec.Cmd {
+	if state == nil {
+		return fallback
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.cmd != nil {
+		return state.cmd
+	}
+	return fallback
 }
 
 func HandleDaemonCycle(args []any, state *daemonState, cmd *exec.Cmd) mpvResponse {

@@ -16,7 +16,7 @@ func resolveTestCommandArgs(args []string, opts *CLIOptions) error {
 		return nil
 	}
 	switch args[0] {
-	case "whisper", "whisper-server":
+	case "whisper":
 		opts.TestWhisper = true
 	case "kitty":
 		opts.TestKitty = true

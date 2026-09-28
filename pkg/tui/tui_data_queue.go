@@ -61,8 +61,11 @@ func updateQueue(dir string, mutate func([]string) []string) error {
 
 	path := filepath.Join(dir, "queue.json")
 	lock, err := util.AcquireFileLockWithTimeout(path, 5*time.Second)
-	if err != nil || lock == nil {
-		return fmt.Errorf("queue is locked: %w", err)
+	if err != nil {
+		return fmt.Errorf("lock queue: %w", err)
+	}
+	if lock == nil {
+		return fmt.Errorf("queue %s is locked by another pod instance", path)
 	}
 	defer lock.Release()
 

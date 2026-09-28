@@ -142,9 +142,8 @@ func printFullSummary(verbose bool, totalDuration, newDuration, actualCut float6
 }
 
 func checkPrecutSymlink(precutFile string) error {
-	info, err := os.Lstat(precutFile)
-	if err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("pre-cut backup file %q is a symlink, refusing to overwrite", precutFile)
+	if err := util.RejectSymlink(precutFile); err != nil {
+		return fmt.Errorf("pre-cut backup: %w", err)
 	}
 	return nil
 }
@@ -198,27 +197,27 @@ func updateTranscriptAdDetectionStatus(jsonFile string, successful bool, status,
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(jsonFile, append(content, '\n'), 0644)
+	return util.WriteFileAtomic(jsonFile, append(content, '\n'), 0644)
 }
 
-func runGeminiPipelineStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time) bool {
-	transcribe.AnnounceStart(totalDuration, opts.Quiet)
+func runGeminiPipelineStep(job episodeJob) bool {
+	transcribe.AnnounceStart(job.totalDuration, job.rep)
 	ctx := context.Background()
 	t0Step1 := time.Now()
 
-	chunkDur := cfg.GeminiChunkSecCapped(cfg.ChunkDurationSec)
-	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, sourceAudioFile, cfg, chunkDur)
-	transcribe.StampBackend(td, types.WhisperEngineGemini, cfg.GetGeminiModel())
+	chunkDur := job.cfg.GeminiChunkSecCapped(job.cfg.ChunkDurationSec)
+	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, job.sourceAudioFile, job.cfg, chunkDur, job.rep)
+	transcribe.StampBackend(td, types.WhisperEngineGemini, job.cfg.GetGeminiModel())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError processing with Gemini Flash: %v\n\n", err)
 		return false
 	}
 
-	if opts.SaveTranscript {
-		_ = pipeline.SaveJSONTranscript(mainMP3File, td, jsonFile, opts.Quiet, map[string]string{})
+	if job.opts.SaveTranscript {
+		_ = pipeline.SaveJSONTranscript(job.mainMP3File, td, job.jsonFile, job.opts.Quiet, map[string]string{})
 	}
 
-	if handleExportOrPreviewReturns(td, totalDuration, fileStartTime, sourceAudioFile, jsonFile, opts) {
+	if handleExportOrPreviewReturns(td, job.totalDuration, job.fileStartTime, job.sourceAudioFile, job.jsonFile, job.opts) {
 		return true
 	}
 
@@ -227,18 +226,21 @@ func runGeminiPipelineStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, o
 	}
 
 	t0Step2 := time.Now()
-	if err := updateTranscriptAdDetectionStatus(jsonFile, true, "completed", "gemini-flash", "", len(ads)); err != nil && opts.Verbose {
+	if err := updateTranscriptAdDetectionStatus(job.jsonFile, true, "completed", "gemini-flash", "", len(ads)); err != nil && job.opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update transcript ad status: %v\n", err)
 	}
-	if err := updateStatusAdDetection(mainMP3File, true, "completed", "gemini-flash", ""); err != nil && opts.Verbose {
+	if err := updateStatusAdDetection(job.mainMP3File, true, "completed", "gemini-flash", ""); err != nil && job.opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update status ad detection: %v\n", err)
 	}
 	if len(ads) == 0 {
-		handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile, totalDuration, selectedProfile, opts, fileStartTime, t0Step1, t0Step2)
+		handleNoAdsDetected(job.mainMP3File, job.sourceAudioFile, job.outputFile, job.totalDuration, job.selectedProfile, job.opts, job.fileStartTime, t0Step1, t0Step2)
 		return true
 	}
 
-	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, ads, &selectedProfile, opts.Quiet)
+	cutsResult := format.SaveCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet)
+	if cutsResult.Err != nil {
+		return false
+	}
 	t0Step3 := time.Now()
-	return executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile, cutsResult.KeepSegments, ads, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1, t0Step2, t0Step3)
+	return executeLocalAudioCutting(job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, cutsResult.KeepSegments, ads, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1, t0Step2, t0Step3)
 }

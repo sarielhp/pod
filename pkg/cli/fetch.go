@@ -138,13 +138,17 @@ func executeFetchDownloads(lib *podcast.Library, store *podcast.SubscriptionStor
 	if !cli.Quiet && res.Downloaded > 0 {
 		fmt.Fprintf(outFor(cli), "Downloaded %d episode(s) across %d podcast(s).\n", res.Downloaded, res.Podcasts)
 	}
+	dlErr := downloadFailuresError(res)
 
 	if cli.NoClean || res.Downloaded == 0 {
-		return nil
+		return dlErr
 	}
 
 	if !cli.Quiet {
 		fmt.Fprintln(outFor(cli), "\nStarting ad removal on downloaded episode(s)...")
 	}
-	return handleQueueRun(lib, cfg, cli, opts.Target)
+	if err := handleQueueRun(lib, cfg, cli, opts.Target); err != nil {
+		return err
+	}
+	return dlErr
 }

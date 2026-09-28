@@ -22,7 +22,7 @@ func runInfoCommand(cfg Config, cli CLIOptions) error {
 	args := cli.Args
 	if cli.InfoSubcmd == "transcript" {
 		if len(args) != 1 {
-			return fmt.Errorf("use abs info transcript <episode-id>")
+			return fmt.Errorf("use pod info transcript <episode-id>")
 		}
 		return showEpisodeTranscript(podcastsDir, args[0])
 	}

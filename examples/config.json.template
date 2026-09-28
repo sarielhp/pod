@@ -7,6 +7,8 @@
   "whisper_prompt": "",
   "whisper_wake_command": "",
   "chunk_duration_sec": 0,
+  "max_episode_mb": 2048,
+  "allow_private_hosts": false,
   "parallel_chunks": 1,
   "active_profile_id": 5,
   "active_whisper_id": 1,

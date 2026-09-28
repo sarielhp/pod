@@ -26,7 +26,7 @@ func resolveQueueSubcmdArgs(subcmd string, args []string) (string, []string) {
 		return "list", args
 	}
 	switch strings.ToLower(args[0]) {
-	case "priority", "list", "ls", "add", "today", "latest", "remove", "clear", "run", "recut", "export", "audit":
+	case "priority", "list", "add", "today", "latest", "remove", "clear", "run", "recut", "export", "audit":
 		return strings.ToLower(args[0]), args[1:]
 	default:
 		return "list", args
@@ -45,7 +45,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 	switch subcmd {
 	case "priority":
 		return handleQueuePriority(outFor(cli), podcastsDir, args)
-	case "list", "ls":
+	case "list":
 		target := ""
 		if len(args) > 0 {
 			target = args[0]
@@ -101,7 +101,7 @@ func runQueueCommand(cfg Config, cli CLIOptions) error {
 		return nil
 	case "audit":
 		cli.ProcSubcmd = "audit"
-		return adremoval.RunTranscriptAudit(cfg, args, cli.ProcOptions)
+		return adremoval.RunTranscriptAudit(cfg, args, cli.ProcOptions, reporter(cli))
 	default:
 		return fmt.Errorf("unknown queue action %q (use list, add, today, latest, remove, clear, run, recut, export, or audit)", subcmd)
 	}
@@ -380,7 +380,6 @@ func buildQueueCommand(opts *CLIOptions, action *string) clihelp.Command {
 		UsageLine:   "pod queue [command]",
 		Subcommands: []clihelp.Command{
 			buildQueueListSubcommand(opts, action),
-			buildQueueLsSubcommand(opts, action),
 			buildQueueLatestSubcommand(opts, action),
 			buildQueueAddSubcommand(opts, action),
 			buildQueueTodaySubcommand(opts, action),
@@ -471,13 +470,6 @@ func buildQueueListSubcommand(opts *CLIOptions, action *string) clihelp.Command 
 			return nil
 		},
 	}
-}
-
-func buildQueueLsSubcommand(opts *CLIOptions, action *string) clihelp.Command {
-	cmd := buildQueueListSubcommand(opts, action)
-	cmd.Name = "ls"
-	cmd.UsageLine = "pod queue ls [podcast-id] [options]"
-	return cmd
 }
 
 func buildQueueAddSubcommand(opts *CLIOptions, action *string) clihelp.Command {

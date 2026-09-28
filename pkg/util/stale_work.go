@@ -11,6 +11,18 @@ import (
 )
 
 func CleanupStaleWorkDirs(root string, now time.Time) (int, error) {
+	return cleanupWorkDirs(root, now.Add(-24*time.Hour))
+}
+
+// CleanupIdleWorkDirs removes every .work directory under root whose sibling
+// audio no other pod instance holds locked, whatever its age. It is the
+// pre-run sweep for a batch over a directory: leftovers from a crashed run
+// go, a live worker's scratch space stays.
+func CleanupIdleWorkDirs(root string) (int, error) {
+	return cleanupWorkDirs(root, time.Now().Add(time.Second))
+}
+
+func cleanupWorkDirs(root string, cutoff time.Time) (int, error) {
 	if root == "" {
 		return 0, nil
 	}
@@ -29,7 +41,7 @@ func CleanupStaleWorkDirs(root string, now time.Time) (int, error) {
 			return nil
 		}
 		if entry.Name() == ".work" {
-			deleted, err := removeStaleWorkDir(root, path, now.Add(-24*time.Hour))
+			deleted, err := removeStaleWorkDir(root, path, cutoff)
 			if err != nil {
 				failures = append(failures, fmt.Errorf("cleanup %s: %w", path, err))
 			}
@@ -74,7 +86,7 @@ func removeStaleWorkDir(root, path string, cutoff time.Time) (bool, error) {
 	if err != nil || !stale {
 		return false, err
 	}
-	release, err := lockWorkDirAudio(root, filepath.Dir(path))
+	release, err := lockWorkDirAudio(filepath.Dir(path))
 	if err != nil || release == nil {
 		return false, err
 	}
@@ -89,7 +101,7 @@ func removeStaleWorkDir(root, path string, cutoff time.Time) (bool, error) {
 	return true, nil
 }
 
-func lockWorkDirAudio(root, dir string) (func(), error) {
+func lockWorkDirAudio(dir string) (func(), error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -98,28 +110,6 @@ func lockWorkDirAudio(root, dir string) (func(), error) {
 	release := func() {
 		for _, lock := range locks {
 			lock.Release()
-		}
-	}
-	for parent := dir; ; parent = filepath.Dir(parent) {
-		for _, name := range []string{".worker", ".collect"} {
-			target := filepath.Join(parent, name)
-			_, err := os.Lstat(target + ".lock")
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil {
-				release()
-				return nil, err
-			}
-			lock, err := AcquireFileLock(target)
-			if err != nil || lock == nil {
-				release()
-				return nil, err
-			}
-			locks = append(locks, lock)
-		}
-		if parent == root || parent == filepath.Dir(parent) {
-			break
 		}
 	}
 	for _, entry := range entries {

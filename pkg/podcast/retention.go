@@ -73,16 +73,20 @@ func ApplyPodcastKeepPolicy(podDir, title string, cfg config.PodcastConfig, now 
 	return res, nil
 }
 
+// isEpisodeExpired ages an episode from the later of its publication date and
+// the file's own mtime. The feed's pubDate alone would let a back-catalogue
+// feed, or a hostile one, have a file deleted the moment it finished
+// downloading, and then re-downloaded and re-deleted on every later run.
 func isEpisodeExpired(path string, cutoff time.Time) (bool, time.Time) {
-	pubTime := GetEpisodePublicationTime(path)
-	if pubTime.IsZero() {
-		fi, err := os.Stat(path)
-		if err != nil {
-			return false, time.Time{}
-		}
-		pubTime = fi.ModTime()
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false, time.Time{}
 	}
-	return pubTime.Before(cutoff), pubTime
+	age := fi.ModTime()
+	if pubTime := GetEpisodePublicationTime(path); pubTime.After(age) {
+		age = pubTime
+	}
+	return age.Before(cutoff), age
 }
 
 func hasAssociatedTranscript(path string) bool {
@@ -110,8 +114,11 @@ func pruneExpiredEpisode(path string, dryRun bool) (int64, bool, error) {
 	}
 
 	lock, err := util.AcquireFileLock(path)
-	if err != nil || lock == nil {
+	if err != nil {
 		return 0, false, fmt.Errorf("lock %s: %w", path, err)
+	}
+	if lock == nil {
+		return 0, false, fmt.Errorf("%s is being processed by another pod instance", path)
 	}
 	defer lock.Release()
 

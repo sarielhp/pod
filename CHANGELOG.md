@@ -5,7 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [Unreleased]
+## [0.5.15] - 2026-09-27
 
 ### Added
 - **`pod info check player`** lists which of mpv, cvlc, ffplay and mpg123 are

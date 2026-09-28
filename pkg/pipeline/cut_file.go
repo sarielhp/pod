@@ -170,10 +170,10 @@ func executeCutProcessing(sourceAudio, mainMP3, precut, outputPath string, keepS
 	}
 
 	if outputPath == mainMP3 && sourceAudio == mainMP3 && util.FileExists(mainMP3) {
-		if !util.FileExists(precut) {
-			if err := os.Link(mainMP3, precut); err != nil {
-				_ = util.CopyFileErr(mainMP3, precut)
-			}
+		if err := preserveOriginalBeforeCut(mainMP3, precut); err != nil {
+			_ = os.Remove(tempOutput)
+			_ = os.RemoveAll(workDir)
+			return err
 		}
 	}
 
@@ -183,5 +183,22 @@ func executeCutProcessing(sourceAudio, mainMP3, precut, outputPath string, keepS
 		return fmt.Errorf("install cut audio to %s: %w", outputPath, err)
 	}
 	_ = os.RemoveAll(workDir)
+	return nil
+}
+
+func preserveOriginalBeforeCut(mainMP3, precut string) error {
+	if err := util.RejectSymlink(precut); err != nil {
+		return fmt.Errorf("pre-cut backup: %w", err)
+	}
+	if util.FileExists(precut) {
+		return nil
+	}
+	if err := os.Link(mainMP3, precut); err == nil {
+		return nil
+	}
+	if err := util.CopyFileErr(mainMP3, precut); err != nil {
+		_ = os.Remove(precut)
+		return fmt.Errorf("preserve original %s as %s before cutting: %w", filepath.Base(mainMP3), filepath.Base(precut), err)
+	}
 	return nil
 }

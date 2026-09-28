@@ -142,9 +142,8 @@ func printFullSummary(verbose bool, totalDuration, newDuration, actualCut float6
 }
 
 func checkPrecutSymlink(precutFile string) error {
-	info, err := os.Lstat(precutFile)
-	if err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("pre-cut backup file %q is a symlink, refusing to overwrite", precutFile)
+	if err := util.RejectSymlink(precutFile); err != nil {
+		return fmt.Errorf("pre-cut backup: %w", err)
 	}
 	return nil
 }

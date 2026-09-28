@@ -2,6 +2,7 @@ package podcast
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -185,6 +186,9 @@ func RunCleanOrphans(client backend.Backend, opts CleanOrphansOptions) (CleanOrp
 	}
 
 	executeOrphanDeletions(client, orphans, opts, &res)
+	if res.FailedCount > 0 {
+		return res, fmt.Errorf("%d of %d orphaned podcast(s) could not be deleted: %w", res.FailedCount, len(orphans), errors.Join(res.Errors...))
+	}
 	return res, nil
 }
 
@@ -235,7 +239,7 @@ func executeOrphanDeletions(client backend.Backend, orphans []OrphanPodcast, opt
 		}
 		if err != nil {
 			res.FailedCount++
-			res.Errors = append(res.Errors, err)
+			res.Errors = append(res.Errors, fmt.Errorf("%s (ID %s): %w", title, o.Item.ID, err))
 			if !opts.Quiet {
 				fmt.Fprintf(opts.Out, "  [✗] Failed to delete %q (ID: %s): %v\n", title, o.Item.ID, err)
 			}

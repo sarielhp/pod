@@ -42,7 +42,7 @@ func handleServerCleanOrphans(config Config, cli CLIOptions) error {
 		Quiet:   cli.Quiet,
 		Verbose: cli.Verbose,
 		In:      os.Stdin,
-		Out:     os.Stdout,
+		Out:     outFor(cli),
 	}
 	_, err = podcast.RunCleanOrphans(b, opts)
 	return err

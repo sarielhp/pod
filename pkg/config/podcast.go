@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"pod/pkg/types"
+	"pod/pkg/util"
 )
 
 const (
@@ -515,20 +516,31 @@ func DetailedPolicySummary(cfg PodcastConfig) string {
 }
 
 func LoadPodcastConfig(dir string, def PodcastConfig) PodcastConfig {
+	cfg, _ := LoadPodcastConfigErr(dir, def)
+	return cfg
+}
+
+// LoadPodcastConfigErr loads dir's podcast.json. A missing file yields def and
+// no error; a file that exists but cannot be parsed yields def and the parse
+// error, so a caller about to write can tell a fresh podcast from a corrupt one.
+func LoadPodcastConfigErr(dir string, def PodcastConfig) (PodcastConfig, error) {
 	cfgPath := filepath.Join(dir, PodcastConfigFileName)
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return def
+		if os.IsNotExist(err) {
+			return def, nil
+		}
+		return def, fmt.Errorf("read %s: %w", cfgPath, err)
 	}
 	var cfg PodcastConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return def
+		return def, fmt.Errorf("parse %s: %w", cfgPath, err)
 	}
 	if cfg.AdRemoval == "" || cfg.DownloadPolicy == "" || cfg.DownloadK <= 0 || cfg.ID == "" {
 		extractLegacyPodcastConfigFields(data, &cfg)
 	}
 	normalizeLoadedPodcastConfig(&cfg, def)
-	return cfg
+	return cfg, nil
 }
 
 func extractLegacyPodcastConfigFields(data []byte, cfg *PodcastConfig) {
@@ -642,5 +654,24 @@ func SavePodcastConfig(dir string, cfg PodcastConfig) error {
 		return err
 	}
 	cfgPath := filepath.Join(dir, PodcastConfigFileName)
-	return os.WriteFile(cfgPath, append(data, '\n'), 0644)
+	if err := preserveCorruptPodcastConfig(cfgPath); err != nil {
+		return err
+	}
+	return util.WriteFileAtomic(cfgPath, append(data, '\n'), 0644)
+}
+
+func preserveCorruptPodcastConfig(cfgPath string) error {
+	existing, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return nil
+	}
+	var probe PodcastConfig
+	if json.Unmarshal(existing, &probe) == nil {
+		return nil
+	}
+	backup := fmt.Sprintf("%s.corrupt-%s", cfgPath, time.Now().UTC().Format("20060102-150405.000000000"))
+	if err := os.WriteFile(backup, existing, 0644); err != nil {
+		return fmt.Errorf("back up unreadable %s before overwriting it: %w", cfgPath, err)
+	}
+	return nil
 }

@@ -198,7 +198,7 @@ func updateTranscriptAdDetectionStatus(jsonFile string, successful bool, status,
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(jsonFile, append(content, '\n'), 0644)
+	return util.WriteFileAtomic(jsonFile, append(content, '\n'), 0644)
 }
 
 func runGeminiPipelineStep(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time) bool {

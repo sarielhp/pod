@@ -18,6 +18,9 @@ were written; they are not in version order.
   was corrected.
 - `pod server prune` and `pod server prune --dry-run` now print a summary line
   when no podcast has anything to prune, instead of nothing at all.
+- `pod queue list` showed no publication date for a freshly downloaded episode
+  until the podcast cache was next refreshed; it now falls back to the date
+  stamped in the episode's status file.
 
 ## [0.5.14] - 2026-09-27
 

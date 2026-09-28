@@ -78,6 +78,11 @@ func populateQueueEpisodeDetails(item *queueEpisodeItem, ep podcast.CachedEpisod
 		if st.Cleaned.DurationSec > 0 {
 			item.DurationSec = st.Cleaned.DurationSec
 		}
+		if item.PublishedAt == "" && st.PublishedAt != "" {
+			if date, err := podcast.ParseAnyPublicationTime(st.PublishedAt); err == nil && !date.IsZero() {
+				item.PublishedAt = date.UTC().Format(time.RFC3339)
+			}
+		}
 	}
 	if item.DurationSec <= 0 {
 		item.DurationSec = audio.GetAudioDuration(item.AudioPath)

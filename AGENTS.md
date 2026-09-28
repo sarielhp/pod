@@ -218,14 +218,17 @@ Always use `util.WorkDirFor(path)` to compute the `.work/` path, then call
   Add one only when the standard library genuinely cannot do the job
 - No comments in code (keep it self-documenting), except doc comments on exported
   library API — a package boundary has to say what it is for
-- **Library packages must not write to the terminal.** `pkg/podcast`, `pkg/backend`
-  and `pkg/podsite` take a `progress.Reporter` and let the caller decide where
-  output goes; a nil Reporter is silent. `fmt.Print*` and `os.Stdout`/`os.Stderr`
-  are banned there and the ban is enforced by
+- **Library packages must not write to the terminal.** `pkg/podcast`, `pkg/backend`,
+  `pkg/podsite`, `pkg/pipeline`, `pkg/episode`, `pkg/config`, `pkg/player`,
+  `pkg/kitty`, `pkg/port`, `pkg/types` and `pkg/progress` take a
+  `progress.Reporter` (or a caller-supplied `io.Writer`) and let the caller decide
+  where output goes; a nil Reporter is silent. `fmt.Print*` and
+  `os.Stdout`/`os.Stderr` are banned there and the ban is enforced by
   `TestLibraryPackagesDoNotWriteToTheTerminal` in `pkg/progress`. Writing to an
-  `io.Writer` the caller supplied is fine. `pkg/adremoval` still prints
-  directly and is not yet on the list; `pkg/pipeline` has no direct writes
-  left but is not yet enforced by that test either
+  `io.Writer` the caller supplied is fine. `pkg/adremoval`, `pkg/transcribe`,
+  `pkg/audio`, `pkg/format`, `pkg/gemini` (one site) and `pkg/util` still print
+  directly and are not yet on the list; add a package to the list the moment
+  its last direct write goes
 - **In `pkg/cli`, print through `outFor(cli)`, not `fmt.Printf`.** `outFor`
   returns stdout, or `io.Discard` under `--quiet`, so honouring the flag is a
   property of the writer instead of something each call site remembers. A
@@ -247,10 +250,10 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 | Directory / Package | Purpose |
 |---------------------|---------|
 | `main.go` | The single entrypoint: embeds `VERSION` and delegates to `pkg/cli.Execute(os.Args[1:])` |
-| `pkg/types` | Core domain types, state enums, configuration data structures, manifests |
+| `pkg/types` | Core domain types, state enums, configuration data structures, manifests, and the podcast/feed domain model (`Podcast`, `Episode`, `FeedEpisode`) with its pure helpers |
 | `pkg/util` | Cross-cutting utilities: safe atomic file operations, locks, shell quoting, ANSI colors |
 | `pkg/config` | Configuration loading/saving, profile cost estimation, environment overrides, podcast configs |
-| `pkg/backend` | Standalone backend interface and legacy import adapters |
+| `pkg/backend` | Standalone backend interface and legacy import adapters; aliases the domain model from `pkg/types` so call sites need not change |
 | `pkg/audio` | Audio processing via ffmpeg/ffprobe: duration probing, cutting, filtering, ID3 tags |
 | `pkg/format` | Formatting routines: time formatters, cut intervals merging, SRT/TXT export |
 | `pkg/transcribe` | Whisper API client, audio WAV preparation, chunking, Docker container log progress |

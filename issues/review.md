@@ -7,6 +7,72 @@
 - **Nothing in this document is a build or test failure.** Every item is a latent defect,
   a design problem, or documentation drift that the current suite does not exercise.
 
+## Fix pass (2026-09-27, branch `fix/review-2026-09`)
+
+Every finding below was re-read against the code before it was touched; the
+medium/low findings had not been through the independent judge, so each fix
+commit states what was verified. Regression tests were written first and run
+with the fix reverted (`teeth.sh`: ASSERTION-FAIL) before the fix was applied.
+The branch is not pushed.
+
+**Fixed:** H1–H6; M1–M15; L1–L15; T1–T13; A1, A3, A4 (partial, see below),
+A5, A6 (partial), A7 (one cluster). Each is one commit, gated by `tools/check`.
+
+**Deferred, with reasons:**
+- **A2** (`pkg/podcast` god package, `Library` injection): `podcast.Open` takes
+  no options, so the "add an Option" premise did not hold. Not started; the
+  plan is (1) `Option` funcs on `Open` for queue and feed cache, (2) `Library`
+  methods for the ~50 package-level calls `cli`/`tui` make, (3) migrate
+  `pkg/cli` one file per commit, (4) migrate `tui_data.go`/`tui_feed_fetch.go`
+  so the TUI stops being the only cache writer, (5) split by concern last.
+- **A4 remainder:** `RunWhisperCLITranscription[Context]` still take
+  `quiet, verbose` (three callers, one with its own options type) and
+  `gemini/models.go:announceModelSwitch` still prints directly; no reporter
+  reaches the model-chain code yet.
+- **A6 remainder:** `IsStandalone` has three live callers; the unreachable
+  registry names live in `pkg/podcast/standalone_backend.go:init`, not
+  `pkg/backend/factory.go` as cited.
+- **A7 remainder:** only the 10-argument cluster became `episodeJob`; the
+  8/11/13/14-argument signatures are listed in commit `3a59cea`.
+- **T4 remainder:** `pkg/audio/ffmpeg.go` primitives need ffmpeg to test;
+  `player/ipc.go` gained daemon tests for stop/seek and the socket mode only.
+
+**Where this document was wrong (corrected in place where cheap):**
+- T6 cites `pkg/kitty/kitty_test.go:8` for the self-asserting test; it was
+  `pkg/tui/tui_screens_test.go:78`.
+- T4 claims `SavePodcastConfig`/`LoadPodcastConfig` had 0% coverage;
+  `pkg/config/podcast_store_test.go` round-trips them.
+- A6 points at `pkg/backend/factory.go:10,56` for "unreachable registry
+  names"; those lines are `IsStandalone` and `SyncEpisodeDuration`.
+- A1's "MP3 duration" helper is an unexported dead function
+  (`getMP3DiskDurationNative`), not a domain helper worth moving.
+- A3 says `pkg/detect` had two print sites; one was an `fmt.Sprintf`.
+- M15 says `pod u` fails; it worked through the `ui` alias (it fails now, by
+  design, since the alias is gone).
+- L11 says `config show` "does not list keys"; it prints settings by name,
+  just not the `get` key set.
+- T11's "20 package dirs": `go list ./...` reports 22 packages.
+- The "Side effect" note below: the fix pass's own first `go test` run
+  overwrote `~/.config/pod/play_queue.json` once more before T1 landed
+  (mtime 20:10:32); after that commit no test run touches it.
+
+**Found while fixing (not in the review):**
+- `pod queue audit` called `RunTranscriptAudit` without the CLI reporter, so
+  its output was discarded (same class as A5). Fixed.
+- `executeCutProcessing` leaves an empty `.work/` in the podcast directory
+  after every cut; the stale reaper removes it a day later. Not fixed.
+- `util.DisplayName` reverses RTL runs without mirroring brackets. Not fixed.
+- `kitty.DetectImageFormat` is dead; `ProcessWithGeminiFlash` and
+  `ProcessWithGeminiFlashChunks` have no callers; `getMP3DiskDurationNative`
+  is the sole user of `github.com/tcolgate/mp3`. Not removed (the last needs
+  `go mod tidy`, which the gate does not run).
+- The Vertex path in `ProcessWithGeminiConfig` announces a hardcoded
+  `gemini-1.5-flash` label regardless of config. Not fixed.
+- `CHANGELOG.md:196` still says "`pod tui` is now `pod ui`"; `gen_rss_test.go:60`
+  has a comment to match. Historical entries, left alone.
+
+---
+
 ## How this review was produced
 
 Seven parallel dimension reviews (correctness & data-loss; concurrency; security &

@@ -126,15 +126,7 @@ func ensurePodcastConfig(dir string, cfg config.PodcastConfig, quiet bool) {
 }
 
 func removeWorkDirs(dir string) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() == ".work" {
-			_ = os.RemoveAll(filepath.Join(dir, entry.Name()))
-		}
-	}
+	_, _ = util.CleanupIdleWorkDirs(dir)
 }
 
 // refreshFeedsForAudio regenerates the static site for each podcast directory

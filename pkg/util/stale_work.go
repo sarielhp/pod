@@ -11,6 +11,18 @@ import (
 )
 
 func CleanupStaleWorkDirs(root string, now time.Time) (int, error) {
+	return cleanupWorkDirs(root, now.Add(-24*time.Hour))
+}
+
+// CleanupIdleWorkDirs removes every .work directory under root whose sibling
+// audio no other pod instance holds locked, whatever its age. It is the
+// pre-run sweep for a batch over a directory: leftovers from a crashed run
+// go, a live worker's scratch space stays.
+func CleanupIdleWorkDirs(root string) (int, error) {
+	return cleanupWorkDirs(root, time.Now().Add(time.Second))
+}
+
+func cleanupWorkDirs(root string, cutoff time.Time) (int, error) {
 	if root == "" {
 		return 0, nil
 	}
@@ -29,7 +41,7 @@ func CleanupStaleWorkDirs(root string, now time.Time) (int, error) {
 			return nil
 		}
 		if entry.Name() == ".work" {
-			deleted, err := removeStaleWorkDir(root, path, now.Add(-24*time.Hour))
+			deleted, err := removeStaleWorkDir(root, path, cutoff)
 			if err != nil {
 				failures = append(failures, fmt.Errorf("cleanup %s: %w", path, err))
 			}

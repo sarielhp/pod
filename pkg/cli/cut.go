@@ -8,6 +8,7 @@ import (
 
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
+	"pod/pkg/util"
 )
 
 func buildCutCommand(opts *CLIOptions, action *string) clihelp.Command {
@@ -40,6 +41,20 @@ func buildCutCommand(opts *CLIOptions, action *string) clihelp.Command {
 	}
 }
 
+// lockEpisodeForProcessing takes the same per-file lock the batch path holds
+// while it works on an episode, so the stale-work reaper and the pruners see
+// this run as live rather than reclaiming its .work/ or deleting its audio.
+func lockEpisodeForProcessing(path string) (func(), error) {
+	lock, err := util.AcquireFileLock(path)
+	if err != nil {
+		return nil, err
+	}
+	if lock == nil {
+		return nil, fmt.Errorf("%s is being processed by another pod instance", filepath.Base(path))
+	}
+	return lock.Release, nil
+}
+
 func runCutCommand(cfg Config, cli CLIOptions) error {
 	if len(cli.Args) == 0 {
 		return fmt.Errorf("missing audio file to cut")
@@ -54,6 +69,12 @@ func runCutCommand(cfg Config, cli CLIOptions) error {
 
 	opts := cli.ProcOptions
 	opts.Normalize()
+
+	release, err := lockEpisodeForProcessing(req.Path)
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	res, err := pipeline.CutFile(req, cfg, opts, reporter(cli))
 	if err != nil {

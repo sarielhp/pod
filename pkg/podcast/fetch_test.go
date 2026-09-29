@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -321,7 +320,9 @@ func TestExecuteFetchEnqueuesNewlyDownloaded(t *testing.T) {
 	if len(queueEntries) != 1 {
 		t.Fatalf("expected 1 item in queue, got %d", len(queueEntries))
 	}
-	if !strings.Contains(queueEntries[0], "New_Episode") {
-		t.Errorf("expected queue entry to contain episode name, got %q", queueEntries[0])
+	queued := filepath.Join(podDir, queueEntries[0])
+	id := episode.LoadIdentity(queued)
+	if id == nil || id.Title != ep.Title {
+		t.Errorf("the queued file should carry the identity of %q, got %+v", ep.Title, id)
 	}
 }

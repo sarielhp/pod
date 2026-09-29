@@ -113,6 +113,14 @@ func loadSingleTUIEpisode(mp3 string, cachedByPath, cachedByName map[string]podc
 	} else if ce, ok := cachedByName[fn]; ok {
 		applyCachedSummaryToEpisode(&ep, ce)
 	}
+	if id := episode.LoadIdentity(mp3); id != nil {
+		if id.Title != "" {
+			ep.title = id.Title
+		}
+		if ep.publishedAt == 0 {
+			ep.publishedAt = id.PublishedAt
+		}
+	}
 	if date, ok := podcast.SourcePublicationTime(mp3); ok {
 		ep.publishedAt = 0
 		if !date.IsZero() {

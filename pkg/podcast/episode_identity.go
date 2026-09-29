@@ -114,3 +114,39 @@ func (l *LocalEpisodes) Find(fe backend.FeedEpisode) (string, bool) {
 	}
 	return "", false
 }
+
+// NewEpisodeFilename names the file for a newly downloaded feed episode:
+// "YYYY-MM-DD_" and a short code derived from the episode's GUID, for example
+// "2026-09-28_3f9a1c07be.mp3". The name says nothing about the episode and does
+// not need to: what the episode is lives in its recorded identity, and the date
+// is kept only so a directory listing sorts by age. Because the code comes from
+// the GUID, downloading the same episode twice gives the same name; if two
+// different episodes should ever share a code, the longer of the two is used.
+// The name is a fixed short length, so it cannot come near the file name limit
+// however long or in whatever script the title is.
+func NewEpisodeFilename(podDir string, fe backend.FeedEpisode) string {
+	guid, _ := feedGUID(fe)
+	sum := sha256.Sum256([]byte(guid))
+	code := hex.EncodeToString(sum[:])
+	prefix := ""
+	if ms := GetPubMS(fe); ms > 0 {
+		prefix = time.UnixMilli(ms).UTC().Format("2006-01-02") + "_"
+	}
+	for n := 10; n < len(code); n += 6 {
+		name := prefix + code[:n] + ".mp3"
+		if !fileHoldsOtherEpisode(filepath.Join(podDir, name), guid) {
+			return name
+		}
+	}
+	return prefix + code + ".mp3"
+}
+
+// fileHoldsOtherEpisode reports whether path exists and belongs to an episode
+// other than the one with the given GUID.
+func fileHoldsOtherEpisode(path, guid string) bool {
+	if !util.FileExists(path) {
+		return false
+	}
+	id := episode.LoadIdentity(path)
+	return id == nil || id.GUID != guid
+}

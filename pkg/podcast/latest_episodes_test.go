@@ -40,8 +40,16 @@ func TestEpisodeDestPathMatchesTheDownloader(t *testing.T) {
 	if got == "/pod/show" || got == "" {
 		t.Fatalf("no filename produced: %q", got)
 	}
-	if !contains(got, "Some_Episode") {
-		t.Errorf("path does not reflect the title: %q", got)
+	if contains(got, "Some_Episode") {
+		t.Errorf("the name is opaque and must not carry the title: %q", got)
+	}
+	if got != EpisodeDestPath("/pod/show", e) {
+		t.Error("the same episode must always get the same path")
+	}
+	other := ep("Some Episode", 1_757_980_800_000, "https://cdn/y.mp3")
+	other.GUID = "a-different-guid"
+	if EpisodeDestPath("/pod/show", other) == got {
+		t.Error("a different episode must get a different path")
 	}
 }
 

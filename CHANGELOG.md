@@ -8,6 +8,11 @@ were written; they are not in version order.
 ## [0.5.18] - 2026-09-29
 
 ### Added
+- **New downloads get short opaque file names**, `2026-09-28_3f9a1c07be.mp3`: the publication
+  date, so a directory sorts by age, and a code derived from the episode GUID. The title no
+  longer appears in the name, so a long title in any script can no longer make a file name
+  too long, and the same episode always gets the same name. What the episode is comes from
+  its recorded identity. Existing files keep their names until `pod server rename-episodes`.
 - **Each downloaded episode now records which feed episode it is.** The feed GUID, title,
   audio URL, publication date and episode number are stored in the episode's own status
   file when it is downloaded, and `pod fetch` and the other "is this already downloaded"

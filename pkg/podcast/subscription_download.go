@@ -290,12 +290,8 @@ func (l *Library) downloadEpisode(d *Downloader, podDir, feedURL string, ep back
 	}
 
 	pubMs := GetPubMS(ep)
-	var pubTime time.Time
-	if pubMs > 0 {
-		pubTime = time.UnixMilli(pubMs).UTC()
-	}
-	fn := FormatEpisodeFilename(pubTime, ep.Episode, ep.Title)
-	destPath := filepath.Join(podDir, fn)
+	destPath := EpisodeDestPath(podDir, ep)
+	fn := filepath.Base(destPath)
 
 	l.progress.Infof("  Downloading: %s", ep.Title)
 	if err := d.DownloadEpisode(context.Background(), encURL, destPath, l.progress); err != nil {

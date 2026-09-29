@@ -3,7 +3,6 @@ package podcast
 import (
 	"path/filepath"
 	"sort"
-	"time"
 
 	"pod/pkg/backend"
 	"pod/pkg/config"
@@ -113,11 +112,7 @@ func (l *Library) PlanLatestEpisodes(subs []Subscription, opts LatestEpisodePlan
 
 // EpisodeDestPath is where an episode's audio is written.
 func EpisodeDestPath(podDir string, ep backend.FeedEpisode) string {
-	var pubTime time.Time
-	if ms := GetPubMS(ep); ms > 0 {
-		pubTime = time.UnixMilli(ms).UTC()
-	}
-	return filepath.Join(podDir, FormatEpisodeFilename(pubTime, ep.Episode, ep.Title))
+	return filepath.Join(podDir, NewEpisodeFilename(podDir, ep))
 }
 
 // groupCandidatesIntoPlans collects the chosen episodes per subscription,

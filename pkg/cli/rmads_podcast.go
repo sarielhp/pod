@@ -417,8 +417,7 @@ func tryDirectDownloadEpisode(podDir, feedURL string, fe backend.FeedEpisode, qu
 	if encURL == "" {
 		return "", false
 	}
-	safeTitle := podcast.SanitizeTitle(fe.Title)
-	destPath := filepath.Join(podDir, safeTitle+".mp3")
+	destPath := podcast.EpisodeDestPath(podDir, fe)
 	d := podcast.NewDownloader()
 	if err := d.DownloadEpisode(context.Background(), encURL, destPath, reporterFromQuiet(quiet)); err == nil {
 		_ = podcast.RecordFeedEpisode(destPath, fe, feedURL)

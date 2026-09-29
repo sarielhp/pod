@@ -3,6 +3,7 @@ package podcast
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,5 +112,59 @@ func TestTheDisplayTitleComesFromTheRecordedIdentity(t *testing.T) {
 	st := episode.GetOrCreateEpisodeStatus(path)
 	if st.PublishedAt == "" || st.PublicationSource != "feed" {
 		t.Errorf("the publication date should be recorded too: %+v", st)
+	}
+}
+
+func TestNewEpisodeFilenameIsShortOpaqueAndStable(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	long := feedEpisode("guid-long", strings.Repeat("ש", 200), pub)
+	name := NewEpisodeFilename(dir, long)
+	if len(name) != len("2026-09-28_")+10+len(".mp3") {
+		t.Errorf("want a fixed short name whatever the title, got %q (%d bytes)", name, len(name))
+	}
+	if !strings.HasPrefix(name, "2026-09-28_") || strings.Contains(name, "ש") {
+		t.Errorf("date prefix and no title expected, got %q", name)
+	}
+	if again := NewEpisodeFilename(dir, long); again != name {
+		t.Errorf("the same episode must always get the same name: %q vs %q", name, again)
+	}
+	if other := NewEpisodeFilename(dir, feedEpisode("guid-other", "x", pub)); other == name {
+		t.Error("different episodes must get different names")
+	}
+}
+
+func TestNewEpisodeFilenameAvoidsAnotherEpisodeAndReusesItsOwn(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	fe := feedEpisode("guid-a", "A", pub)
+	first := NewEpisodeFilename(dir, fe)
+
+	// A different episode already sitting on that name forces a longer code.
+	squatter := writeAudio(t, dir, first)
+	if err := RecordFeedEpisode(squatter, feedEpisode("guid-b", "B", pub), ""); err != nil {
+		t.Fatal(err)
+	}
+	second := NewEpisodeFilename(dir, fe)
+	if second == first || len(second) <= len(first) {
+		t.Errorf("a name held by another episode must be avoided with a longer code: %q then %q", first, second)
+	}
+
+	// The episode's own file is reused, so a re-download does not pile up copies.
+	own := writeAudio(t, dir, second)
+	if err := RecordFeedEpisode(own, fe, ""); err != nil {
+		t.Fatal(err)
+	}
+	if third := NewEpisodeFilename(dir, fe); third != second {
+		t.Errorf("an episode must keep its own name: %q vs %q", third, second)
+	}
+}
+
+func TestNewEpisodeFilenameWithoutADateHasNoPrefix(t *testing.T) {
+	t.Parallel()
+	fe := backend.FeedEpisode{GUID: "g", Title: "Undated"}
+	name := NewEpisodeFilename(t.TempDir(), fe)
+	if strings.Contains(name, "_") || len(name) != 10+len(".mp3") {
+		t.Errorf("an episode with no date is named by its code alone, got %q", name)
 	}
 }

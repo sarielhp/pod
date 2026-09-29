@@ -153,7 +153,7 @@ func DetectFile(req DetectRequest, cfg types.Config, opts types.ProcOptions, rep
 // TranscriptPathFor resolves the transcript belonging to a path, which may be
 // the transcript itself or the media file it was made from.
 func TranscriptPathFor(path string) (string, error) {
-	if strings.HasSuffix(path, ".transcript.json") {
+	if isTranscriptFile(path) {
 		if !util.FileExists(path) {
 			return "", fmt.Errorf("no such transcript: %s", path)
 		}
@@ -196,4 +196,10 @@ func TranscriptDuration(td *types.TranscriptionData) float64 {
 		}
 	}
 	return last
+}
+
+// isTranscriptFile reports whether a path names a transcript JSON: the ad
+// pipeline's (.transcript.json) or one with speaker labels (.speakers.json).
+func isTranscriptFile(path string) bool {
+	return strings.HasSuffix(path, ".transcript.json") || strings.HasSuffix(path, ".speakers.json")
 }

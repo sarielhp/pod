@@ -55,7 +55,7 @@ func TestCutAndTranscribeRefuseAnEpisodeAnotherInstanceHolds(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "another pod instance") {
 		t.Fatalf("cut proceeded on a locked episode: %v", err)
 	}
-	_, err = transcribeOneLocked(mp3, Config{}, CLIOptions{ProcOptions: ProcOptions{Quiet: true}}, ProcOptions{Quiet: true})
+	_, err = transcribeOneLocked(transcribeTarget{source: mp3, lockPath: mp3}, Config{}, CLIOptions{ProcOptions: ProcOptions{Quiet: true}}, ProcOptions{Quiet: true})
 	if err == nil || !strings.Contains(err.Error(), "another pod instance") {
 		t.Fatalf("transcribe proceeded on a locked episode: %v", err)
 	}

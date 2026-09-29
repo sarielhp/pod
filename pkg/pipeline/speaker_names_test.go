@@ -170,3 +170,36 @@ func TestATranscriptIsKeptWhenNamingItFails(t *testing.T) {
 		t.Fatal("no LLM profile is configured, so nothing can be named, and that must not be fatal")
 	}
 }
+
+func TestSpeakerOutputsNeverUseTheTranscriptNameTheAdPipelineReads(t *testing.T) {
+	plain, spk := TranscribeRequest{}, TranscribeRequest{Speakers: true}
+	for ordinary, want := range map[string]string{
+		".transcript.json": ".speakers.json", ".transcript.md": ".speakers.md", ".srt": ".speakers.srt", ".txt": ".speakers.txt",
+	} {
+		if plain.outputSuffix(ordinary) != ordinary || spk.outputSuffix(ordinary) != want {
+			t.Errorf("%s: plain %q, speakers %q, want %q", ordinary, plain.outputSuffix(ordinary), spk.outputSuffix(ordinary), want)
+		}
+	}
+}
+
+func TestNamingAnExistingSpeakersFileWritesItsMarkdownBesideIt(t *testing.T) {
+	path := diarizedTranscript(t)
+	spk := strings.TrimSuffix(path, ".transcript.json") + ".speakers.json"
+	if err := os.Rename(path, spk); err != nil {
+		t.Fatal(err)
+	}
+	res, err := NameSpeakers(NameSpeakersRequest{Path: spk, Markdown: true, Set: map[string]string{"SPEAKER_00": "Elad"}}, types.Config{}, nil)
+	if err != nil || len(res.Written) != 2 || !strings.HasSuffix(res.Written[1], ".speakers.md") {
+		t.Fatalf("written %v, err %v", res.Written, err)
+	}
+}
+
+func TestReadableTitleIsTheFileNameNotTheOriginalsExtension(t *testing.T) {
+	req := TranscribeRequest{Path: "/lib/Show/2026_abc.mp3.precut", OutputBase: "/lib/Show/2026_abc"}
+	if got := req.readableTitle(); got != "2026_abc" {
+		t.Fatalf("title %q", got)
+	}
+	if got := (TranscribeRequest{Path: "/x/lecture.mkv"}).readableTitle(); got != "lecture" {
+		t.Fatalf("title %q", got)
+	}
+}

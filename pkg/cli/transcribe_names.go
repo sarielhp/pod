@@ -31,7 +31,7 @@ func parseSpeakerAssignments(list string) (map[string]string, error) {
 // still to be transcribed.
 func splitTranscriptArgs(args []string) (transcripts, media []string) {
 	for _, a := range uniquePaths(args) {
-		if strings.HasSuffix(a, ".transcript.json") {
+		if isTranscriptArg(a) {
 			transcripts = append(transcripts, a)
 		} else {
 			media = append(media, a)

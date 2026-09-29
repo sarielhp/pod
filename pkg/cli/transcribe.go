@@ -60,20 +60,22 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 	}
 }
 
-func transcribeOneLocked(path string, cfg Config, cli CLIOptions, opts ProcOptions) (pipeline.TranscribeResult, error) {
-	release, err := lockEpisodeForProcessing(path)
+func transcribeOneLocked(t transcribeTarget, cfg Config, cli CLIOptions, opts ProcOptions) (pipeline.TranscribeResult, error) {
+	release, err := lockEpisodeForProcessing(t.lockPath)
 	if err != nil {
 		return pipeline.TranscribeResult{}, err
 	}
 	defer release()
 	speakerNames, _ := parseSpeakerAssignments(cli.SpeakersSet)
 	return pipeline.TranscribeFile(pipeline.TranscribeRequest{
-		Path:       path,
+		Path:       t.source,
+		OutputBase: t.outputBase,
 		OutputDir:  cli.Output,
 		Formats:    strings.Split(cli.ExportFormat, ","),
 		MaxMinutes: transcribeMinutes(cli.TranscribeMin),
 		KeepAudio:  cli.KeepAudio,
 
+		Speakers:       opts.Speakers,
 		SpeakerNames:   speakerNames,
 		NameProfile:    cli.UseLLM,
 		NoSpeakerNames: cli.NoSpeakerNames,
@@ -100,11 +102,11 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 		}
 		return nameExistingTranscripts(cfg, cli, transcripts)
 	}
-	paths, err := expandTranscribeTargets(cli.Args)
+	targets, err := resolveTranscribeArgs(cfg, media)
 	if err != nil {
 		return err
 	}
-	if len(paths) == 0 {
+	if len(targets) == 0 {
 		return fmt.Errorf("no audio or video files found in %s", strings.Join(cli.Args, ", "))
 	}
 
@@ -112,11 +114,11 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 	opts.Normalize()
 
 	var failures []string
-	for _, path := range paths {
-		res, err := transcribeOneLocked(path, cfg, cli, opts)
+	for _, t := range targets {
+		res, err := runOneTranscribeTarget(t, cfg, cli, opts)
 		if err != nil {
 			util.FprintError(errFor(cli), "%v\n", err)
-			failures = append(failures, filepath.Base(path))
+			failures = append(failures, filepath.Base(t.lockPath))
 			continue
 		}
 		for _, w := range res.Written {
@@ -129,9 +131,16 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 
 	if len(failures) > 0 {
 		return fmt.Errorf("%d of %d file(s) could not be transcribed: %s",
-			len(failures), len(paths), strings.Join(failures, ", "))
+			len(failures), len(targets), strings.Join(failures, ", "))
 	}
 	return nil
+}
+
+func runOneTranscribeTarget(t transcribeTarget, cfg Config, cli CLIOptions, opts ProcOptions) (pipeline.TranscribeResult, error) {
+	if err := refuseToReplaceTranscript(t, opts.Speakers); err != nil {
+		return pipeline.TranscribeResult{}, err
+	}
+	return transcribeOneLocked(t, cfg, cli, opts)
 }
 
 // transcribeMinutes reads the --tminutes value. Anything unparseable or

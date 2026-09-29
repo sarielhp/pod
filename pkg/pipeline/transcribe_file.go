@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"pod/pkg/audio"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/progress"
 	"pod/pkg/types"
@@ -46,6 +47,11 @@ type TranscribeRequest struct {
 	// With opts.Speakers, the speakers are also named: by SpeakerNames when given
 	// (label to name), else by a model using NameProfile (empty means the active
 	// profile). NoSpeakerNames leaves them as SPEAKER_00 and so on.
+	// Speakers says the outputs carry speaker labels. They are then named
+	// <base>.speakers.json, .md, .srt and .txt, never <base>.transcript.json, which
+	// belongs to the ad pipeline and is what boilerplate analysis reads.
+	Speakers bool
+
 	SpeakerNames   map[string]string
 	NameProfile    string
 	NoSpeakerNames bool
@@ -160,25 +166,25 @@ func writeTranscriptFormats(req TranscribeRequest, td *types.TranscriptionData, 
 	for _, f := range formats {
 		switch strings.ToLower(strings.TrimSpace(f)) {
 		case "json":
-			out := transcriptOutputPath(req, ".transcript.json")
+			out := transcriptOutputPath(req, req.outputSuffix(".transcript.json"))
 			if err := format.SaveJSONTranscript(req.Path, td, out, quiet, nil); err != nil {
 				return written, fmt.Errorf("write %s: %w", filepath.Base(out), err)
 			}
 			written = append(written, out)
 		case "srt":
-			out, err := format.ConvertJSONToSRT(req.Path, td, transcriptOutputPath(req, ".srt"), quiet)
+			out, err := format.ConvertJSONToSRT(req.Path, td, transcriptOutputPath(req, req.outputSuffix(".srt")), quiet)
 			if err != nil {
 				return written, fmt.Errorf("write srt: %w", err)
 			}
 			written = append(written, out)
 		case "md":
-			out, err := format.ConvertToReadable(td, util.StripExt(filepath.Base(req.Path)), duration, transcriptOutputPath(req, ".transcript.md"), quiet)
+			out, err := format.ConvertToReadable(td, req.readableTitle(), duration, transcriptOutputPath(req, req.outputSuffix(".transcript.md")), quiet)
 			if err != nil {
 				return written, fmt.Errorf("write md: %w", err)
 			}
 			written = append(written, out)
 		case "txt":
-			out, err := format.ConvertJSONToTXT(req.Path, td, duration, transcriptOutputPath(req, ".txt"), quiet)
+			out, err := format.ConvertJSONToTXT(req.Path, td, duration, transcriptOutputPath(req, req.outputSuffix(".txt")), quiet)
 			if err != nil {
 				return written, fmt.Errorf("write txt: %w", err)
 			}
@@ -203,4 +209,31 @@ func transcriptOutputPath(req TranscribeRequest, suffix string) string {
 		dir = filepath.Dir(req.Path)
 	}
 	return filepath.Join(dir, base)
+}
+
+// outputSuffix is the name of an output: the ordinary one, or, when the outputs
+// carry speaker labels, the same with ".speakers" in place of ".transcript".
+func (req TranscribeRequest) outputSuffix(ordinary string) string {
+	if !req.Speakers {
+		return ordinary
+	}
+	switch ordinary {
+	case ".transcript.json":
+		return ".speakers.json"
+	case ".transcript.md":
+		return ".speakers.md"
+	}
+	return ".speakers" + ordinary
+}
+
+// readableTitle heads the readable transcript: the episode's title when the
+// library recorded one, else the name of the file it was made from.
+func (req TranscribeRequest) readableTitle() string {
+	if req.OutputBase != "" {
+		if id := episode.LoadIdentity(req.OutputBase + ".mp3"); id != nil && id.Title != "" {
+			return id.Title
+		}
+		return filepath.Base(req.OutputBase)
+	}
+	return util.StripExt(filepath.Base(req.Path))
 }

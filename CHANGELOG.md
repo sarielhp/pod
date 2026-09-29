@@ -5,6 +5,22 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.26] - 2026-09-29
+
+### Added
+- **`pod transcribe` takes episode IDs**, like `info` and `queue` do: `pod transcribe --speakers e5a199`.
+  An episode is transcribed from its uncut original when it has one, so times match its cuts.
+
+### Changed
+- **Speaker versions are written to their own files**, `<name>.speakers.json`, `.md`, `.srt` and
+  `.txt`, and never over `<name>.transcript.json`, which ad removal and boilerplate analysis read.
+  `pod transcribe --speakers` on a plain file follows the same rule. `pod info` lists them with the
+  episode's other files, and `pod transcribe --speakers|--names|--clear-names` accepts a
+  `.speakers.json` as well as a `.transcript.json`.
+- **A plain `pod transcribe <episode>` refuses when the episode already has a transcript**, instead of
+  replacing it; add `--speakers` for a version with speakers.
+- The readable transcript is headed with the episode title.
+
 ## [0.5.25] - 2026-09-29
 
 ### Added

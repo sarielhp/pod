@@ -155,7 +155,7 @@ const speakerSystemPrompt = "You work out who is speaking in a podcast transcrip
 
 // mediaPathOf is the audio file a transcript belongs to, by the library's naming.
 func mediaPathOf(transcriptPath string) string {
-	return strings.TrimSuffix(transcriptPath, ".transcript.json") + ".mp3"
+	return strings.TrimSuffix(strings.TrimSuffix(transcriptPath, ".transcript.json"), ".speakers.json") + ".mp3"
 }
 
 // speakerContext is what is known about the episode besides its words: the
@@ -314,8 +314,8 @@ func writeSpeakerNames(path string, td *types.TranscriptionData, markdown bool) 
 	if !markdown {
 		return written, nil
 	}
-	mdPath := strings.TrimSuffix(path, ".transcript.json") + ".transcript.md"
-	title := filepath.Base(strings.TrimSuffix(path, ".transcript.json"))
+	mdPath := strings.TrimSuffix(path, ".json") + ".md"
+	title := filepath.Base(strings.TrimSuffix(strings.TrimSuffix(path, ".transcript.json"), ".speakers.json"))
 	md, err := format.ConvertToReadable(td, title, TranscriptDuration(td), mdPath, true)
 	if err != nil {
 		return written, err
@@ -332,7 +332,11 @@ func nameTranscribedSpeakers(req TranscribeRequest, td *types.TranscriptionData,
 	if req.NoSpeakerNames || len(td.Speakers) == 0 {
 		return
 	}
-	names, err := chooseSpeakerNames(NameSpeakersRequest{Set: req.SpeakerNames, Profile: req.NameProfile}, td, req.Path, cfg, r)
+	media := req.Path
+	if req.OutputBase != "" {
+		media = req.OutputBase + ".mp3"
+	}
+	names, err := chooseSpeakerNames(NameSpeakersRequest{Set: req.SpeakerNames, Profile: req.NameProfile}, td, media, cfg, r)
 	if err != nil {
 		r.Warnf("could not name the speakers: %v", err)
 		return

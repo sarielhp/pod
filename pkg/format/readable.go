@@ -31,7 +31,7 @@ func FormatReadable(data *types.TranscriptionData, title string, duration float6
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", title)
 	fmt.Fprintf(&b, "%s\n\n", readableSummary(data, duration))
-	for _, turn := range speakerTurns(data.Segments) {
+	for _, turn := range speakerTurns(data) {
 		if turn.speaker != "" {
 			fmt.Fprintf(&b, "**%s** · %s\n\n", turn.speaker, FormatClock(turn.start))
 		} else {
@@ -49,8 +49,8 @@ func readableSummary(data *types.TranscriptionData, duration float64) string {
 	if data.Language != "" {
 		parts = append(parts, strings.ToUpper(data.Language))
 	}
-	if len(data.Speakers) > 0 {
-		parts = append(parts, fmt.Sprintf("%d speakers: %s", len(data.Speakers), strings.Join(data.Speakers, ", ")))
+	if names := distinctSpeakerNames(data); len(names) > 0 {
+		parts = append(parts, fmt.Sprintf("%d speakers: %s", len(names), strings.Join(names, ", ")))
 	}
 	return "_" + strings.Join(parts, " · ") + "_"
 }
@@ -58,7 +58,7 @@ func readableSummary(data *types.TranscriptionData, duration float64) string {
 // speakerTurns groups consecutive segments by speaker. A segment with no label
 // continues the turn before it, since the engine gave it nobody else. Within a
 // turn a paragraph ends at a pause or when it has grown long enough to want one.
-func speakerTurns(segs []types.TranscriptionSegment) []speakerTurn {
+func speakerTurns(data *types.TranscriptionData) []speakerTurn {
 	var turns []speakerTurn
 	var current strings.Builder
 	var lastEnd float64
@@ -68,15 +68,19 @@ func speakerTurns(segs []types.TranscriptionSegment) []speakerTurn {
 		}
 		current.Reset()
 	}
-	for _, seg := range segs {
+	for _, seg := range data.Segments {
 		text := strings.TrimSpace(seg.Text)
 		if text == "" {
 			continue
 		}
-		newTurn := len(turns) == 0 || (seg.Speaker != "" && seg.Speaker != turns[len(turns)-1].speaker)
+		speaker := ""
+		if seg.Speaker != "" {
+			speaker = data.SpeakerName(seg.Speaker)
+		}
+		newTurn := len(turns) == 0 || (speaker != "" && speaker != turns[len(turns)-1].speaker)
 		if newTurn {
 			flush()
-			turns = append(turns, speakerTurn{speaker: seg.Speaker, start: seg.Start})
+			turns = append(turns, speakerTurn{speaker: speaker, start: seg.Start})
 		} else if seg.Start-lastEnd >= paragraphPauseSec || current.Len() >= paragraphMaxChars {
 			flush()
 		}
@@ -102,4 +106,18 @@ func ConvertToReadable(data *types.TranscriptionData, title string, duration flo
 		fmt.Fprintf(os.Stdout, "Saved readable transcript (.md) to: '%s'\n", path)
 	}
 	return path, nil
+}
+
+// distinctSpeakerNames lists the names in play, each once: two labels given the
+// same name are one speaker.
+func distinctSpeakerNames(data *types.TranscriptionData) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, label := range data.Speakers {
+		if name := data.SpeakerName(label); !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	return names
 }

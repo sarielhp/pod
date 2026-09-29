@@ -18,7 +18,7 @@ func formatSRT(data *types.TranscriptionData) string {
 	for idx, seg := range data.Segments {
 		st := FormatSRTTime(seg.Start)
 		en := FormatSRTTime(seg.End)
-		text := labelled(seg)
+		text := labelled(data, seg)
 		lines = append(lines, fmt.Sprintf("%d", idx+1))
 		lines = append(lines, fmt.Sprintf("%s --> %s", st, en))
 		lines = append(lines, text)
@@ -82,7 +82,7 @@ func formatTXT(data *types.TranscriptionData, totalDuration float64, baseName st
 		for _, seg := range data.Segments {
 			st := seg.Start
 			en := seg.End
-			text := labelled(seg)
+			text := labelled(data, seg)
 			lines = append(lines, fmt.Sprintf("[%s -> %s] %s", FormatTime(st), FormatTime(en), text))
 			if len(seg.Words) > 0 {
 				var wordStrs []string
@@ -157,10 +157,10 @@ func SaveJSONTranscript(mainFile string, data *types.TranscriptionData, jsonFile
 }
 
 // labelled is a segment's text, led by its speaker when the engine named one.
-func labelled(seg types.TranscriptionSegment) string {
+func labelled(data *types.TranscriptionData, seg types.TranscriptionSegment) string {
 	text := strings.TrimSpace(seg.Text)
 	if seg.Speaker == "" {
 		return text
 	}
-	return seg.Speaker + ": " + text
+	return data.SpeakerName(seg.Speaker) + ": " + text
 }

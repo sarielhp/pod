@@ -40,6 +40,9 @@ type TranscriptionData struct {
 	// when the engine told speakers apart. Diarized is what says it tried.
 	Speakers []string `json:"speakers,omitempty"`
 	Diarized bool     `json:"diarized,omitempty"`
+	// SpeakerNames gives some of those labels a name or a role. The labels stay in
+	// the segments, so names can be changed or removed without losing anything.
+	SpeakerNames map[string]string `json:"speaker_names,omitempty"`
 	// Backend and Model record which engine produced this transcript, so a
 	// saved transcript can be traced back to the backend that made it.
 	Backend string      `json:"whisper_backend,omitempty"`
@@ -308,6 +311,10 @@ type CLIOptions struct {
 	SkipFavorites bool
 	StatusTop     int
 
+	// SpeakersSet and SpeakersClear belong to `pod speakers`.
+	SpeakersSet   string
+	SpeakersClear bool
+
 	// AnalyzeMinEpisodes belongs to `pod analyze`.
 	AnalyzeMinEpisodes int
 	ShowBoilerplate    bool
@@ -527,4 +534,13 @@ func (c *Config) GetGeminiLocation() string {
 		return c.GeminiLocation
 	}
 	return "us-central1"
+}
+
+// SpeakerName is what to call a speaker: the name given to the label, else the
+// label itself.
+func (d *TranscriptionData) SpeakerName(label string) string {
+	if name := d.SpeakerNames[label]; name != "" {
+		return name
+	}
+	return label
 }

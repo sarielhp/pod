@@ -87,6 +87,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runRepeatsCommand(cli)
 	case "analyze":
 		return runAnalyzeCommand(*config, cli)
+	case "speakers":
+		return runSpeakersCommand(*config, cli)
 	case "cut":
 		return runCutCommand(*config, cli)
 	case "tui":

@@ -18,6 +18,15 @@ were written; they are not in version order.
   headed by the speaker and time, broken into paragraphs at pauses. `.srt` and `.txt` output now
   lead each line with the speaker when there is one.
 
+- **`pod speakers <transcript|media>...`** gives the speakers in a diarized transcript names. With no
+  options a model reads the transcript (who talks how much, the opening, sample utterances, the podcast
+  and episode title) and names each speaker, using a personal name only when the words back it
+  (a self-introduction, being addressed by name) and otherwise a role such as Host, Guest or Ad voice.
+  `--set SPEAKER_00=Name,...` names them by hand instead, `--clear` removes the names, and `--dry-run`
+  shows the result without writing. Names are kept in a `speaker_names` map in the transcript JSON,
+  beside the untouched labels; the readable `.md` is rewritten with them, `.srt` and `.txt` show them,
+  and labels given the same name merge into one speaker.
+
 ### Fixed
 - **Invisible text-direction characters are stripped from transcripts.** The Hebrew ivrit model wraps
   some phrases in U+202B, which splits words for anything that compares or searches text.

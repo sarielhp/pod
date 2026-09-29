@@ -19,6 +19,11 @@ were written; they are not in version order.
   lead each line with the speaker when there is one.
 
 ### Fixed
+- **Invisible text-direction characters are stripped from transcripts.** The Hebrew ivrit model wraps
+  some phrases in U+202B, which splits words for anything that compares or searches text.
+- **`--speakers` without `--language` uses the language's own model.** If the server detects a language
+  that has a `model_by_language` entry (Hebrew), the pass is redone with that model, since the general
+  one read Hebrew visibly worse ("מבית N12" came out as "מי ביתן 12").
 - **Ad detection no longer fails when the model writes times with an `s`** (`"start": 33.8s`),
   echoing the form of the transcript lines. Such a reply was rejected as unparseable and the episode
   reported as undetectable: 2 of 17 episodes per run in the labelled set, a different two each time.

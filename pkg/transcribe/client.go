@@ -304,6 +304,7 @@ func ExecuteWhisperAttemptContext(ctx context.Context, client *http.Client, uri,
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse transcription JSON: %w", err)
 	}
+	stripBidiControls(&data)
 	return &data, nil
 }
 

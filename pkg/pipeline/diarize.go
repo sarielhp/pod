@@ -22,6 +22,28 @@ func transcribeWithSpeakers(sourceAudioFile string, cfg types.Config, opts types
 	if !ok {
 		return nil, fmt.Errorf("no Whisper profile can label speakers%s: add one with \"diarize\": true in the config", forLanguage(lang))
 	}
+	td, model, err := sendForSpeakers(sourceAudioFile, wp, opts, duration, lang, rep)
+	if err != nil || lang != "" || td.Language == "" {
+		return td, err
+	}
+	// The language was left to the server. If it found one that has a model of
+	// its own (Hebrew, say), the first pass used the general model and read the
+	// text noticeably worse, so it is done again with the right one.
+	if better := transcribe.ModelForLanguage(wp, td.Language); better != model {
+		rep.Infof("Detected language %s; transcribing again with %s...", td.Language, better)
+		again, _, againErr := sendForSpeakers(sourceAudioFile, wp, opts, duration, td.Language, rep)
+		if againErr != nil {
+			rep.Warnf("the second pass failed (%v); keeping the first", againErr)
+			return td, nil
+		}
+		td = again
+	}
+	return td, nil
+}
+
+// sendForSpeakers makes one request to the diarizing server, with the model that
+// suits lang, and returns the transcript with the model used.
+func sendForSpeakers(sourceAudioFile string, wp types.WhisperProfile, opts types.ProcOptions, duration float64, lang string, rep progress.Reporter) (*types.TranscriptionData, string, error) {
 	model := transcribe.ModelForLanguage(wp, lang)
 	fields := map[string]string{"diarize": "true"}
 	if model != "" {
@@ -33,10 +55,10 @@ func transcribeWithSpeakers(sourceAudioFile string, cfg types.Config, opts types
 		TotalDuration: duration, SpeedFactor: 1.0, Language: lang, Fields: fields,
 	})
 	if err != nil {
-		return nil, err
+		return nil, model, err
 	}
 	transcribe.StampBackend(td, wp.Engine, model)
-	return td, nil
+	return td, model, nil
 }
 
 // speakersLanguage is the language to ask for: the one named on the command

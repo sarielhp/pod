@@ -78,6 +78,32 @@ func TranscribeWhisper(audioPath, whisperURL string, quiet, verbose bool, totalD
 }
 
 func TranscribeWhisperContext(ctx context.Context, audioPath, whisperURL string, quiet, verbose bool, totalDuration, speedFactor float64, dockerContainer string, prompt, language string, pcmData []byte) (*types.TranscriptionData, error) {
+	return TranscribeWhisperRequest(ctx, WhisperRequest{
+		AudioPath: audioPath, URL: whisperURL, Quiet: quiet, Verbose: verbose,
+		TotalDuration: totalDuration, SpeedFactor: speedFactor, DockerContainer: dockerContainer,
+		Prompt: prompt, Language: language, PCM: pcmData,
+	})
+}
+
+// WhisperRequest is one transcription sent to a Whisper server. Fields are extra
+// form fields for servers that take more than whisper.cpp does: WhisperX takes
+// "diarize" and "model", which whisper.cpp ignores.
+type WhisperRequest struct {
+	AudioPath       string
+	URL             string
+	Quiet, Verbose  bool
+	TotalDuration   float64
+	SpeedFactor     float64
+	DockerContainer string
+	Prompt          string
+	Language        string
+	PCM             []byte
+	Fields          map[string]string
+}
+
+func TranscribeWhisperRequest(ctx context.Context, req WhisperRequest) (*types.TranscriptionData, error) {
+	audioPath, whisperURL, quiet, verbose := req.AudioPath, req.URL, req.Quiet, req.Verbose
+	totalDuration := req.TotalDuration
 	maxRetries := 5
 	retryDelay := 5
 	readTimeout := int(totalDuration*1.5) + 600
@@ -94,7 +120,7 @@ func TranscribeWhisperContext(ctx context.Context, audioPath, whisperURL string,
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		bodyReader, contentType, err := BuildWhisperMultipartBody(audioPath, prompt, language, pcmData)
+		bodyReader, contentType, err := buildWhisperBody(audioPath, req.Prompt, req.Language, req.PCM, req.Fields)
 		if err != nil {
 			return nil, err
 		}
@@ -148,6 +174,10 @@ func pause(ctx context.Context, d time.Duration) error {
 }
 
 func BuildWhisperMultipartBody(audioPath, prompt, language string, pcmData []byte) (io.ReadCloser, string, error) {
+	return buildWhisperBody(audioPath, prompt, language, pcmData, nil)
+}
+
+func buildWhisperBody(audioPath, prompt, language string, pcmData []byte, fields map[string]string) (io.ReadCloser, string, error) {
 	var audioSource io.Reader
 	var closeSrc func() error
 
@@ -170,7 +200,7 @@ func BuildWhisperMultipartBody(audioPath, prompt, language string, pcmData []byt
 		if closeSrc != nil {
 			defer closeSrc()
 		}
-		err := WriteWhisperMultipartFields(mw, audioSource, filepath.Base(audioPath), prompt, language)
+		err := writeWhisperFields(mw, audioSource, filepath.Base(audioPath), prompt, language, fields)
 		if closeErr := mw.Close(); err == nil {
 			err = closeErr
 		}
@@ -181,6 +211,10 @@ func BuildWhisperMultipartBody(audioPath, prompt, language string, pcmData []byt
 }
 
 func WriteWhisperMultipartFields(mw *multipart.Writer, audioSource io.Reader, filename, prompt, language string) error {
+	return writeWhisperFields(mw, audioSource, filename, prompt, language, nil)
+}
+
+func writeWhisperFields(mw *multipart.Writer, audioSource io.Reader, filename, prompt, language string, fields map[string]string) error {
 	fw, err := mw.CreateFormFile("file", filename)
 	if err != nil {
 		return err
@@ -201,6 +235,16 @@ func WriteWhisperMultipartFields(mw *multipart.Writer, audioSource io.Reader, fi
 	}
 	if prompt != "" {
 		if err := mw.WriteField("prompt", prompt); err != nil {
+			return err
+		}
+	}
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if err := mw.WriteField(name, fields[name]); err != nil {
 			return err
 		}
 	}

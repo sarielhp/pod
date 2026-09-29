@@ -33,7 +33,7 @@ type TranscribeRequest struct {
 	// beside the input, which is the convention the rest of the tool follows.
 	OutputDir string
 
-	// Formats selects the outputs: "json", "srt", "txt". Empty means json.
+	// Formats selects the outputs: "json", "srt", "txt", "md". Empty means json.
 	Formats []string
 
 	// MaxMinutes transcribes only the first N minutes. Zero does the whole file.
@@ -161,6 +161,12 @@ func writeTranscriptFormats(req TranscribeRequest, td *types.TranscriptionData, 
 				return written, fmt.Errorf("write srt: %w", err)
 			}
 			written = append(written, out)
+		case "md":
+			out, err := format.ConvertToReadable(td, util.StripExt(filepath.Base(req.Path)), duration, transcriptOutputPath(req, ".transcript.md"), quiet)
+			if err != nil {
+				return written, fmt.Errorf("write md: %w", err)
+			}
+			written = append(written, out)
 		case "txt":
 			out, err := format.ConvertJSONToTXT(req.Path, td, duration, transcriptOutputPath(req, ".txt"), quiet)
 			if err != nil {
@@ -168,7 +174,7 @@ func writeTranscriptFormats(req TranscribeRequest, td *types.TranscriptionData, 
 			}
 			written = append(written, out)
 		default:
-			return written, fmt.Errorf("unknown format %q (use json, srt or txt)", f)
+			return written, fmt.Errorf("unknown format %q (use json, srt, txt or md)", f)
 		}
 	}
 	return written, nil

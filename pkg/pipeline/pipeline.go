@@ -236,6 +236,9 @@ func transcribeWhisperServerWithChunkFallback(sourceAudioFile string, cfg types.
 }
 
 func runWhisperTranscription(sourceAudioFile string, cfg types.Config, opts types.ProcOptions, totalDuration, speedFactor float64, whisperPrompt, whisperLang, dockerContainer string, rep progress.Reporter) (td *types.TranscriptionData, err error) {
+	if opts.Speakers {
+		return transcribeWithSpeakers(sourceAudioFile, cfg, opts, totalDuration, whisperLang, rep)
+	}
 	wp := resolveWhisperRoutingProfile(&cfg, sourceAudioFile, opts, &whisperLang)
 	defer func() { transcribe.StampBackend(td, wp.Engine, wp.Model) }()
 

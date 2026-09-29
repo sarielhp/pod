@@ -21,19 +21,25 @@ type TranscriptionSegment struct {
 	End      float64             `json:"end"`
 	Text     string              `json:"text"`
 	Language string              `json:"language,omitempty"`
+	Speaker  string              `json:"speaker,omitempty"`
 	Words    []TranscriptionWord `json:"words,omitempty"`
 }
 
 type TranscriptionWord struct {
-	Start float64 `json:"start"`
-	End   float64 `json:"end"`
-	Word  string  `json:"word"`
+	Start   float64 `json:"start"`
+	End     float64 `json:"end"`
+	Word    string  `json:"word"`
+	Speaker string  `json:"speaker,omitempty"`
 }
 
 type TranscriptionData struct {
 	Text     string                 `json:"text"`
 	Segments []TranscriptionSegment `json:"segments"`
 	Language string                 `json:"language,omitempty"`
+	// Speakers names who talks in the recording, in order of first appearance,
+	// when the engine told speakers apart. Diarized is what says it tried.
+	Speakers []string `json:"speakers,omitempty"`
+	Diarized bool     `json:"diarized,omitempty"`
 	// Backend and Model record which engine produced this transcript, so a
 	// saved transcript can be traced back to the backend that made it.
 	Backend string      `json:"whisper_backend,omitempty"`
@@ -158,6 +164,12 @@ type WhisperProfile struct {
 	Processors      int           `json:"processors,omitempty"`
 	Threads         int           `json:"threads,omitempty"`
 	Greedy          bool          `json:"greedy,omitempty"`
+	// Diarize marks a server that labels who is speaking (WhisperX). Such a
+	// profile is slower than plain Whisper, so speed routing never picks it;
+	// it is used only when speakers are asked for.
+	Diarize bool `json:"diarize,omitempty"`
+	// ModelByLanguage overrides Model for a language, e.g. a Hebrew fine-tune.
+	ModelByLanguage map[string]string `json:"model_by_language,omitempty"`
 }
 
 type CostInfo struct {

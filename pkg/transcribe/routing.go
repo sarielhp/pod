@@ -92,7 +92,7 @@ func ResolveWhisperProfileForLanguage(cfg types.Config, lang string) types.Whisp
 	found := false
 	for _, p := range cfg.WhisperProfiles {
 		wp := config.NormalizeWhisperProfile(p)
-		if wp.Engine == types.WhisperEngineGemini || !WhisperProfileSupportsLanguage(wp, lang) || !WhisperProfileUsable(wp) {
+		if wp.Engine == types.WhisperEngineGemini || wp.Diarize || !WhisperProfileSupportsLanguage(wp, lang) || !WhisperProfileUsable(wp) {
 			continue
 		}
 		if !found || fasterWhisperProfile(wp, best, active) {
@@ -120,4 +120,39 @@ func fasterWhisperProfile(candidate, best, active types.WhisperProfile) bool {
 // speculative race, where Gemini is already the other racer.
 func ResolveLocalWhisperProfile(cfg types.Config, isHebrew bool) types.WhisperProfile {
 	return ResolveWhisperProfileForLanguage(cfg, WhisperTargetLanguage(cfg, isHebrew, ""))
+}
+
+// ResolveDiarizingProfile picks the server that labels speakers for lang: the
+// one whose languages name lang exactly, else any that supports it. An empty lang
+// matches any. The second result is false when no such profile is configured.
+func ResolveDiarizingProfile(cfg types.Config, lang string) (types.WhisperProfile, bool) {
+	var best types.WhisperProfile
+	bestScore := 0
+	for _, p := range cfg.WhisperProfiles {
+		wp := config.NormalizeWhisperProfile(p)
+		if !wp.Diarize || !WhisperProfileUsable(wp) || !WhisperProfileSupportsLanguage(wp, lang) {
+			continue
+		}
+		score := 1
+		for _, l := range wp.Languages {
+			if strings.EqualFold(l, lang) {
+				score = 2
+			}
+		}
+		if score > bestScore {
+			best, bestScore = wp, score
+		}
+	}
+	return best, bestScore > 0
+}
+
+// ModelForLanguage is the model to ask a server for when transcribing lang: the
+// profile's override for that language, else its default model.
+func ModelForLanguage(wp types.WhisperProfile, lang string) string {
+	for l, m := range wp.ModelByLanguage {
+		if strings.EqualFold(l, lang) {
+			return m
+		}
+	}
+	return wp.Model
 }

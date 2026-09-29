@@ -5,6 +5,19 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.24] - 2026-09-29
+
+### Added
+- **`pod transcribe --speakers`** labels who is speaking, using a Whisper profile marked
+  `"diarize": true` (a WhisperX server). Segments and words carry a `speaker`, and the transcript
+  lists its speakers. Such a profile is never chosen by speed routing, so ordinary transcription
+  and ad removal are unchanged. The whole file goes in one request, because speaker labels are
+  only consistent within one call. `--language` names the spoken language, and a profile
+  `model_by_language` map picks the model for it (for example a Hebrew fine-tune).
+- **`pod transcribe --format md`** writes a readable transcript: one block per turn of speech,
+  headed by the speaker and time, broken into paragraphs at pauses. `.srt` and `.txt` output now
+  lead each line with the speaker when there is one.
+
 ## [0.5.23] - 2026-09-29
 
 ### Added

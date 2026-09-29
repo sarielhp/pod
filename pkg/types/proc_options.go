@@ -28,6 +28,10 @@ type ProcOptions struct {
 	ForceLLM        bool
 	ForceTranscribe bool
 	Recut           bool
+	// Speakers asks a diarizing server to label who is speaking. Language names the
+	// spoken language ("he", "en"); empty lets detection decide.
+	Speakers bool
+	Language string
 	// NoBoilerplate keeps a recut to the cuts already recorded. Without it a
 	// recut also cuts the podcast's recorded boilerplate, matched against the
 	// episode's transcript, and no model is called.

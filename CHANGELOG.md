@@ -7,6 +7,11 @@ were written; they are not in version order.
 
 ## [0.5.25] - 2026-09-29
 
+### Added
+- **`pod info <episode>` lists every file of the episode**, with full path and size: the audio, status,
+  cuts, the uncut original, and the transcript in whatever forms exist (JSON, `.md`, `.srt`, `.txt`).
+  `--json` has the same list under `files`.
+
 ### Changed
 - **`pod speakers` is gone; naming is part of `pod transcribe --speakers`.** One command now
   transcribes, labels who is speaking, names the speakers and writes the readable transcript, so the

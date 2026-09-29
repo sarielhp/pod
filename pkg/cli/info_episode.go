@@ -13,24 +13,30 @@ import (
 )
 
 type episodeInfoJSON struct {
-	ID                  string          `json:"id"`
-	PodcastID           string          `json:"podcast_id"`
-	PodcastTitle        string          `json:"podcast_title"`
-	Title               string          `json:"title"`
-	PublishedDate       string          `json:"published_date"`
-	AudioPath           string          `json:"audio_path"`
-	FileSizeBytes       int64           `json:"file_size_bytes"`
-	FileSizeFormatted   string          `json:"file_size_formatted"`
-	Status              string          `json:"status"`
-	OriginalDurationSec float64         `json:"original_duration_sec"`
-	CleanDurationSec    float64         `json:"clean_duration_sec"`
-	PercentReduction    float64         `json:"percent_reduction"`
-	Favorite            bool            `json:"favorite"`
-	HasTranscript       bool            `json:"has_transcript"`
-	TranscriptPath      string          `json:"transcript_path,omitempty"`
-	TranscriptSegments  int             `json:"transcript_segments,omitempty"`
-	Description         string          `json:"description,omitempty"`
-	Cuts                []episodeCutDTO `json:"cuts,omitempty"`
+	ID                  string           `json:"id"`
+	PodcastID           string           `json:"podcast_id"`
+	PodcastTitle        string           `json:"podcast_title"`
+	Title               string           `json:"title"`
+	PublishedDate       string           `json:"published_date"`
+	AudioPath           string           `json:"audio_path"`
+	FileSizeBytes       int64            `json:"file_size_bytes"`
+	FileSizeFormatted   string           `json:"file_size_formatted"`
+	Status              string           `json:"status"`
+	OriginalDurationSec float64          `json:"original_duration_sec"`
+	CleanDurationSec    float64          `json:"clean_duration_sec"`
+	PercentReduction    float64          `json:"percent_reduction"`
+	Favorite            bool             `json:"favorite"`
+	HasTranscript       bool             `json:"has_transcript"`
+	TranscriptPath      string           `json:"transcript_path,omitempty"`
+	TranscriptSegments  int              `json:"transcript_segments,omitempty"`
+	Description         string           `json:"description,omitempty"`
+	Cuts                []episodeCutDTO  `json:"cuts,omitempty"`
+	Files               []episodeFileDTO `json:"files,omitempty"`
+}
+
+type episodeFileDTO struct {
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"size_bytes"`
 }
 
 type episodeCutDTO struct {
@@ -168,6 +174,7 @@ func buildEpisodeInfoDTO(ep *ResolvedEpisode) episodeInfoJSON {
 	}
 
 	cuts := collectEpisodeCuts(ep.Path, st)
+	files := collectEpisodeFiles(ep.Path)
 
 	return episodeInfoJSON{
 		ID:                  ep.ShortID,
@@ -188,7 +195,21 @@ func buildEpisodeInfoDTO(ep *ResolvedEpisode) episodeInfoJSON {
 		TranscriptSegments:  txSegments,
 		Description:         desc,
 		Cuts:                cuts,
+		Files:               files,
 	}
+}
+
+// collectEpisodeFiles lists the files of the episode with their sizes.
+func collectEpisodeFiles(audioPath string) []episodeFileDTO {
+	var out []episodeFileDTO
+	for _, p := range podcast.EpisodeFiles(audioPath) {
+		var size int64
+		if fi, err := os.Stat(p); err == nil {
+			size = fi.Size()
+		}
+		out = append(out, episodeFileDTO{Path: p, SizeBytes: size})
+	}
+	return out
 }
 
 func formatEpisodeInfo(info episodeInfoJSON, showCuts ...bool) string {
@@ -253,6 +274,13 @@ func formatEpisodeCutsAndTranscript(info episodeInfoJSON, showCuts bool) string 
 		sb.WriteString(fmt.Sprintf("    Path:           %s\n", info.TranscriptPath))
 	} else {
 		sb.WriteString("    Status:         Not available\n")
+	}
+
+	if len(info.Files) > 0 {
+		sb.WriteString(fmt.Sprintf("\n  Files (%d):\n", len(info.Files)))
+		for _, f := range info.Files {
+			sb.WriteString(fmt.Sprintf("    %8s  %s\n", formatDiskSize(f.SizeBytes), f.Path))
+		}
 	}
 
 	if info.Description != "" {

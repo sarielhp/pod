@@ -258,13 +258,13 @@ func TestTUIEpisodeF4PlayerToggle(t *testing.T) {
 	m.screen = screenEpisodeDetail
 	m.showEpisodePlayerPane = false
 
-	m.handleKey(tea.KeyMsg{Type: tea.KeyF4})
+	m.handleKey(tea.KeyMsg{Type: tea.KeyF5})
 	if !m.showEpisodePlayerPane {
-		t.Error("F4 on screenEpisodeDetail should enable showEpisodePlayerPane")
+		t.Error("F5 on screenEpisodeDetail should enable showEpisodePlayerPane")
 	}
 
-	m.handleKey(tea.KeyMsg{Type: tea.KeyF4})
+	m.handleKey(tea.KeyMsg{Type: tea.KeyF5})
 	if m.showEpisodePlayerPane {
-		t.Error("second F4 on screenEpisodeDetail should collapse showEpisodePlayerPane")
+		t.Error("second F5 on screenEpisodeDetail should collapse showEpisodePlayerPane")
 	}
 }

@@ -114,18 +114,18 @@ def run_master_visual_tour
     stdin.write("\e[24~")
     sleep 0.4
 
-    # 9. Episode Detail with F4 Player Side-Pane Open
-    puts "[9/19] Snapshot: Episode Detail (F4 Player Pane Open)"
-    stdin.write("\eOS") # F4
+    # 9. Episode Detail with F5 Player Side-Pane Open
+    puts "[9/19] Snapshot: Episode Detail (F5 Player Pane Open)"
+    stdin.write("\e[15~") # F5
     sleep 0.5
     stdin.write("\e[24~")
     sleep 0.4
 
-    # 10. Start playback (enqueue) & Collapse F4 pane (shows mini-player at bottom)
+    # 10. Start playback (enqueue) & Collapse F5 pane (shows mini-player at bottom)
     puts "[10/19] Snapshot: Episode Detail + Active Mini-Player"
     stdin.write("p")
     sleep 0.4
-    stdin.write("\eOS") # F4 collapse
+    stdin.write("\e[15~") # F5 collapse
     sleep 0.4
     stdin.write("\e[24~")
     sleep 0.4
@@ -151,7 +151,7 @@ def run_master_visual_tour
     stdin.write("\e[24~")
     sleep 0.4
 
-    # 14. Full-screen Player Screen (F1 / Tab 2)
+    # 14. Full-screen Player Screen (F2 / Tab 2)
     puts "[14/19] Snapshot: Audio Player Full Screen"
     stdin.write("q") # Back to episode detail
     sleep 0.3
@@ -160,7 +160,7 @@ def run_master_visual_tour
     stdin.write("\e[24~")
     sleep 0.4
 
-    # 15. Playing Queue Screen (F2 / Tab 3)
+    # 15. Playing Queue Screen (F3 / Tab 3)
     puts "[15/19] Snapshot: Playing Queue Screen"
     stdin.write("3")
     sleep 0.4
@@ -176,14 +176,14 @@ def run_master_visual_tour
     stdin.write(" ") # Drop track
     sleep 0.3
 
-    # 17. Ad Removal Queue Screen (F3 / Tab 4)
+    # 17. Ad Removal Queue Screen (F4 / Tab 4)
     puts "[17/19] Snapshot: Ad Removal Queue Screen"
     stdin.write("4")
     sleep 0.4
     stdin.write("\e[24~")
     sleep 0.4
 
-    # 18. Download Queue Screen (Tab 5)
+    # 18. Download Queue Screen (F6 / Tab 5)
     puts "[18/19] Snapshot: Download Queue Screen"
     stdin.write("5")
     sleep 0.4

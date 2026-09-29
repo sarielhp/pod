@@ -22,16 +22,16 @@ func (m *tuiModel) drawHelpModal() string {
 
 	leftLines := []string{
 		tuiLabelStyle.Render("Navigation & Tabs:"),
-		"  1-5 / F1-F3  Switch tabs",
+		"  1-5, F2-4, F6  Switch tabs",
 		"  ↑/k, ↓/j     Navigate rows",
 		"  Enter        Open / Select",
 		"  Esc / q      Back / Close",
 		"  /            Search / filter",
-		"  ? / h        Toggle help",
+		"  F1 / ? / h   Toggle help",
 		"  F12          Take snapshot",
 		"",
 		tuiLabelStyle.Render("Episode & Notes:"),
-		"  F4           Toggle player",
+		"  F5           Toggle player",
 		"  t            Transcript",
 		"  Tab          Cycle format",
 		"  ↑/↓          Scroll notes",
@@ -51,6 +51,7 @@ func (m *tuiModel) drawHelpModal() string {
 		"  F            Fetch full feed",
 		"  D            Download / DL All",
 		"  c            Ad policy",
+		"  F9           Toggle favorite ♥",
 		"  e / o        Timeline",
 		"  v / Space    Multi-select",
 		"  r            Queue AdR",
@@ -212,6 +213,32 @@ func (m *tuiModel) handlePodcastConfigToggle() {
 		return
 	}
 	m.showToast("Ad removal: "+config.AdRemovalModeLabel(pod.config.AdRemoval)+" (saved)", ToastSuccess)
+}
+
+// handleFavoriteToggle flips the favorite flag of the podcast being viewed,
+// with the same effects as `pod server favorite`: a favorite downloads all new
+// episodes and has ads removed.
+func (m *tuiModel) handleFavoriteToggle() {
+	switch m.screen {
+	case screenPodcasts, screenPodcastDetail, screenEpisodeDetail:
+	default:
+		m.showToast("Open a podcast to toggle its favorite status", ToastWarning)
+		return
+	}
+	if m.podIdx >= len(m.podcasts) {
+		return
+	}
+	pod := &m.podcasts[m.podIdx]
+	pod.config.SetFavorite(!pod.config.Favorite)
+	if err := config.SavePodcastConfig(pod.dir, pod.config); err != nil {
+		m.showToast("Failed to save config: "+err.Error(), ToastError)
+		return
+	}
+	if pod.config.Favorite {
+		m.showToast(favoriteMark+" Favorite: "+pod.name+" (auto-download and ad removal)", ToastSuccess)
+		return
+	}
+	m.showToast("Removed favorite: "+pod.name, ToastSuccess)
 }
 
 func (m *tuiModel) openPolicyModal() {

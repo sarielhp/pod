@@ -114,8 +114,8 @@ func TestTUIViewEpisodeDetail(t *testing.T) {
 	if !strings.Contains(view, "NeedAdR") {
 		t.Error("should show NeedAdR status")
 	}
-	if !strings.Contains(view, "F4 Show Player") {
-		t.Error("should show F4 Show Player legend by default")
+	if !strings.Contains(view, "F5 Show Player") {
+		t.Error("should show F5 Show Player legend by default")
 	}
 
 	m.showEpisodePlayerPane = true
@@ -123,8 +123,8 @@ func TestTUIViewEpisodeDetail(t *testing.T) {
 	if !strings.Contains(viewWithPlayer, "AUDIO PLAYER") {
 		t.Error("should show AUDIO PLAYER when player pane is enabled")
 	}
-	if !strings.Contains(viewWithPlayer, "F4 Hide Player") {
-		t.Error("should show F4 Hide Player legend when player pane is enabled")
+	if !strings.Contains(viewWithPlayer, "F5 Hide Player") {
+		t.Error("should show F5 Hide Player legend when player pane is enabled")
 	}
 }
 

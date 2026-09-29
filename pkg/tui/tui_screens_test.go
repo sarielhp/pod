@@ -178,13 +178,13 @@ func TestTranscribeRetryBuffer(t *testing.T) {
 func TestTUIFKeyScreens(t *testing.T) {
 	m := makeTestModel()
 
-	m.handleKey(tea.KeyMsg{Type: tea.KeyF1})
+	m.handleKey(tea.KeyMsg{Type: tea.KeyF2})
 	if m.screen != screenPlayer {
-		t.Errorf("expected screenPlayer on F1, got %v", m.screen)
+		t.Errorf("expected screenPlayer on F2, got %v", m.screen)
 	}
 	viewF1 := m.View()
-	if !strings.Contains(viewF1, "AUDIO PLAYER (F1)") {
-		t.Errorf("expected AUDIO PLAYER (F1) in view, got %q", viewF1)
+	if !strings.Contains(viewF1, "AUDIO PLAYER (F2)") {
+		t.Errorf("expected AUDIO PLAYER (F2) in view, got %q", viewF1)
 	}
 
 	m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
@@ -192,13 +192,13 @@ func TestTUIFKeyScreens(t *testing.T) {
 		t.Errorf("expected screenPodcasts after Esc, got %v", m.screen)
 	}
 
-	m.handleKey(tea.KeyMsg{Type: tea.KeyF2})
+	m.handleKey(tea.KeyMsg{Type: tea.KeyF3})
 	if m.screen != screenPlayQueue {
-		t.Errorf("expected screenPlayQueue on F2, got %v", m.screen)
+		t.Errorf("expected screenPlayQueue on F3, got %v", m.screen)
 	}
 	viewF2 := m.View()
-	if !strings.Contains(viewF2, "PLAYING QUEUE (F2)") {
-		t.Errorf("expected PLAYING QUEUE (F2) in view, got %q", viewF2)
+	if !strings.Contains(viewF2, "PLAYING QUEUE (F3)") {
+		t.Errorf("expected PLAYING QUEUE (F3) in view, got %q", viewF2)
 	}
 
 	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
@@ -212,9 +212,9 @@ func TestTUIFKeyScreens(t *testing.T) {
 	}
 
 	m.screen = screenPodcastDetail
-	m.handleKey(tea.KeyMsg{Type: tea.KeyF1})
 	m.handleKey(tea.KeyMsg{Type: tea.KeyF2})
 	m.handleKey(tea.KeyMsg{Type: tea.KeyF3})
+	m.handleKey(tea.KeyMsg{Type: tea.KeyF4})
 	m.handleKey(tea.KeyMsg{Type: tea.KeyEscape})
 	if m.screen != screenPodcastDetail {
 		t.Errorf("expected screenPodcastDetail after Esc from F-key hopping, got %v", m.screen)

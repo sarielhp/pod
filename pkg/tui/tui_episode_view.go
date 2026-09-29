@@ -220,7 +220,7 @@ func adCutTimelineLines(ep tuiEpisode, rightW int) []string {
 
 func renderEpisodeDetailPlayerPane(ep tuiEpisode, totalDurStr string, rightW int) []string {
 	var rightLines []string
-	rightLines = append(rightLines, tuiSectionTitle.Render(" AUDIO PLAYER (F4 to hide) "))
+	rightLines = append(rightLines, tuiSectionTitle.Render(" AUDIO PLAYER (F5 to hide) "))
 
 	pv := globalPlayer.View()
 	if pv.Has {
@@ -265,7 +265,7 @@ func renderEpisodeDetailPlayerPane(ep tuiEpisode, totalDurStr string, rightW int
 
 	rightLines = append(rightLines, "")
 	rightLines = append(rightLines, tuiDividerStyle.Render(strings.Repeat("─", rightW-2)))
-	rightLines = append(rightLines, tuiDimStyle.Render("Space Play/Pause │ p Play │ t Transcript │ F4 Hide Player │ Esc/q Back"))
+	rightLines = append(rightLines, tuiDimStyle.Render("Space Play/Pause │ p Play │ t Transcript │ F5 Hide Player │ Esc/q Back"))
 	rightLines = append(rightLines, tuiDimStyle.Render("←/→   -30s / +30s │ +/- Volume     │ s Speaker"))
 	rightLines = append(rightLines, tuiDimStyle.Render("↑/↓   Scroll Notes│ n Next in Queue│ m Mute"))
 	return rightLines
@@ -309,6 +309,6 @@ func renderEpisodeDetailFullView(m *tuiModel, fullTitle, dateStr, badgeLeft, des
 	}
 
 	out.WriteString(tuiDividerStyle.Render("  "+strings.Repeat("─", contentW)) + "\n")
-	out.WriteString(tuiDimStyle.Render("  ↑/↓ Scroll Notes │ Space Play/Pause │ p Play │ D Download │ t Transcript │ F4 Show Player │ Esc/q Back") + "\n")
+	out.WriteString(tuiDimStyle.Render("  ↑/↓ Scroll Notes │ Space Play/Pause │ p Play │ D Download │ t Transcript │ F5 Show Player │ Esc/q Back") + "\n")
 	return out.String()
 }

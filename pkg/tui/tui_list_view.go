@@ -94,7 +94,7 @@ func renderPodcastSidebarLines(pods []tuiPodcast, start, end, selectedIdx, leftW
 				doneCount++
 			}
 		}
-		nameStr := util.DisplayName(p.name)
+		nameStr := favoritePrefix(p) + util.DisplayName(p.name)
 		statsStr := fmt.Sprintf("(%d/%d)", len(p.episodes), doneCount)
 		line := fmt.Sprintf("  %s %s", nameStr, statsStr)
 		truncLine := truncate(line, leftW-2)
@@ -272,7 +272,7 @@ func renderPodcastsNarrowView(m *tuiModel, pods []tuiPodcast, start, end int, ou
 				doneCount++
 			}
 		}
-		nameStr := util.DisplayName(p.name)
+		nameStr := favoritePrefix(p) + util.DisplayName(p.name)
 		statsStr := fmt.Sprintf("(%d/%d)", len(p.episodes), doneCount)
 		authorStr := ""
 		if author := p.displayAuthor(); author != "" {
@@ -325,7 +325,7 @@ func renderPodcastsFullLineView(m *tuiModel, pods []tuiPodcast, start, end, divi
 		}
 		idStr = util.PadRight(truncate(idStr, 12), 12)
 
-		titleStr := util.PadRight(truncate(util.DisplayName(p.name), titleW-1), titleW)
+		titleStr := util.PadRight(truncate(favoritePrefix(p)+util.DisplayName(p.name), titleW-1), titleW)
 
 		doneCount := 0
 		for _, e := range p.episodes {
@@ -394,7 +394,7 @@ func renderPodcastBottomPolicyAndSummary(m *tuiModel, pods []tuiPodcast, divider
 }
 
 func renderPodcastsListFooter(m *tuiModel, totalPods, maxVis, dividerWidth int, out *strings.Builder) {
-	helpText := "↑↓ navigate │ Enter select │ s ai-summary │ c ad-policy │ d dl/keep │ F fetch │ Tab split │ ? help"
+	helpText := "↑↓ navigate │ Enter select │ s ai-summary │ c ad-policy │ d dl/keep │ F fetch │ F9 ♥ │ Tab split │ F1 help"
 	if m.searchMode {
 		helpText = fmt.Sprintf("Search: %s█  (Enter: Apply, Esc: Cancel)", m.searchQuery)
 	} else if totalPods > maxVis {
@@ -407,4 +407,15 @@ func renderPodcastsListFooter(m *tuiModel, totalPods, maxVis, dividerWidth int, 
 	} else {
 		out.WriteString(tuiDimStyle.Render("  "+helpText) + "\n")
 	}
+}
+
+// favoriteMark flags a favorite podcast in lists. It is a single cell wide so
+// the column padding, which counts cells, stays aligned.
+const favoriteMark = "♥"
+
+func favoritePrefix(p tuiPodcast) string {
+	if p.config.Favorite {
+		return favoriteMark + " "
+	}
+	return ""
 }

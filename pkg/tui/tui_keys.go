@@ -22,7 +22,7 @@ func (m *tuiModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if m.showHelpModal {
 		switch s {
-		case "esc", "?", "h", "q", "Q", "enter":
+		case "esc", "?", "h", "q", "Q", "enter", "f1", "F1":
 			m.showHelpModal = false
 		}
 		return m, nil
@@ -161,28 +161,34 @@ func handleGlobalScreenSwitchKey(m *tuiModel, s string) (tea.Model, tea.Cmd, boo
 	case "1":
 		m.screen = screenPodcasts
 		return m, nil, true
-	case "2", "f1", "F1":
+	case "f1", "F1":
+		m.showHelpModal = !m.showHelpModal
+		return m, nil, true
+	case "2", "f2", "F2":
 		savePrevScreenForSwitch(m)
 		m.screen = screenPlayer
 		return m, nil, true
-	case "3", "f2", "F2":
+	case "3", "f3", "F3":
 		savePrevScreenForSwitch(m)
 		m.screen = screenPlayQueue
 		m.pqGrabbed = false
 		return m, nil, true
-	case "4", "f3", "F3":
+	case "4", "f4", "F4":
 		savePrevScreenForSwitch(m)
 		m.screen = screenAdQueue
 		m.adqGrabbed = false
 		return m, nil, true
-	case "5", "f5", "F5":
+	case "5", "f6", "F6":
 		savePrevScreenForSwitch(m)
 		m.screen = screenDownloadQueue
 		return m, nil, true
-	case "f4", "F4":
+	case "f5", "F5":
 		if m.screen == screenEpisodeDetail {
 			m.showEpisodePlayerPane = !m.showEpisodePlayerPane
 		}
+		return m, nil, true
+	case "f9", "F9":
+		m.handleFavoriteToggle()
 		return m, nil, true
 	case "6":
 		m.openTimelineViewer()

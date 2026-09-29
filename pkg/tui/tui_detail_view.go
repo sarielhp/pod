@@ -226,7 +226,7 @@ func renderNarrowDetailEpisodeRow(ep tuiEpisode, displayNameStr, dateStr, selPre
 }
 
 func renderPodcastDetailFooter(m *tuiModel, totalEps, maxVis, dividerWidth int, out *strings.Builder) {
-	helpText := "↑↓ navigate │ Enter details │ p play │ F fetch-feed │ D download │ K policy │ x prune │ v select │ a batch-queue │ t transcript │ ? help"
+	helpText := "↑↓ navigate │ Enter details │ p play │ F fetch-feed │ D download │ K policy │ x prune │ v select │ a batch-queue │ t transcript │ F9 ♥ │ F1 help"
 	if m.searchMode {
 		helpText = fmt.Sprintf("Search: %s█  (Enter: Apply, Esc: Cancel)", m.searchQuery)
 	} else if totalEps > maxVis {

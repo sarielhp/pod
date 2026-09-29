@@ -7,7 +7,17 @@ were written; they are not in version order.
 
 ## [0.5.15] - 2026-09-27
 
+### Changed
+- **TUI function keys moved one to the right so F1 can be help.** F1 now toggles
+  help (as `?` does). The player is F2, the play queue F3, the ad queue F4, the
+  episode-view player pane F5 and the download queue F6. The number keys 1-6
+  and F12 (snapshot) are unchanged.
+
 ### Added
+- **TUI: F9 toggles a podcast's favorite status, and favorites show a heart (♥)**
+  in the podcast list. It works from the podcast list or from inside a podcast,
+  and has the same effect as `pod server favorite` (auto-download of new
+  episodes and ad removal).
 - **`pod analyze <podcast|directory>` learns a show's boilerplate and ad removal
   cuts it first.** It compares the show's saved transcripts and records text
   that recurs in six or more episodes (intros, credits, standing promos and

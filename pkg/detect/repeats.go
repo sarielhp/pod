@@ -1,7 +1,7 @@
 package detect
 
 import (
-	"hash/fnv"
+	"math/bits"
 	"math/rand"
 	"slices"
 	"strings"
@@ -223,21 +223,39 @@ func RepeatSegments(repeats []Repeat) []types.AdSegment {
 	return segs
 }
 
+// shingleHashes hashes every window of k consecutive words with a cyclic
+// polynomial (Rabin-Karp style) rolling hash: each word is hashed once, and
+// sliding the window one word costs a rotate and two XORs however large k is.
+// The word at offset j in a window is rotated by k-1-j, so the hash depends on
+// word order, not just on which words are present.
 func shingleHashes(words []Word, k int) []uint64 {
-	if len(words) < k {
+	if k < 1 || len(words) < k {
 		return nil
 	}
+	wordHash := make([]uint64, len(words))
+	for i, w := range words {
+		wordHash[i] = hashWord(w.Text)
+	}
 	out := make([]uint64, 0, len(words)-k+1)
-	h := fnv.New64a()
-	for i := 0; i+k <= len(words); i++ {
-		h.Reset()
-		for _, w := range words[i : i+k] {
-			h.Write([]byte(w.Text))
-			h.Write([]byte{0})
-		}
-		out = append(out, h.Sum64())
+	var h uint64
+	for i := 0; i < k; i++ {
+		h = bits.RotateLeft64(h, 1) ^ wordHash[i]
+	}
+	out = append(out, h)
+	for i := k; i < len(words); i++ {
+		h = bits.RotateLeft64(h, 1) ^ bits.RotateLeft64(wordHash[i-k], k) ^ wordHash[i]
+		out = append(out, h)
 	}
 	return out
+}
+
+func hashWord(text string) uint64 {
+	const offset, prime = 14695981039346656037, 1099511628211
+	h := uint64(offset)
+	for i := 0; i < len(text); i++ {
+		h = (h ^ uint64(text[i])) * prime
+	}
+	return h
 }
 
 func mergeRuns(hit []bool, gap int) [][2]int {

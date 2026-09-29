@@ -28,9 +28,10 @@ type ProcOptions struct {
 	ForceLLM        bool
 	ForceTranscribe bool
 	Recut           bool
-	// RecutBoilerplate makes a recut also cut the podcast's recorded boilerplate,
-	// matched against the episode's transcript. No model is called.
-	RecutBoilerplate bool
+	// NoBoilerplate keeps a recut to the cuts already recorded. Without it a
+	// recut also cuts the podcast's recorded boilerplate, matched against the
+	// episode's transcript, and no model is called.
+	NoBoilerplate bool
 
 	// Transcription. KeepAudio preserves the 16kHz mono audio extracted for
 	// the engine, which is otherwise discarded with the rest of the working

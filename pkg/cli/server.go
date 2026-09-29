@@ -83,6 +83,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerStatusSubcommand(opts, action),
 		buildServerIdentifySubcommand(opts, action),
 		buildServerRenameEpisodesSubcommand(opts, action),
+		buildServerDoAllSubcommand(opts, action),
 	}
 }
 
@@ -139,6 +140,8 @@ func handleServerCommand(config Config, cli CLIOptions) error {
 		return handleServerIdentify(config, cli)
 	case "rename-episodes":
 		return handleServerRenameEpisodes(config, cli)
+	case "do-all":
+		return handleServerDoAll(config, cli)
 	default:
 		return fmt.Errorf("unknown server subcommand %q", subcmd)
 	}

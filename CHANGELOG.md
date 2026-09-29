@@ -5,6 +5,22 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.23] - 2026-09-29
+
+### Added
+- **`pod server do-all [podcast]`** runs the whole maintenance cycle in one go: fetch new
+  episodes, transcribe every downloaded episode that has no transcript, analyze boilerplate,
+  run ad removal on the queue, cut newly learned boilerplate from the finished episodes, and
+  republish the feeds. A stage that fails does not stop the later ones; the failures are listed
+  at the end and the exit status is non-zero. `--dry-run` reports each stage without writing.
+
+### Changed
+- **`pod rm_ads recut` and `pod queue recut` now cut the podcast's recorded boilerplate by
+  default**, with no AI call. The `--boilerplate` flag is gone; `--no-boilerplate` restores the old
+  recut, which only redoes the cuts already recorded.
+- Boilerplate analysis hashes its word windows with a rolling (Rabin-Karp style) hash. The
+  results are unchanged.
+
 ## [0.5.21] - 2026-09-29
 
 ### Changed

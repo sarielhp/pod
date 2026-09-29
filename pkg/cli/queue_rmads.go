@@ -7,15 +7,15 @@ import (
 func buildQueueRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "recut",
-		Description: "Recut audio files using existing cuts metadata",
+		Description: "Recut audio files from their recorded cuts, adding the podcast's boilerplate",
 		UsageLine:   "pod queue recut [options] [path...]",
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Output, "-o, --output <path>", "", "Output MP3 path or directory"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Maximum number of episodes to recut"),
-			clihelp.Bool(&opts.RecutBoilerplate, "--boilerplate", false, "Also cut the podcast's recorded boilerplate (see 'pod analyze'), with no AI call"),
-			clihelp.Bool(&opts.DryRun, "--dry-run", false, "With --boilerplate, report what would be cut without changing anything"),
+			clihelp.Bool(&opts.NoBoilerplate, "--no-boilerplate", false, "Only redo the recorded cuts; do not also cut the podcast's boilerplate (see 'pod analyze')"),
+			clihelp.Bool(&opts.DryRun, "--dry-run", false, "Report what the boilerplate cut would change without changing anything"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "queue"

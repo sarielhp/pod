@@ -8,6 +8,14 @@ were written; they are not in version order.
 ## [0.5.15] - 2026-09-27
 
 ### Added
+- **`pod detect` can now score ad detection against labelled truth.** `--save-truth`
+  writes an episode's segments to `<name>.ads.truth.json` (plain JSON, meant to be
+  corrected by hand); any later `pod detect` on that episode prints precision,
+  recall, seconds of programme wrongly cut and seconds of ads missed, and totals
+  across several episodes. It makes profile and prompt changes comparable
+  instead of judged by eye. `--model <id>` runs the chosen profile's endpoint with a
+  different model, and `--timeout <duration>` allows slow reasoning models longer than
+  the default 120s, so candidates can be compared without adding a profile for each.
 - **`pod server rewind <window> [podcast]`** undoes recent downloads so `pod fetch`
   can be exercised from a clean state. It deletes every episode whose audio was
   written within the window (`90m`, `24h`, `7d`) together with its transcript,

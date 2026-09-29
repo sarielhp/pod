@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"pod/pkg/config"
 	"pod/pkg/detect"
@@ -47,6 +48,14 @@ type DetectRequest struct {
 	// Temperature overrides the profile's sampling temperature for this run.
 	// Empty keeps the profile's setting.
 	Temperature string
+
+	// Model runs the profile's endpoint with a different model, so candidates
+	// can be compared without a profile for each. Empty keeps the profile's.
+	Model string
+
+	// Timeout is how long to wait for each model reply, as a Go duration such
+	// as "300s". Empty uses the default; slow reasoning models need longer.
+	Timeout string
 }
 
 // DetectResult reports what a detection run found.
@@ -93,13 +102,25 @@ func DetectFile(req DetectRequest, cfg types.Config, opts types.ProcOptions, rep
 		}
 		profile.Temperature = &t
 	}
+	if req.Model != "" {
+		profile.Model = strings.TrimSpace(req.Model)
+		profile.Name = profile.Model
+	}
+	timeout := detect.DefaultLLMTimeout
+	if req.Timeout != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(req.Timeout))
+		if err != nil || d <= 0 {
+			return res, fmt.Errorf("invalid timeout %q", req.Timeout)
+		}
+		timeout = d
+	}
 	res.Profile = profile
 	apiKey := config.ResolveLLMAPIKey(profile, &cfg)
 
 	r.Infof("Detecting ads in %s (%s) with %s...",
 		filepath.Base(path), format.FormatClock(res.Duration), profile.Name)
 
-	detector := detect.NewLLMAdDetector(profile, apiKey, detect.DefaultLLMTimeout)
+	detector := detect.NewLLMAdDetector(profile, apiKey, timeout)
 	segments, usage, err := detector.DetectAdsUsage(context.Background(), FormatTranscript(td, res.Duration))
 	res.Usage = usage
 	if err != nil {

@@ -282,6 +282,9 @@ type CLIOptions struct {
 	// which is what you want when judging the model instead of the cut.
 	DetectRaw       bool
 	DetectWriteCuts bool
+	DetectSaveTruth bool
+	DetectModel     string
+	DetectTimeout   string
 	DetectRepeat    int
 	CutsFile        string
 

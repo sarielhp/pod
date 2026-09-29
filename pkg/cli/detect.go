@@ -10,6 +10,7 @@ import (
 
 	"github.com/sarielhp/clihelp"
 
+	"pod/pkg/detect"
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
 )
@@ -26,8 +27,11 @@ func buildDetectCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Args: clihelp.MinimumNArgs(1),
 		Options: []clihelp.Option{
 			clihelp.String(&opts.UseLLM, "--profile <id/name>", "", "LLM profile to detect with (default: the active one)"),
+			clihelp.String(&opts.DetectModel, "--model <id>", "", "Use this model on the profile's endpoint, e.g. an OpenRouter model id"),
+			clihelp.String(&opts.DetectTimeout, "--timeout <duration>", "", "Wait this long for each model reply, e.g. 300s (default 120s)"),
 			clihelp.Bool(&opts.DetectRaw, "--raw", false, "Report segments as the model returned them, unmerged"),
 			clihelp.Bool(&opts.DetectWriteCuts, "--write-cuts", false, "Save a .cuts.json beside the transcript"),
+			clihelp.Bool(&opts.DetectSaveTruth, "--save-truth", false, "Save this run's segments as the episode's labelled truth (<name>.ads.truth.json)"),
 			clihelp.Int(&opts.DetectRepeat, "-n, --repeat <count>", 1, "Detect this many times and report how much the runs agree"),
 			clihelp.String(&opts.Temperature, "--temperature <value>", "", "Sampling temperature for this run (default: the profile's, else 0)"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Emit the segments as JSON"),
@@ -38,6 +42,9 @@ func buildDetectCommand(opts *CLIOptions, action *string) clihelp.Command {
 			{Line: "pod detect lecture.transcript.json", Description: "Detect ads in a transcript you already have"},
 			{Line: "pod detect --profile 3 ep.mp3", Description: "Use a specific LLM profile on the episode's transcript"},
 			{Line: "pod detect --raw --json ep.mp3", Description: "See exactly what the model returned, before merging"},
+			{Line: "pod detect --profile 5 --model deepseek/deepseek-v4.1-flash ep.mp3", Description: "Try another model without adding a profile"},
+			{Line: "pod detect --profile 4 --save-truth ep.mp3", Description: "Label an episode with a strong model; edit ep.ads.truth.json to correct it"},
+			{Line: "pod detect --profile 5 */*.mp3", Description: "Score a profile against every labelled episode, with totals"},
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "detect"
@@ -86,6 +93,11 @@ type DetectFileResult struct {
 	CompletionTokens int `json:"completion_tokens,omitempty"`
 
 	Stability *DetectStabilityResult `json:"stability,omitempty"`
+
+	// Score compares the segments with the episode's labelled truth. It is
+	// absent for an episode with no labels.
+	Score     *detect.Score `json:"score,omitempty"`
+	TruthFile string        `json:"truth_file,omitempty"`
 }
 
 func detectStability(s pipeline.DetectStability) *DetectStabilityResult {
@@ -114,6 +126,8 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 			Path:        path,
 			Profile:     cli.UseLLM,
 			Temperature: cli.Temperature,
+			Model:       cli.DetectModel,
+			Timeout:     cli.DetectTimeout,
 			NoMerge:     cli.DetectRaw,
 			WriteCuts:   cli.DetectWriteCuts,
 		}
@@ -132,6 +146,10 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 		if stability.Runs > 1 {
 			out.Stability = detectStability(stability)
 		}
+		if err := applyTruth(&out, runs[0], cli.DetectSaveTruth); err != nil {
+			fmt.Fprintf(errFor(cli), "%v\n", err)
+			failures = append(failures, path)
+		}
 		results = append(results, out)
 	}
 
@@ -145,6 +163,7 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 		for _, r := range results {
 			printDetectResult(cli, r)
 		}
+		printScoreTotal(outFor(cli), results)
 	}
 
 	if len(failures) > 0 {
@@ -186,6 +205,7 @@ func printDetectResult(cli CLIOptions, r DetectFileResult) {
 	if len(r.Segments) == 0 {
 		fmt.Fprintf(w, "%s: no ad segments detected (%s, %s)\n",
 			r.Transcript, format.FormatClock(r.Duration), r.Profile)
+		printScore(w, r.Score)
 		return
 	}
 	fmt.Fprintf(w, "%s: %d ad segment(s), %s of %s (%s)\n",
@@ -202,6 +222,7 @@ func printDetectResult(cli CLIOptions, r DetectFileResult) {
 		fmt.Fprintf(w, "  wrote %s\n", r.CutsFile)
 	}
 	printDetectStability(w, r.Stability)
+	printScore(w, r.Score)
 }
 
 func printDetectStability(w io.Writer, s *DetectStabilityResult) {
@@ -231,4 +252,51 @@ func agreementPct(v float64) string {
 		return "100%"
 	}
 	return fmt.Sprintf("%.1f%%", pct)
+}
+
+// applyTruth labels the episode from this run when asked, and otherwise scores
+// the run against labels already on disk.
+func applyTruth(out *DetectFileResult, res pipeline.DetectResult, save bool) error {
+	if save {
+		path, err := pipeline.SaveTruth(res.TranscriptPath, res.Profile.Name, res.Segments)
+		out.TruthFile = path
+		return err
+	}
+	truth, ok, err := pipeline.LoadTruth(res.TranscriptPath)
+	if err != nil || !ok {
+		return err
+	}
+	score := detect.ScoreSegments(res.Segments, truth.Segments)
+	out.Score, out.TruthFile = &score, pipeline.TruthPathFor(res.TranscriptPath)
+	return nil
+}
+
+func printScore(w io.Writer, s *detect.Score) {
+	if s == nil {
+		return
+	}
+	fmt.Fprintf(w, "  vs truth: precision %s, recall %s; %s of programme wrongly cut, %s of ads missed\n",
+		pct(s.Precision), pct(s.Recall), format.FormatClock(s.FalsePositiveSec), format.FormatClock(s.MissedSec))
+}
+
+// printScoreTotal sums the per-episode scores, which is the figure that
+// compares one profile or prompt with another.
+func printScoreTotal(w io.Writer, results []DetectFileResult) {
+	var total detect.Score
+	scored := 0
+	for _, r := range results {
+		if r.Score != nil {
+			total = total.Add(*r.Score)
+			scored++
+		}
+	}
+	if scored < 2 {
+		return
+	}
+	fmt.Fprintf(w, "\nTotal over %d labelled episode(s):\n", scored)
+	printScore(w, &total)
+}
+
+func pct(v float64) string {
+	return fmt.Sprintf("%.1f%%", v*100)
 }

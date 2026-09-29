@@ -5,6 +5,17 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.21] - 2026-09-29
+
+### Changed
+- **`pod rm_ads recut --boilerplate` (and `pod queue recut --boilerplate`) covers the whole library
+  when given no argument**, and reports it compactly: only the episodes that change are named,
+  and the rest are counted by reason (no matching boilerplate, no cuts file, no transcript,
+  already covered, uncut original gone), with the total boilerplate time added. A podcast name, a
+  directory or an audio file narrows it as before, `-n` stops after that many recuts, and
+  `--dry-run` still writes nothing. It no longer goes through the ad-removal path, so it shows no
+  per-episode headers and never marks an episode as being transcribed.
+
 ## [0.5.20] - 2026-09-29
 
 ### Changed

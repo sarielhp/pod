@@ -123,3 +123,41 @@ func TestAnalyzeWithoutArgumentsCoversTheLibraryCompactly(t *testing.T) {
 		t.Errorf("a show with too few transcripts records nothing, got %+v", got)
 	}
 }
+
+func TestBoilerplateRecutTargetsMeanTheWholeLibraryUnlessNarrowed(t *testing.T) {
+	root := t.TempDir()
+	var alpha, bravo string
+	for _, name := range []string{"Alpha", "Bravo"} {
+		dir := filepath.Join(root, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := config.SavePodcastConfig(dir, config.PodcastConfig{}); err != nil {
+			t.Fatal(err)
+		}
+		for _, ep := range []string{"one.mp3", "two.mp3"} {
+			if err := os.WriteFile(filepath.Join(dir, ep), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if name == "Alpha" {
+			alpha = dir
+		} else {
+			bravo = dir
+		}
+	}
+	cfg := Config{PodcastsDir: root, SubscriptionsFile: filepath.Join(root, "s.json")}
+
+	all, err := boilerplateRecutTargets(cfg, CLIOptions{})
+	if err != nil || len(all) != 4 {
+		t.Fatalf("no argument should mean every episode of every podcast, got %v (%v)", all, err)
+	}
+	one, err := boilerplateRecutTargets(cfg, CLIOptions{Args: []string{alpha}})
+	if err != nil || len(one) != 2 || filepath.Dir(one[0]) != alpha {
+		t.Fatalf("a directory should mean just its episodes, got %v (%v)", one, err)
+	}
+	file, err := boilerplateRecutTargets(cfg, CLIOptions{Args: []string{filepath.Join(bravo, "two.mp3")}})
+	if err != nil || len(file) != 1 || filepath.Base(file[0]) != "two.mp3" {
+		t.Fatalf("a file should mean itself, got %v (%v)", file, err)
+	}
+}

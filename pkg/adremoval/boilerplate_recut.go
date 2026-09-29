@@ -26,32 +26,21 @@ type boilerplateRecutPlan struct {
 	preview format.CutsPreview
 }
 
-// recutWithBoilerplate adds the podcast's recorded boilerplate to an episode's
-// existing cuts and recuts it from the uncut original. It calls no model: the
-// ad cuts already on file are kept exactly as they are.
-func recutWithBoilerplate(mainMP3File, precutFile, sourceAudioFile, outputFile, baseName string, totalDuration float64, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime time.Time, rep progress.Reporter) (Report, error) {
-	name := filepath.Base(mainMP3File)
-	plan, skip := planBoilerplateRecut(mainMP3File, precutFile, baseName, totalDuration)
-	if skip != "" {
-		rep.Infof("%s: skipped, %s", name, skip)
-		return Report{}, errSkipped
-	}
-	if opts.DryRun {
-		rep.Infof("[dry-run] %s: would add %s of boilerplate (%d passage(s)) and recut", name, format.FormatClock(plan.preview.AddedSec), len(plan.cuts))
-		return Report{Processed: true}, nil
-	}
-
+// applyBoilerplateRecut adds the planned boilerplate cuts to the episode's cuts
+// file and recuts it from the uncut original. It calls no model: the ad cuts
+// already on file are kept exactly as they are. If the recut fails the previous
+// cuts file is put back.
+func applyBoilerplateRecut(mainMP3File, precutFile, sourceAudioFile, outputFile, baseName string, totalDuration float64, plan boilerplateRecutPlan, cfg types.Config, opts types.ProcOptions, start time.Time, rep progress.Reporter) error {
 	cutsFile := baseName + ".cuts.json"
 	previous, _ := os.ReadFile(cutsFile)
 	if res := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, plan.cuts, nil, true, false); res.Err != nil {
-		return Report{}, res.Err
+		return res.Err
 	}
-	rep.Infof("%s: adding %s of boilerplate (%d passage(s))", name, format.FormatClock(plan.preview.AddedSec), len(plan.cuts))
-	if err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, cfg, opts, fileStartTime, rep); err != nil {
+	if err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, types.LLMProfile{}, cfg, opts, start, rep); err != nil {
 		restoreCuts(cutsFile, previous)
-		return Report{Processed: true}, err
+		return err
 	}
-	return Report{Processed: true}, nil
+	return nil
 }
 
 // restoreCuts puts back the cuts file as it was, so a recut that failed does not

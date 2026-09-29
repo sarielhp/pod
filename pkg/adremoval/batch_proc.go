@@ -46,7 +46,7 @@ func ProcessFiles(targets []string, opts types.ProcOptions, cfg types.Config, re
 		return Report{}, nil
 	}
 
-	if opts.DryRun && !opts.RecutBoilerplate {
+	if opts.DryRun {
 		handleProcDryRun(targets, opts, cfg, r)
 		return Report{Total: len(targets)}, nil
 	}
@@ -59,7 +59,7 @@ func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, 
 	if opts.WhisperEngine != "" {
 		wp.Engine = types.WhisperEngine(opts.WhisperEngine)
 	}
-	if !opts.RecutBoilerplate && wp.Engine != types.WhisperEngineLocal && wp.Engine != types.WhisperEngineGemini {
+	if wp.Engine != types.WhisperEngineLocal && wp.Engine != types.WhisperEngineGemini {
 		transcribe.WakeServer(cfg.WhisperURL, cfg.WhisperWakeCommand, opts.Quiet)
 	}
 

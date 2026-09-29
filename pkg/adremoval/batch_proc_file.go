@@ -100,11 +100,6 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	artifacts, stages := planForEpisode(mainMP3File, opts)
 
 	totalDuration := audio.GetAudioDuration(sourceAudioFile)
-	if opts.Recut && opts.RecutBoilerplate {
-		// Decided before the episode is marked as being transcribed: a boilerplate
-		// refresh transcribes nothing, and a skipped episode must keep its status.
-		return recutWithBoilerplate(mainMP3File, precutFile, sourceAudioFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime, rep)
-	}
 	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
 	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
 	if opts.Recut && artifacts.HasCuts {

@@ -6,14 +6,14 @@ import (
 	"sort"
 
 	"pod/pkg/adremoval"
-	"pod/pkg/podcast"
+	"pod/pkg/format"
 	"pod/pkg/util"
 )
 
 // runBoilerplateRecut refreshes episodes with their podcast's recorded
 // boilerplate. It is kept apart from the ordinary rm_ads path on purpose: given a
 // podcast, that path queues the latest uncleaned episode for ad removal, which a
-// recut must never do.
+// recut must never do. With no argument it covers every podcast.
 func runBoilerplateRecut(config Config, cli CLIOptions) error {
 	targets, err := boilerplateRecutTargets(config, cli)
 	if err != nil {
@@ -22,51 +22,73 @@ func runBoilerplateRecut(config Config, cli CLIOptions) error {
 	if len(targets) == 0 {
 		return fmt.Errorf("no episodes found to recut")
 	}
-	_, err = adremoval.ProcessFiles(targets, cli.ProcOptions, config, reporter(cli))
-	if !cli.DryRun {
-		refreshFeedsForAudio(targets, config)
+	report := adremoval.RecutBoilerplate(targets, cli.ProcOptions, config, reporter(cli))
+	if len(report.Changed) > 0 && !cli.DryRun {
+		refreshFeedsForAudio(report.Changed, config)
 	}
-	return err
+	return printBoilerplateReport(cli, report)
 }
 
 // boilerplateRecutTargets turns the arguments into episode audio files. A
-// directory or a podcast name stands for every episode of that podcast.
+// directory or a podcast name stands for every episode of that podcast, an audio
+// file for itself, and no argument at all for every episode of every podcast.
 func boilerplateRecutTargets(config Config, cli CLIOptions) ([]string, error) {
 	args := append([]string(nil), cli.Args...)
 	if cli.Podcast != "" {
 		args = append(args, cli.Podcast)
 	}
-	var targets []string
+	var files, names []string
 	for _, arg := range uniquePaths(args) {
-		found, err := episodesFor(config, arg)
-		if err != nil {
-			return nil, err
+		if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+			files = append(files, arg)
+		} else {
+			names = append(names, arg)
 		}
-		targets = append(targets, found...)
 	}
-	return targets, nil
-}
-
-func episodesFor(config Config, arg string) ([]string, error) {
-	fi, err := os.Stat(arg)
-	switch {
-	case err == nil && fi.IsDir():
-		return sortedEpisodes(arg), nil
-	case err == nil:
-		return []string{arg}, nil
+	if len(args) > 0 && len(names) == 0 {
+		return files, nil
 	}
-	resolved, err := podcast.ResolveAnyID(config.PodcastsDir, arg)
+	scope := cli
+	scope.Args = names
+	dirs, err := missingTargets(config, scope)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", arg, err)
+		return nil, err
 	}
-	if resolved.IsPodcast() {
-		return sortedEpisodes(resolved.Podcast.Dir), nil
+	for _, dir := range dirs {
+		files = append(files, util.FindMP3Files(dir)...)
 	}
-	return nil, fmt.Errorf("%s does not name a podcast or an audio file", arg)
+	sort.Strings(files)
+	return files, nil
 }
 
-func sortedEpisodes(dir string) []string {
-	files := util.FindMP3Files(dir)
-	sort.Strings(files)
-	return files
+func printBoilerplateReport(cli CLIOptions, r adremoval.BoilerplateReport) error {
+	w := outFor(cli)
+	verb := "Recut"
+	if cli.DryRun {
+		verb = "Would recut"
+	}
+	fmt.Fprintf(w, "\n%s %d of %d episode(s), adding %s of boilerplate.\n", verb, r.Recut, r.Total, format.FormatClock(r.AddedSec))
+	reasons := make([]string, 0, len(r.Skipped))
+	for reason := range r.Skipped {
+		reasons = append(reasons, reason)
+	}
+	sort.Slice(reasons, func(i, j int) bool {
+		if r.Skipped[reasons[i]] != r.Skipped[reasons[j]] {
+			return r.Skipped[reasons[i]] > r.Skipped[reasons[j]]
+		}
+		return reasons[i] < reasons[j]
+	})
+	for _, reason := range reasons {
+		fmt.Fprintf(w, "  %4d skipped: %s\n", r.Skipped[reason], reason)
+	}
+	if r.Busy > 0 {
+		fmt.Fprintf(w, "  %4d busy: another pod process had them; run again to pick them up\n", r.Busy)
+	}
+	for _, f := range r.Failures {
+		util.FprintError(errFor(cli), "%v", f)
+	}
+	if len(r.Failures) > 0 {
+		return fmt.Errorf("%d episode(s) could not be recut and were left as they were", len(r.Failures))
+	}
+	return nil
 }

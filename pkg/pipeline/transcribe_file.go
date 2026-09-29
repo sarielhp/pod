@@ -95,7 +95,7 @@ func TranscribeFile(req TranscribeRequest, cfg types.Config, opts types.ProcOpti
 	}
 	defer cleanup()
 
-	r.Infof("Transcribing %s (%s)...", filepath.Base(req.Path), format.FormatClock(res.Duration))
+	r.Infof("Transcribing %s (%s)...", req.readableTitle(), format.FormatClock(res.Duration))
 	td, err := runWhisperTranscription(wavPath, cfg, opts, res.Duration, 1.0, "", "", "", r)
 	if err != nil {
 		return res, fmt.Errorf("transcribe %s: %w", filepath.Base(req.Path), err)

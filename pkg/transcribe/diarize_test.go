@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"pod/pkg/types"
 )
@@ -92,5 +94,25 @@ func TestWhisperRequestSendsExtraFieldsAndReadsSpeakers(t *testing.T) {
 	}
 	if !td.Diarized || td.Segments[0].Speaker != "SPEAKER_00" || len(td.Speakers) != 1 {
 		t.Fatalf("speakers lost: %+v", td)
+	}
+}
+
+func TestMessagesNameTheServerThatWasAsked(t *testing.T) {
+	oldUnit := retryUnit
+	retryUnit = time.Millisecond
+	t.Cleanup(func() { retryUnit = oldUnit })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	audio := filepath.Join(t.TempDir(), "a.wav")
+	if err := os.WriteFile(audio, []byte("RIFF"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"": "connect to Whisper GPU server", "WhisperX": "connect to WhisperX GPU server"} {
+		_, err := TranscribeWhisperRequest(context.Background(), WhisperRequest{AudioPath: audio, URL: srv.URL, Quiet: true, TotalDuration: 1, ServerName: name})
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("ServerName %q: err = %v, want it to contain %q", name, err, want)
+		}
 	}
 }

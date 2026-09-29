@@ -99,11 +99,17 @@ type WhisperRequest struct {
 	Language        string
 	PCM             []byte
 	Fields          map[string]string
+	// ServerName is what messages call the server, "Whisper" when empty.
+	ServerName string
 }
 
 func TranscribeWhisperRequest(ctx context.Context, req WhisperRequest) (*types.TranscriptionData, error) {
 	audioPath, whisperURL, quiet, verbose := req.AudioPath, req.URL, req.Quiet, req.Verbose
 	totalDuration := req.TotalDuration
+	server := req.ServerName
+	if server == "" {
+		server = "Whisper"
+	}
 	maxRetries := 5
 	retryDelay := 5
 	readTimeout := int(totalDuration*1.5) + 600
@@ -137,7 +143,7 @@ func TranscribeWhisperRequest(ctx context.Context, req WhisperRequest) (*types.T
 			wakeRetries++
 			attempt--
 			if !quiet {
-				fmt.Printf("\nWhisper is waking up; trying again in %d seconds (%d/%d)...\n", int(wakeRetryDelay/time.Second), wakeRetries, maxWakeRetries)
+				fmt.Printf("\n%s is waking up; trying again in %d seconds (%d/%d)...\n", server, int(wakeRetryDelay/time.Second), wakeRetries, maxWakeRetries)
 			}
 			if err := pause(ctx, wakeRetryDelay); err != nil {
 				return nil, err
@@ -147,7 +153,7 @@ func TranscribeWhisperRequest(ctx context.Context, req WhisperRequest) (*types.T
 
 		if attempt < maxRetries {
 			if !quiet {
-				util.Errorf("Whisper server error (attempt %d/%d): %v", attempt, maxRetries, err)
+				util.Errorf("%s server error (attempt %d/%d): %v", server, attempt, maxRetries, err)
 				fmt.Printf("Retrying in %d seconds...\n\n", retryDelay)
 			}
 			select {
@@ -156,7 +162,7 @@ func TranscribeWhisperRequest(ctx context.Context, req WhisperRequest) (*types.T
 			case <-time.After(time.Duration(retryDelay) * retryUnit):
 			}
 		} else {
-			return nil, fmt.Errorf("failed to connect to Whisper GPU server at '%s' after %d attempts: %w", whisperURL, maxRetries, err)
+			return nil, fmt.Errorf("failed to connect to %s GPU server at '%s' after %d attempts: %w", server, whisperURL, maxRetries, err)
 		}
 	}
 

@@ -52,7 +52,7 @@ func sendForSpeakers(sourceAudioFile string, wp types.WhisperProfile, opts types
 	rep.Infof("Labelling speakers with %s (%s)...", wp.URL, describeModel(model, lang))
 	td, err := transcribe.TranscribeWhisperRequest(context.Background(), transcribe.WhisperRequest{
 		AudioPath: sourceAudioFile, URL: wp.URL, Quiet: opts.Quiet, Verbose: opts.Verbose,
-		TotalDuration: duration, SpeedFactor: 1.0, Language: lang, Fields: fields,
+		TotalDuration: duration, SpeedFactor: 1.0, Language: lang, Fields: fields, ServerName: "WhisperX",
 	})
 	if err != nil {
 		return nil, model, err

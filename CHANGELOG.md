@@ -5,6 +5,13 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.27] - 2026-09-29
+
+### Fixed
+- **`pod transcribe --speakers` names the server it is waiting on.** The wake-up, retry and failure
+  messages said "Whisper" even when the request had gone to WhisperX; they now say "WhisperX". The
+  progress line also names the episode by its title instead of its `.mp3.precut` file.
+
 ## [0.5.26] - 2026-09-29
 
 ### Added

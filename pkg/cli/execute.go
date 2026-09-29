@@ -85,6 +85,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runDetectCommand(*config, cli)
 	case "repeats":
 		return runRepeatsCommand(cli)
+	case "analyze":
+		return runAnalyzeCommand(*config, cli)
 	case "cut":
 		return runCutCommand(*config, cli)
 	case "tui":

@@ -55,9 +55,7 @@ func WordsOf(td *types.TranscriptionData) []Word {
 		return words
 	}
 	for _, seg := range td.Segments {
-		tokens := strings.FieldsFunc(strings.ToLower(seg.Text), func(r rune) bool {
-			return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\''
-		})
+		tokens := tokenize(seg.Text)
 		if len(tokens) == 0 {
 			continue
 		}
@@ -68,6 +66,14 @@ func WordsOf(td *types.TranscriptionData) []Word {
 		}
 	}
 	return words
+}
+
+// tokenize lower-cases text and keeps letters, digits and apostrophes, so the
+// same words compare equal whatever the punctuation or capitalisation.
+func tokenize(text string) []string {
+	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\''
+	})
 }
 
 type corpusEpisode struct {

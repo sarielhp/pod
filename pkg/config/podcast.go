@@ -32,6 +32,19 @@ const (
 	KeepPolicyHourly   = "hourly"
 )
 
+// BoilerplatePhrase is text that recurs across a show's episodes and is cut
+// from each new one before ad detection: intros, credits, house promos, standing
+// sponsor reads. `pod analyze` writes them; Disabled keeps a phrase on file
+// without cutting it, and Manual protects an entry from being dropped when the
+// analysis is rerun.
+type BoilerplatePhrase struct {
+	Text     string `json:"text"`
+	Episodes int    `json:"episodes,omitempty"`
+	Position string `json:"position,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
+	Manual   bool   `json:"manual,omitempty"`
+}
+
 type PodcastConfig struct {
 	ID              string                      `json:"id,omitempty"`
 	Icon            string                      `json:"icon,omitempty"`
@@ -47,6 +60,7 @@ type PodcastConfig struct {
 	AutoCleanupDays int                         `json:"auto_cleanup_days,omitempty"`
 	KeepPolicy      string                      `json:"keep_policy,omitempty"`
 	Frequency       *types.PodcastFrequencyInfo `json:"frequency,omitempty"`
+	Boilerplate     []BoilerplatePhrase         `json:"boilerplate,omitempty"`
 	UpdatedAt       time.Time                   `json:"updated_at,omitempty"`
 }
 

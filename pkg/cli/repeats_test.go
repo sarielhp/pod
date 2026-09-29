@@ -25,13 +25,22 @@ func uniqueWords(prefix string, episode, n int) string {
 
 func writeShow(t *testing.T) string {
 	t.Helper()
+	return writeShowOf(t, 3, 3)
+}
+
+// writeShowOf writes episodes transcripts, the first withRead of which carry the
+// same sponsor read among otherwise unique text.
+func writeShowOf(t *testing.T, episodes, withRead int) string {
+	t.Helper()
 	dir := t.TempDir()
-	for i := 0; i < 3; i++ {
+	for i := 0; i < episodes; i++ {
 		td := types.TranscriptionData{Segments: []types.TranscriptionSegment{
 			{Start: 0, End: 30, Text: uniqueWords("open", i, 30)},
-			{Start: 30, End: 60, Text: repeatedRead},
 			{Start: 60, End: 90, Text: uniqueWords("close", i, 30)},
 		}}
+		if i < withRead {
+			td.Segments = append(td.Segments[:1], append([]types.TranscriptionSegment{{Start: 30, End: 60, Text: repeatedRead}}, td.Segments[1:]...)...)
+		}
 		data, _ := json.Marshal(td)
 		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("ep%d.transcript.json", i)), data, 0o644); err != nil {
 			t.Fatal(err)

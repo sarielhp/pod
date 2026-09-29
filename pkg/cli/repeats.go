@@ -27,7 +27,7 @@ func buildRepeatsCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Args: clihelp.MinimumNArgs(1),
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.RepeatsMinWords, "--min-words <n>", 20, "Shortest repeated span to report, in words"),
-			clihelp.Int(&opts.RepeatsMinEpisodes, "--min-episodes <n>", 1, "Report only spans found in at least this many other episodes"),
+			clihelp.Int(&opts.RepeatsMinEpisodes, "--min-episodes <n>", 1, "Report only spans found in at least this many episodes, counting the one shown"),
 			clihelp.String(&opts.RepeatsEpisode, "--episode <text>", "", "List the spans, with their text, of episodes whose name contains this"),
 			clihelp.Bool(&opts.RepeatsCatalog, "--catalog", false, "List the texts that recur most across the show"),
 			clihelp.Bool(&opts.RepeatsCurve, "--curve", false, "Score against labelled episodes as more episodes are compared"),
@@ -141,7 +141,7 @@ func episodeRepeats(show *repeatShow, id, minEpisodes int) RepeatEpisodeResult {
 	}
 	var kept []detect.Repeat
 	for _, r := range show.corpus.Repeats(id, nil) {
-		if r.Episodes < minEpisodes {
+		if r.Episodes+1 < minEpisodes {
 			continue
 		}
 		kept = append(kept, r)

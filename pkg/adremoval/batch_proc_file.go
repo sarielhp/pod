@@ -292,7 +292,11 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 }
 
 func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, sourceAudioFile, mainMP3File, precutFile, outputFile string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime, t0Step1 time.Time, rep progress.Reporter) bool {
-	formattedTranscript := pipeline.FormatTranscript(transcriptionData, totalDuration)
+	boilerplate := pipeline.BoilerplateCuts(filepath.Dir(mainMP3File), transcriptionData)
+	if len(boilerplate) > 0 && !opts.Quiet {
+		fmt.Printf("Boilerplate: %d recurring passage(s) cut before ad detection.\n", len(boilerplate))
+	}
+	formattedTranscript := pipeline.FormatTranscript(pipeline.WithoutSpans(transcriptionData, boilerplate), totalDuration)
 	t0Step2 := time.Now()
 	if !opts.Quiet {
 		fmt.Println()
@@ -328,6 +332,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	if err := updateStatusAdDetection(mainMP3File, true, "completed", selectedProfile.Model, ""); err != nil && opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
 	}
+	adSegments = append(adSegments, boilerplate...)
 	if len(adSegments) > 0 {
 		adSegments = format.MergeIntervals(adSegments)
 	}

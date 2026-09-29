@@ -8,6 +8,18 @@ were written; they are not in version order.
 ## [0.5.15] - 2026-09-27
 
 ### Added
+- **`pod analyze <podcast|directory>` learns a show's boilerplate and ad removal
+  cuts it first.** It compares the show's saved transcripts and records text
+  that recurs in six or more episodes (intros, credits, standing promos and
+  sponsor reads) in the podcast's `podcast.json` under `boilerplate`, needing at
+  least 10 transcripts. `--dry-run` previews it; a phrase can be switched off
+  with `"disabled": true`, and hand-added entries marked `"manual": true`
+  survive a rerun. When `pod fetch` or `pod queue run` removes ads, matching
+  passages in the new transcript are cut before detection and left out of what
+  the model reads, so it can't lump them in with an ad. Held out from its own
+  learning, this cut 58% of the labelled ad time on Dan Snow's History Hit at 98%
+  precision, with no model call. It applies to the Whisper-and-LLM path; the
+  Gemini direct-audio path has no transcript to match.
 - **`pod repeats <directory|transcript...>`** finds text that recurs across a show's
   episodes (ads, self-promos, intros, credits, patron-name lists) by matching
   runs of shared words, with no model call: 53 episodes take about a second.

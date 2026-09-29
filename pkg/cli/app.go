@@ -102,6 +102,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 			buildRmAdsCommand(opts, action),
 			buildDetectCommand(opts, action),
 			buildRepeatsCommand(opts, action),
+			buildAnalyzeCommand(opts, action),
 			buildGenRSSCommand(opts, action),
 			buildTranscribeCommand(opts, action),
 			buildCutCommand(opts, action),

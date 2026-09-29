@@ -42,8 +42,7 @@ type RenamePlan struct {
 	Unidentified int `json:"unidentified"`
 	// Already are episodes whose name is already the one they would be given.
 	Already int `json:"already"`
-	// Orphans are files that belong to no audio file (the transcripts of episodes
-	// whose audio was pruned). They are not touched.
+	// Orphans are files that belong to no episode at all. They are not touched.
 	Orphans int `json:"orphans"`
 	// Skipped says why an episode was left alone, by old stem.
 	Skipped map[string]string `json:"skipped,omitempty"`
@@ -54,7 +53,7 @@ type RenamePlan struct {
 func PlanEpisodeRenames(entry PodcastDirEntry) RenamePlan {
 	plan := RenamePlan{Title: entry.Title, Dir: entry.Dir, Skipped: map[string]string{}}
 	names := listFileNames(entry.Dir)
-	stems := audioStems(names)
+	stems := append(audioStems(names), audiolessStems(names)...)
 	groups, orphans := groupFilesByStem(names, stems)
 	plan.Orphans = orphans
 
@@ -143,6 +142,34 @@ func listFileNames(dir string) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// episodeMarkers are the files that show a stem is an episode even when its audio
+// is gone: a transcript, a cuts file or a status file. Other sidecars (subtitles,
+// text) also occur beside unrelated files, so on their own they prove nothing.
+var episodeMarkers = []string{".transcript.json", ".cuts.json", ".mp3.json", ".ads.truth.json"}
+
+// audiolessStems are the stems that have an episode's markers but no audio file:
+// the transcripts and status of episodes whose audio was pruned. They are still
+// episodes, and are identified and renamed like any other.
+func audiolessStems(names []string) []string {
+	withAudio := map[string]bool{}
+	for _, s := range audioStems(names) {
+		withAudio[s] = true
+	}
+	seen := map[string]bool{}
+	var stems []string
+	for _, n := range names {
+		for _, marker := range episodeMarkers {
+			stem, ok := strings.CutSuffix(n, marker)
+			if ok && stem != "" && !withAudio[stem] && !seen[stem] {
+				seen[stem] = true
+				stems = append(stems, stem)
+			}
+		}
+	}
+	sort.Strings(stems)
+	return stems
 }
 
 // audioStems are the stems of the audio files: the name without its ".mp3".

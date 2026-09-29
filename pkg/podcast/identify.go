@@ -12,10 +12,13 @@ import (
 
 // IdentifyResult reports what identifying one podcast's episodes did.
 type IdentifyResult struct {
-	Dir     string
-	Title   string
-	Total   int
-	Already int
+	Dir   string
+	Title string
+	Total int
+	// Audioless are the episodes among them whose audio is gone and only the
+	// transcript, cuts or status remain.
+	Audioless int
+	Already   int
 	// FromFeed were matched to an episode of the feed, by the name they were given.
 	FromFeed int
 	// Synthetic could not be found in the feed and were given an identity made
@@ -39,6 +42,10 @@ type FeedFetcher func(feedURL string) ([]backend.FeedEpisode, error)
 func IdentifyEpisodes(entry PodcastDirEntry, feedURL string, fetch FeedFetcher, dryRun bool) IdentifyResult {
 	res := IdentifyResult{Dir: entry.Dir, Title: entry.Title}
 	files := util.FindMP3Files(entry.Dir)
+	for _, stem := range audiolessStems(listFileNames(entry.Dir)) {
+		files = append(files, filepath.Join(entry.Dir, stem+".mp3"))
+		res.Audioless++
+	}
 	res.Total = len(files)
 	var pending []string
 	for _, f := range files {
@@ -55,7 +62,7 @@ func IdentifyEpisodes(entry PodcastDirEntry, feedURL string, fetch FeedFetcher, 
 	if feedURL != "" && fetch != nil {
 		feed, err := fetch(feedURL)
 		res.FeedErr = err
-		matchToFeed(entry.Dir, feedURL, feed, pending, matched)
+		matchToFeed(feedURL, feed, pending, matched)
 	}
 	for _, f := range pending {
 		id, ok := matched[f]
@@ -74,12 +81,12 @@ func IdentifyEpisodes(entry PodcastDirEntry, feedURL string, fetch FeedFetcher, 
 
 // matchToFeed pairs the unidentified files with feed episodes, going through the
 // feed and asking a name-only index which file, if any, holds each episode.
-func matchToFeed(podDir, feedURL string, feed []backend.FeedEpisode, pending []string, out map[string]types.EpisodeIdentity) {
+func matchToFeed(feedURL string, feed []backend.FeedEpisode, pending []string, out map[string]types.EpisodeIdentity) {
 	wanted := map[string]bool{}
 	for _, f := range pending {
 		wanted[f] = true
 	}
-	byName := NewLocalEpisodes(podDir)
+	byName := newLocalEpisodes(pending)
 	for _, fe := range feed {
 		path, ok := byName.Find(fe)
 		if !ok || !wanted[path] {

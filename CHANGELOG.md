@@ -8,6 +8,11 @@ were written; they are not in version order.
 ## [0.5.19] - 2026-09-29
 
 ### Fixed
+- **`pod server identify` and `rename-episodes` also handle episodes whose audio has been pruned.**
+  A transcript, cuts file or status file with no audio beside it is an episode like any other: it is
+  matched to its feed episode by its old name or given a local identity, and its files are renamed
+  together to a short code. A first run had left these under their long old names. The tool is
+  incremental, so a second run renames only what the first did not.
 - **Lock files no longer pile up.** Every lock pod takes on a file (an episode being processed, a
   status file being updated, a queue) left an empty `.lock` file behind when released, so a library
   slowly filled with them: 1,752 in this one. A lock file is now deleted when its lock is released,
@@ -27,8 +32,8 @@ were written; they are not in version order.
   SHA-256; the audio is not copied, since a rename does not touch it. Each rename is written to a
   journal as it happens, an episode that fails part-way is put back as it was, and
   `--undo <backup>` reverses the whole thing. Episodes without a recorded identity (run
-  `pod server identify` first) and the leftover files of episodes whose audio was pruned are not
-  touched. `--dry-run` reports the plan. Note that the audio file names in the published feed
+  `pod server identify` first) are not touched. Episodes whose audio was pruned, which are just a
+  transcript, cuts and status file, are identified and renamed too. `--dry-run` reports the plan. Note that the audio file names in the published feed
   change, so anything subscribed to it sees new file URLs; the episode GUIDs are unchanged.
 - **New downloads get short opaque file names**, `2026-09-28_3f9a1c07be.mp3`: the publication
   date, so a directory sorts by age, and a code derived from the episode GUID. The title no

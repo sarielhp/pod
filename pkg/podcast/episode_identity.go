@@ -70,8 +70,14 @@ type LocalEpisodes struct {
 
 // NewLocalEpisodes indexes the audio files under podDir.
 func NewLocalEpisodes(podDir string) *LocalEpisodes {
+	return newLocalEpisodes(util.FindMP3Files(podDir))
+}
+
+// newLocalEpisodes indexes the given audio paths. A path need not exist: an
+// episode whose audio was pruned is indexed by the name its files still carry.
+func newLocalEpisodes(paths []string) *LocalEpisodes {
 	l := &LocalEpisodes{byGUID: map[string]string{}, byName: map[string]string{}}
-	for _, f := range util.FindMP3Files(podDir) {
+	for _, f := range paths {
 		if id := episode.LoadIdentity(f); id != nil {
 			if _, seen := l.byGUID[id.GUID]; !seen {
 				l.byGUID[id.GUID] = f

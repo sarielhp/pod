@@ -92,8 +92,8 @@ func TestPlanRenamesIdentifiedEpisodesAndLeavesTheRest(t *testing.T) {
 	t.Parallel()
 	entry, _, _ := renameLibrary(t)
 	plan := PlanEpisodeRenames(entry)
-	if len(plan.Renames) != 2 || plan.Unidentified != 1 || plan.Orphans != 1 {
-		t.Fatalf("want 2 renames, 1 unidentified, 1 orphan; got %+v", plan)
+	if len(plan.Renames) != 2 || plan.Unidentified != 2 || plan.Orphans != 0 {
+		t.Fatalf("want 2 renames and 2 unidentified (one with audio, one without); got %+v", plan)
 	}
 	for _, r := range plan.Renames {
 		if len(r.NewStem) != len("2026-09-28_")+10 || strings.Contains(r.NewStem, "Title") {
@@ -327,5 +327,62 @@ func TestRewritePathsInUpdatesPlayerState(t *testing.T) {
 	}
 	if changed, _ := RewritePathsIn(file, map[string]string{"/nowhere": "/x"}); changed {
 		t.Error("nothing to change means nothing rewritten")
+	}
+}
+
+func TestEpisodesWhoseAudioWasPrunedAreIdentifiedAndRenamedToo(t *testing.T) {
+	entry, _, _ := renameLibrary(t)
+	writeFile(t, filepath.Join(entry.Dir, "pruned_long_ago.cuts.json"), `{"cuts":[]}`)
+	oldPub := pub.AddDate(-1, 0, 0)
+	inFeed := feedEpisode("guid-pruned", "Pruned Long Ago", oldPub)
+	prunedStem := strings.TrimSuffix(FormatEpisodeFilename(oldPub, "", inFeed.Title), ".mp3")
+	writeFile(t, filepath.Join(entry.Dir, prunedStem+".transcript.json"), `{"text":"from the feed"}`)
+
+	res := IdentifyEpisodes(entry, "u", fakeFeed(inFeed), false)
+	if res.Audioless != 2 || res.FromFeed != 1 || res.Synthetic != 2 || res.Already != 2 {
+		t.Fatalf("want 2 audio-less episodes (one found in the feed), 1 audio file to identify locally, 2 already done; got %+v", res)
+	}
+	if id := episode.LoadIdentity(filepath.Join(entry.Dir, prunedStem+".mp3")); id == nil || id.GUID != "guid-pruned" || id.Synthetic {
+		t.Errorf("an audio-less episode in the feed takes the feed identity, got %+v", id)
+	}
+	if id := episode.LoadIdentity(filepath.Join(entry.Dir, "pruned_long_ago.mp3")); id == nil || !id.Synthetic || id.Title != "pruned_long_ago" {
+		t.Errorf("one the feed lacks gets a local identity, got %+v", id)
+	}
+
+	plan := PlanEpisodeRenames(entry)
+	if len(plan.Renames) != 5 || plan.Unidentified != 0 || plan.Orphans != 0 {
+		t.Fatalf("want all five episodes renamed, audio-less ones included; got %+v", plan)
+	}
+	backup := t.TempDir()
+	must(t, func() error { _, err := BackupMetadata([]PodcastDirEntry{entry}, nil, backup); return err }())
+	if r := ApplyEpisodeRenames([]RenamePlan{plan}, backup); len(r.Failures) != 0 || r.Episodes != 5 {
+		t.Fatalf("unexpected result %+v", r)
+	}
+	for _, old := range []string{"pruned_long_ago.transcript.json", "pruned_long_ago.cuts.json", "pruned_long_ago.mp3.json", prunedStem + ".transcript.json"} {
+		if util.FileExists(filepath.Join(entry.Dir, old)) {
+			t.Errorf("%s should have been renamed", old)
+		}
+	}
+	found := false
+	for _, name := range listFileNames(entry.Dir) {
+		stem, ok := strings.CutSuffix(name, ".transcript.json")
+		if !ok {
+			continue
+		}
+		if id := episode.LoadIdentity(filepath.Join(entry.Dir, stem+".mp3")); id != nil && id.GUID == "guid-pruned" {
+			found = !strings.Contains(stem, "Pruned")
+		}
+	}
+	if !found {
+		t.Error("the audio-less episode's transcript should now have a short name and keep its identity")
+	}
+
+	if _, err := UndoEpisodeRenames(backup); err != nil {
+		t.Fatal(err)
+	}
+	for _, old := range []string{"pruned_long_ago.transcript.json", prunedStem + ".transcript.json"} {
+		if !util.FileExists(filepath.Join(entry.Dir, old)) {
+			t.Errorf("undo should bring %s back", old)
+		}
 	}
 }

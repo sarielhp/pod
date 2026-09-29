@@ -136,7 +136,7 @@ func reportRenamePlans(cli CLIOptions, plans []podcast.RenamePlan) bool {
 		}
 	}
 	out := outFor(cli)
-	fmt.Fprintf(out, "%d episode(s) to rename. %d already have short names, %d have no identity yet, %d leftover files of episodes whose audio is gone are left alone, %d skipped.\n",
+	fmt.Fprintf(out, "%d episode(s) to rename. %d already have short names, %d have no identity yet, %d stray file(s) belong to no episode and are left alone, %d skipped.\n",
 		rename, already, unidentified, orphans, skipped)
 	if unidentified > 0 {
 		fmt.Fprintln(out, "Run 'pod server identify' first to include the episodes without an identity.")

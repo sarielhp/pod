@@ -51,10 +51,11 @@ func handleServerIdentify(cfg Config, cli CLIOptions) error {
 }
 
 func printIdentifyResults(cli CLIOptions, results []podcast.IdentifyResult) {
-	var total, already, fromFeed, synthetic int
+	var total, already, fromFeed, synthetic, audioless int
 	w := progressFor(cli)
 	for _, r := range results {
 		total += r.Total
+		audioless += r.Audioless
 		already += r.Already
 		fromFeed += r.FromFeed
 		synthetic += r.Synthetic
@@ -70,6 +71,6 @@ func printIdentifyResults(cli CLIOptions, results []podcast.IdentifyResult) {
 	if cli.DryRun {
 		verb = "Would record"
 	}
-	fmt.Fprintf(outFor(cli), "\n%d episode(s): %d already identified. %s %d matched to the feed and %d local identities.\n",
-		total, already, verb, fromFeed, synthetic)
+	fmt.Fprintf(outFor(cli), "\n%d episode(s), %d of them with their audio gone: %d already identified. %s %d matched to the feed and %d local identities.\n",
+		total, audioless, already, verb, fromFeed, synthetic)
 }

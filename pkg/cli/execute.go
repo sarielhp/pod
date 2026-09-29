@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"pod/pkg/config"
@@ -16,7 +15,7 @@ import (
 func Execute(args []string) int {
 	action, cli, err := parseFlagsArgs(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		util.Errorf("Error: %v\n", err)
 		return 1
 	}
 	if action == "" {
@@ -48,7 +47,7 @@ func Execute(args []string) int {
 			}
 			return 1
 		}
-		fmt.Fprintf(errFor(cli), "Error: %v\n", err)
+		util.FprintError(errFor(cli), "Error: %v\n", err)
 		return 1
 	}
 	return 0

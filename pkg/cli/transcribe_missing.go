@@ -106,7 +106,7 @@ func transcribeEach(cfg Config, cli CLIOptions, opts ProcOptions, missing []pipe
 		case err == errEpisodeBusy:
 			skipped = append(skipped, filepath.Base(m.Audio))
 		case err != nil:
-			fmt.Fprintf(errFor(cli), "%v\n", err)
+			util.FprintError(errFor(cli), "%v\n", err)
 			failures = append(failures, filepath.Base(m.Audio))
 		}
 		doneBytes += m.Bytes

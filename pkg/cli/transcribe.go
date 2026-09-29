@@ -10,6 +10,7 @@ import (
 	"github.com/sarielhp/clihelp"
 
 	"pod/pkg/pipeline"
+	"pod/pkg/util"
 )
 
 func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
@@ -87,7 +88,7 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 	for _, path := range paths {
 		res, err := transcribeOneLocked(path, cfg, cli, opts)
 		if err != nil {
-			fmt.Fprintf(errFor(cli), "%v\n", err)
+			util.FprintError(errFor(cli), "%v\n", err)
 			failures = append(failures, filepath.Base(path))
 			continue
 		}

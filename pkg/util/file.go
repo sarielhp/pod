@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -91,14 +92,28 @@ func collectMP3Entry(dir, name string, isDir bool, visited map[string]bool) []st
 
 var RenameFn = os.Rename
 
+var atomicSeq atomic.Uint64
+
+// atomicTempPath names the scratch file for an atomic write, in the target's own
+// directory so the final rename stays on one filesystem. The name is short and
+// independent of the target's: a file name is limited to 255 bytes, and a
+// target named close to that (a long episode title, in a script that spends two
+// bytes per letter) left no room for a suffix, so the write failed with "file
+// name too long" although the final name fitted. The ".tmp." keeps it matched
+// by the library's ignore patterns.
+func atomicTempPath(path string) string {
+	name := fmt.Sprintf(".atomic.tmp.%d.%d.%d", os.Getpid(), time.Now().UnixNano(), atomicSeq.Add(1))
+	return filepath.Join(filepath.Dir(path), name)
+}
+
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
 	}
-	tmp := fmt.Sprintf("%s.tmp.%d.%d", path, os.Getpid(), time.Now().UnixNano())
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	tmp := atomicTempPath(path)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
 		return err
 	}

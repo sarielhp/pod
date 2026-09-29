@@ -13,6 +13,7 @@ import (
 	"pod/pkg/detect"
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
+	"pod/pkg/util"
 )
 
 func buildDetectCommand(opts *CLIOptions, action *string) clihelp.Command {
@@ -136,7 +137,7 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 			err = fmt.Errorf("%s: detection produced no result", path)
 		}
 		if err != nil {
-			fmt.Fprintf(errFor(cli), "%v\n", err)
+			util.FprintError(errFor(cli), "%v\n", err)
 			failures = append(failures, path)
 		}
 		if len(runs) == 0 {
@@ -147,7 +148,7 @@ func runDetectCommand(cfg Config, cli CLIOptions) error {
 			out.Stability = detectStability(stability)
 		}
 		if err := applyTruth(&out, runs[0], cli.DetectSaveTruth); err != nil {
-			fmt.Fprintf(errFor(cli), "%v\n", err)
+			util.FprintError(errFor(cli), "%v\n", err)
 			failures = append(failures, path)
 		}
 		results = append(results, out)

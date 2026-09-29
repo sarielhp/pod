@@ -209,7 +209,7 @@ func runGeminiPipelineStep(job episodeJob) bool {
 	td, ads, err := gemini.ProcessWithGeminiConfig(ctx, job.sourceAudioFile, job.cfg, chunkDur, job.rep)
 	transcribe.StampBackend(td, types.WhisperEngineGemini, job.cfg.GetGeminiModel())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError processing with Gemini Flash: %v\n\n", err)
+		util.Errorf("Error processing with Gemini Flash: %v", err)
 		return false
 	}
 

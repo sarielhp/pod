@@ -198,7 +198,7 @@ func handleSpeculativeStep(job episodeJob) (bool, bool) {
 
 	td, ads, geminiWon, err := pipeline.RunSpeculativeParallelRace(context.Background(), job.sourceAudioFile, job.cfg, job.opts, job.totalDuration, speedFactor, whisperPrompt, job.cfg.WhisperLanguage, dockerContainer, isHebrew, job.rep)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nSpeculative transcription error: %v\n\n", err)
+		util.Errorf("Speculative transcription error: %v", err)
 		return false, false
 	}
 
@@ -277,7 +277,7 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 
 	transcriptionData, err := pipeline.LoadOrTranscribe(sourceAudioFile, jsonFile, cfg, opts, selectedProfile, totalDuration, speedFactor, cfg.WhisperLanguage, cfg.WhisperPrompt, id3Tags, &isNewlyTranscribed, &t0Step1, rep)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError: %v\n\n", err)
+		util.Errorf("Error: %v", err)
 		return nil, t0Step1, false, true
 	}
 
@@ -316,7 +316,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	adSegments, err := detector.DetectAds(context.Background(), formattedTranscript)
 	if err != nil {
 		if !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "\nError during LLM ad detection: %v\n\n", err)
+			util.Errorf("Error during LLM ad detection: %v", err)
 		}
 		if err := updateTranscriptAdDetectionStatus(jsonFile, false, "failed", selectedProfile.Model, err.Error(), 0); err != nil && opts.Verbose {
 			fmt.Fprintf(os.Stderr, "Warning: failed to update transcript ad status: %v\n", err)
@@ -407,7 +407,7 @@ func checkSkipOrLockAudioFile(mainMP3File, inputFile string, idx, totalFiles, pr
 	fileLock, err := util.AcquireFileLock(mainMP3File)
 	if err != nil {
 		if !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "Cannot safely process %s: %v\n", shortName, err)
+			util.Errorf("Cannot safely process %s: %v", shortName, err)
 		}
 		return nil, false, false
 	}
@@ -481,12 +481,12 @@ func detectAndSanitizeTranscriptLanguage(transcriptionData *types.TranscriptionD
 func handleExportOrPreviewReturns(transcriptionData *types.TranscriptionData, totalDuration float64, fileStartTime time.Time, sourceAudioFile, jsonFile string, opts types.ProcOptions) bool {
 	if opts.ExportSRT {
 		if _, err := format.ConvertJSONToSRT(jsonFile, transcriptionData, opts.TranscriptPath, opts.Quiet); err != nil && !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "Error exporting SRT: %v\n", err)
+			util.Errorf("Error exporting SRT: %v", err)
 		}
 	}
 	if opts.ExportTXT {
 		if _, err := format.ConvertJSONToTXT(jsonFile, transcriptionData, totalDuration, opts.TranscriptPath, opts.Quiet); err != nil && !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "Error exporting TXT: %v\n", err)
+			util.Errorf("Error exporting TXT: %v", err)
 		}
 	}
 	if opts.ExportSRT || opts.ExportTXT {
@@ -536,7 +536,7 @@ func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalD
 	if sourceAudioFile != outputFile {
 		if err := installNoAdsOutput(sourceAudioFile, outputFile); err != nil {
 			if !opts.Quiet {
-				fmt.Fprintf(os.Stderr, "Error installing output file: %v\n", err)
+				util.Errorf("Error installing output file: %v", err)
 			}
 			return
 		}
@@ -571,19 +571,19 @@ func executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFi
 
 	workDir := util.WorkDirFor(outputFile)
 	if err := os.MkdirAll(workDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating work directory '%s': %v\n", workDir, err)
+		util.Errorf("Error creating work directory '%s': %v", workDir, err)
 		return false
 	}
 	tempOutputFile := filepath.Join(workDir, filepath.Base(outputFile)+".tmp"+filepath.Ext(outputFile))
 	if err := util.VerifyTempFile(tempOutputFile); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid temp output file '%s': %v\n", tempOutputFile, err)
+		util.Errorf("Error: invalid temp output file '%s': %v", tempOutputFile, err)
 		return false
 	}
 
 	if err := audio.DefaultProcessor.Cut(context.Background(), sourceAudioFile, keepSegments, tempOutputFile); err != nil {
 		_ = os.Remove(tempOutputFile)
 		_ = os.RemoveAll(workDir)
-		fmt.Fprintf(os.Stderr, "Failed to output ad-free audio for '%s': %v\n", mainMP3File, err)
+		util.Errorf("Failed to output ad-free audio for '%s': %v", mainMP3File, err)
 		return false
 	}
 
@@ -614,12 +614,12 @@ func installCutAudioAndPreserveOriginal(sourceAudioFile, mainMP3File, precutFile
 	preserved := false
 	if sourceAudioFile == mainMP3File && util.FileExists(mainMP3File) {
 		if err := checkPrecutSymlink(precutFile); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			util.Errorf("Error: %v", err)
 			return false
 		}
 		if err := os.Link(mainMP3File, precutFile); err != nil {
 			if cpErr := util.CopyFileErr(mainMP3File, precutFile); cpErr != nil {
-				fmt.Fprintf(os.Stderr, "Error: could not preserve the original: %v\n", cpErr)
+				util.Errorf("Error: could not preserve the original: %v", cpErr)
 				return false
 			}
 		}
@@ -633,7 +633,7 @@ func installCutAudioAndPreserveOriginal(sourceAudioFile, mainMP3File, precutFile
 		if preserved {
 			_ = os.Remove(precutFile)
 		}
-		fmt.Fprintf(os.Stderr, "Error: could not install the cut audio: %v\n", mvErr)
+		util.Errorf("Error: could not install the cut audio: %v", mvErr)
 		return false
 	}
 	return true

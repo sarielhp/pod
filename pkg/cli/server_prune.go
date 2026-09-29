@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"pod/pkg/podcast"
+	"pod/pkg/util"
 )
 
 // pruneLibraryByCount keeps only the newest `keep` audio files of each podcast
@@ -116,7 +117,7 @@ func finishPrune(cli CLIOptions, res podcast.PruneResult) error {
 	fmt.Fprintf(progressFor(cli), "Deleted %d episode(s) from %d podcast(s), freed %s. Transcripts and cuts kept.\n",
 		res.Episodes, res.Podcasts, humanBytes(res.Bytes))
 	for _, failure := range res.Failures {
-		fmt.Fprintf(errFor(cli), "! %v\n", failure)
+		util.FprintError(errFor(cli), "! %v\n", failure)
 	}
 	if len(res.Failures) > 0 {
 		return fmt.Errorf("prune finished with %d error(s)", len(res.Failures))

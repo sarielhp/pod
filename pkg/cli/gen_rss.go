@@ -87,7 +87,7 @@ func handleGenRSSLatest(cfg Config, cli CLIOptions, target string, count int) er
 		res := lib.ExecuteSubscriptionDownloads(sel.Plans, store, subscriptionDownloadOptions(cfg, cli))
 		fmt.Fprintf(out, "Downloaded %d episode(s) across %d podcast(s).\n", res.Downloaded, res.Podcasts)
 		for _, e := range res.Failures {
-			fmt.Fprintf(errFor(cli), "  download failed: %v\n", e)
+			util.FprintError(errFor(cli), "  download failed: %v\n", e)
 		}
 	}
 

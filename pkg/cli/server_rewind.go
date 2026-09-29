@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"pod/pkg/podcast"
+	"pod/pkg/util"
 
 	"github.com/sarielhp/clihelp"
 )
@@ -91,11 +92,11 @@ func reportRewindPlans(plans []podcast.RewindPlan, cli CLIOptions) bool {
 	found := false
 	for _, plan := range plans {
 		if plan.Err != nil {
-			fmt.Fprintf(errFor(cli), "! %s: %v\n", plan.Sub.Title, plan.Err)
+			util.FprintError(errFor(cli), "! %s: %v\n", plan.Sub.Title, plan.Err)
 			continue
 		}
 		for _, skipped := range plan.Skipped {
-			fmt.Fprintf(errFor(cli), "! %s: skipping %s\n", plan.Sub.Title, skipped)
+			util.FprintError(errFor(cli), "! %s: skipping %s\n", plan.Sub.Title, skipped)
 		}
 		if len(plan.Episodes) == 0 {
 			continue
@@ -149,7 +150,7 @@ func finishRewind(res podcast.RewindResult, cli CLIOptions) error {
 	fmt.Fprintf(progressFor(cli), "Rewound %d episode(s) across %d podcast(s): removed %d file(s), freed %s. Run 'pod fetch' to download them again.\n",
 		res.Episodes, res.Podcasts, res.Files, humanBytes(res.Bytes))
 	for _, failure := range res.Failures {
-		fmt.Fprintf(errFor(cli), "! %v\n", failure)
+		util.FprintError(errFor(cli), "! %v\n", failure)
 	}
 	if len(res.Failures) > 0 {
 		return fmt.Errorf("rewind finished with %d error(s)", len(res.Failures))

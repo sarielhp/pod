@@ -352,7 +352,7 @@ func executeQueueRun(items []queueEpisodeItem, cli CLIOptions, cfg Config) error
 		err := ProcessQueuedTarget(it.PodcastDir, it.AudioPath, cli.ProcOptions, cfg)
 		if err != nil {
 			if !cli.Quiet {
-				fmt.Fprintf(errFor(cli), "Error processing %s: %v\n", it.Filename, err)
+				util.FprintError(errFor(cli), "Error processing %s: %v\n", it.Filename, err)
 			}
 			failedEpisodes = append(failedEpisodes, it.Filename)
 			continue

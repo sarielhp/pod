@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -12,14 +13,65 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"pod/pkg/format"
 	"pod/pkg/types"
+	"pod/pkg/util"
 )
 
 const WavBytesPerSec = WavSampleRate * 2
 const maxWhisperResponseBytes int64 = 128 << 20
+
+// The Whisper server is normally kept asleep. It sits behind a Traefik proxy
+// with a Sablier middleware, which starts the container on the first request
+// and suspends it again when idle. Until the container is up, Sablier answers
+// every request itself with an HTML "waking up" page and HTTP status 200, so a
+// transcription request that arrives at a sleeping server gets back a web page
+// where the transcript should be.
+//
+// That is not a failure and must not be reported as one. The request is simply
+// sent again a few seconds later, as many times as the wake-up takes, and it
+// succeeds as soon as Whisper is running. These retries are counted apart from
+// the ordinary attempts, so a slow wake-up cannot use up the attempts meant for
+// a server that is really broken.
+const (
+	// maxWakeRetries with wakeRetryDelay bounds the wait for a wake-up to about
+	// a minute and a half, long enough for a cold start that loads a model.
+	maxWakeRetries = 30
+)
+
+// retryUnit is the second that the ordinary retry delay is counted in, a variable
+// so tests need not wait for real seconds. wakeRetryDelay is likewise.
+var (
+	wakeRetryDelay = 3 * time.Second
+	retryUnit      = time.Second
+)
+
+// errWhisperWaking marks a reply that came from the proxy in front of Whisper
+// while the container starts, not from Whisper itself.
+var errWhisperWaking = errors.New("whisper server is waking up")
+
+// looksLikeWakingPage reports whether a reply that should have been a JSON
+// transcript is a web page instead.
+func looksLikeWakingPage(contentType string, body []byte) bool {
+	if strings.Contains(strings.ToLower(contentType), "text/html") {
+		return true
+	}
+	trimmed := bytes.TrimSpace(body)
+	return len(trimmed) > 0 && trimmed[0] == '<'
+}
+
+// pageSnippet is the start of a web page reduced to one short line of text, for
+// an error message that says what the server actually sent.
+func pageSnippet(body []byte) string {
+	text := strings.Join(strings.Fields(string(body)), " ")
+	if len(text) > 120 {
+		text = text[:120] + "..."
+	}
+	return text
+}
 
 func TranscribeWhisper(audioPath, whisperURL string, quiet, verbose bool, totalDuration, speedFactor float64, dockerContainer string, prompt, language string, pcmData []byte) (*types.TranscriptionData, error) {
 	return TranscribeWhisperContext(context.Background(), audioPath, whisperURL, quiet, verbose, totalDuration, speedFactor, dockerContainer, prompt, language, pcmData)
@@ -37,6 +89,7 @@ func TranscribeWhisperContext(ctx context.Context, audioPath, whisperURL string,
 		Timeout: time.Duration(readTimeout) * time.Second,
 	}
 
+	wakeRetries := 0
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -54,15 +107,27 @@ func TranscribeWhisperContext(ctx context.Context, audioPath, whisperURL string,
 			return nil, ctx.Err()
 		}
 
+		if errors.Is(err, errWhisperWaking) && wakeRetries < maxWakeRetries {
+			wakeRetries++
+			attempt--
+			if !quiet {
+				fmt.Printf("\nWhisper is waking up; trying again in %d seconds (%d/%d)...\n", int(wakeRetryDelay/time.Second), wakeRetries, maxWakeRetries)
+			}
+			if err := pause(ctx, wakeRetryDelay); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
 		if attempt < maxRetries {
 			if !quiet {
-				fmt.Printf("\nWhisper server error (attempt %d/%d): %v\n\n", attempt, maxRetries, err)
-				fmt.Printf("   Retrying in %d seconds...\n", retryDelay)
+				util.Errorf("Whisper server error (attempt %d/%d): %v", attempt, maxRetries, err)
+				fmt.Printf("Retrying in %d seconds...\n\n", retryDelay)
 			}
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(time.Duration(retryDelay) * time.Second):
+			case <-time.After(time.Duration(retryDelay) * retryUnit):
 			}
 		} else {
 			return nil, fmt.Errorf("failed to connect to Whisper GPU server at '%s' after %d attempts: %w", whisperURL, maxRetries, err)
@@ -70,6 +135,16 @@ func TranscribeWhisperContext(ctx context.Context, audioPath, whisperURL string,
 	}
 
 	return nil, fmt.Errorf("whisper transcription failed after %d attempts", maxRetries)
+}
+
+// pause waits for d, or returns early with the context's error if it is done.
+func pause(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
 }
 
 func BuildWhisperMultipartBody(audioPath, prompt, language string, pcmData []byte) (io.ReadCloser, string, error) {
@@ -146,9 +221,6 @@ func ReadLimitedBody(r io.Reader, maxBytes int64) ([]byte, error) {
 func ExecuteWhisperAttemptContext(ctx context.Context, client *http.Client, uri, contentType string, bodyReader io.ReadCloser, quiet, verbose bool) (*types.TranscriptionData, error) {
 	defer bodyReader.Close()
 
-	progressDone := make(chan struct{})
-	defer close(progressDone)
-
 	startTime := time.Now()
 	req, err := http.NewRequestWithContext(ctx, "POST", uri, bodyReader)
 	if err != nil {
@@ -156,11 +228,11 @@ func ExecuteWhisperAttemptContext(ctx context.Context, client *http.Client, uri,
 	}
 	req.Header.Set("Content-Type", contentType)
 
-	if !quiet {
-		go StartTranscriptionProgressTicker(startTime, progressDone)
-	}
+	stopTicker := startProgressTicker(quiet, startTime)
+	defer stopTicker()
 
 	resp, err := client.Do(req)
+	stopTicker()
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +252,10 @@ func ExecuteWhisperAttemptContext(ctx context.Context, client *http.Client, uri,
 		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
 	}
 
+	if looksLikeWakingPage(resp.Header.Get("Content-Type"), body) {
+		return nil, fmt.Errorf("%w (the server sent a web page: %s)", errWhisperWaking, pageSnippet(body))
+	}
+
 	var data types.TranscriptionData
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse transcription JSON: %w", err)
@@ -187,14 +263,47 @@ func ExecuteWhisperAttemptContext(ctx context.Context, client *http.Client, uri,
 	return &data, nil
 }
 
+// progressInterval is how often the elapsed time is redrawn; a variable for tests.
+var progressInterval = 2 * time.Second
+
+// startProgressTicker shows the elapsed time on a single line that redraws in
+// place. The function it returns stops the ticker and ends that line, so that
+// whatever is printed next starts on a line of its own; without that, the next
+// message ran on after the last "Elapsed" figure and the output was unreadable.
+// It may be called more than once.
+func startProgressTicker(quiet bool, start time.Time) func() {
+	if quiet {
+		return func() {}
+	}
+	done, stopped := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(stopped)
+		StartTranscriptionProgressTicker(start, done)
+	}()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			close(done)
+			<-stopped
+		})
+	}
+}
+
+// StartTranscriptionProgressTicker redraws the elapsed time every two seconds
+// until done is closed, then ends the line if it drew one.
 func StartTranscriptionProgressTicker(startTime time.Time, done chan struct{}) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(progressInterval)
 	defer ticker.Stop()
+	drew := false
 	for {
 		select {
 		case <-done:
+			if drew {
+				fmt.Println()
+			}
 			return
 		case <-ticker.C:
+			drew = true
 			elapsed := time.Since(startTime)
 			fmt.Printf("\rTranscribing audio... Elapsed: %s   ", format.FormatClock(elapsed.Seconds()))
 		}

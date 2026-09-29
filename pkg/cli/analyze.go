@@ -12,6 +12,7 @@ import (
 	"pod/pkg/config"
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
+	"pod/pkg/util"
 )
 
 func buildAnalyzeCommand(opts *CLIOptions, action *string) clihelp.Command {
@@ -57,7 +58,7 @@ func runAnalyzeCommand(cfg Config, cli CLIOptions) error {
 			run = showBoilerplate
 		}
 		if err := run(cli, dir); err != nil {
-			fmt.Fprintf(errFor(cli), "%s: %v\n", dir, err)
+			util.FprintError(errFor(cli), "%s: %v\n", dir, err)
 			failures++
 		}
 	}

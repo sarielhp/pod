@@ -2,7 +2,6 @@
 package cli
 
 import (
-	"fmt"
 	"io"
 	"os"
 
@@ -87,7 +86,7 @@ const (
 )
 
 func fatalError(formatStr string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, formatStr, args...)
+	util.FprintError(os.Stderr, formatStr, args...)
 	os.Exit(1)
 }
 

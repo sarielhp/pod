@@ -159,7 +159,7 @@ func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []t
 
 func failedCutsResult(cutsFile string, keep [][2]float64, err error, quiet bool) types.CutsResult {
 	if !quiet {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		util.Errorf("Error: %v", err)
 	}
 	return types.CutsResult{CutsFile: cutsFile, KeepSegments: keep, Err: err}
 }

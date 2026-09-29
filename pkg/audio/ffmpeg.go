@@ -17,7 +17,7 @@ const minKeepFraction = 0.25
 func GetAudioDuration(filePath string) float64 {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get absolute path: %v\n", err)
+		util.Errorf("failed to get absolute path: %v", err)
 		return 0.0
 	}
 	cmd := exec.Command("ffprobe", "-v", "error",
@@ -26,7 +26,7 @@ func GetAudioDuration(filePath string) float64 {
 		absPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ffprobe failed: %v, output: %s\n", err, string(output))
+		util.Errorf("ffprobe failed: %v, output: %s", err, string(output))
 		return 0.0
 	}
 	var dur float64
@@ -37,7 +37,7 @@ func GetAudioDuration(filePath string) float64 {
 func ExtractID3Tags(filePath string) map[string]string {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get absolute path: %v\n", err)
+		util.Errorf("failed to get absolute path: %v", err)
 		return nil
 	}
 	cmd := exec.Command("ffprobe", "-v", "error",
@@ -46,7 +46,7 @@ func ExtractID3Tags(filePath string) map[string]string {
 		absPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ffprobe failed: %v, output: %s\n", err, string(output))
+		util.Errorf("ffprobe failed: %v, output: %s", err, string(output))
 		return nil
 	}
 
@@ -103,7 +103,7 @@ func KeepFractionIsPlausible(inputFile string, keepSegments [][2]float64) bool {
 	if err == nil {
 		return true
 	}
-	fmt.Fprintf(os.Stderr, "%v. The file was left unchanged.\n", err)
+	util.Errorf("%v. The file was left unchanged.", err)
 	return false
 }
 
@@ -180,7 +180,7 @@ func ConvertToWAV(inputPath, wavPath string) bool {
 		"-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wavPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ffmpeg convert failed: %v, output: %s\n", err, string(out))
+		util.Errorf("ffmpeg convert failed: %v, output: %s", err, string(out))
 		return false
 	}
 	return true
@@ -193,7 +193,7 @@ func TruncateAudio(inputPath, outputPath string, durationSec float64) bool {
 		"-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ffmpeg truncate failed: %v, output: %s\n", err, string(out))
+		util.Errorf("ffmpeg truncate failed: %v, output: %s", err, string(out))
 		return false
 	}
 	return true
@@ -220,7 +220,7 @@ func CopyTagsAndArt(cutFile, srcFile, dstFile string) bool {
 		dstFile)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "tags copy failed: %v, output: %s\n", err, string(out))
+		util.Errorf("tags copy failed: %v, output: %s", err, string(out))
 		return copyFileDirect(cutFile, dstFile) == nil
 	}
 	return true
@@ -252,7 +252,7 @@ func CutAudioFilterComplex(absInput string, keepSegments [][2]float64, absOutput
 		absOutput)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ffmpeg filter complex failed: %v, output: %s\n", err, string(out))
+		util.Errorf("ffmpeg filter complex failed: %v, output: %s", err, string(out))
 		return false
 	}
 	return true

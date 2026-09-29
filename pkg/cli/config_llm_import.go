@@ -67,13 +67,13 @@ func copyLLMFromOpenCode(w io.Writer, cfg *Config) error {
 func readOpenCodeConfig() (string, string, bool) {
 	ocPath := config.OpencodeConfigPath()
 	if ocPath == "" || !util.FileExists(ocPath) {
-		fmt.Fprintf(os.Stderr, "OpenCode configuration file not found.\n")
+		util.Errorf("OpenCode configuration file not found.")
 		return "", "", false
 	}
 
 	data, err := os.ReadFile(ocPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading OpenCode config: %v\n", err)
+		util.Errorf("Error reading OpenCode config: %v", err)
 		return "", "", false
 	}
 
@@ -82,7 +82,7 @@ func readOpenCodeConfig() (string, string, bool) {
 		SmallModel string `json:"small_model"`
 	}
 	if err := json.Unmarshal(data, &ocConfig); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing OpenCode config: %v\n", err)
+		util.Errorf("Error parsing OpenCode config: %v", err)
 		return "", "", false
 	}
 

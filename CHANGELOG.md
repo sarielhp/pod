@@ -5,6 +5,37 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.18] - 2026-09-29
+
+### Fixed
+- **Errors stand out.** An error now starts on a line of its own after a blank line, so it
+  can no longer run on from a progress line, and is bold red on a terminal (plain when
+  output is piped, and off with `NO_COLOR`). This covers the final `Error:` line, the
+  per-episode and per-podcast failures of the batch commands (`transcribe --missing`,
+  `analyze`, `server prune`, `server rewind`, `detect`), the errors of ad removal and
+  cutting, ffmpeg and ffprobe failures, Whisper server errors, and fatal errors.
+  Warnings are unchanged.
+- **A transcript or cuts file could not be saved when its name was close to the
+  255-byte limit.** The atomic writer named its scratch file `<target name>.tmp.<pid>.<time>`,
+  which is 32 or so bytes longer than the target, so a target that fitted still failed
+  with "file name too long". Hebrew titles reach that easily, since a letter takes two
+  bytes: the transcript of a 50-minute episode was transcribed and then lost. The scratch
+  file now has a short name of its own, unique per write.
+- **The transcription progress line no longer swallows the next message.** The
+  redrawn "Transcribing audio... Elapsed" line was never ended, so the following
+  output ("Saved raw Whisper JSON...", or an error) ran on after it on the same line.
+  The line is now ended when the reply arrives.
+- **A sleeping Whisper server is woken by retrying, not reported as an error.** The
+  server is kept asleep behind a Traefik proxy with a Sablier middleware, which
+  answers every request with an HTML "waking up" page and status 200 until the
+  container is up. pod read that page as a broken transcript ("Whisper server error
+  (attempt 1/5): failed to parse transcription JSON: invalid character '<'") and
+  spent one of its five attempts on each try. It now recognises the page, says
+  "Whisper is waking up", tries again every 3 seconds for up to about a minute and a
+  half without using the ordinary attempts, and, should the server never wake, fails
+  with what the server actually sent. The mechanism is documented in
+  `pkg/transcribe/client.go`.
+
 ## [0.5.17] - 2026-09-29
 
 ### Added

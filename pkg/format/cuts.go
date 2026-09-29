@@ -79,10 +79,23 @@ func loadExistingCuts(cutsFile string) ([]types.AdSegment, []types.MergedCutInte
 }
 
 func SaveCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdSegment, profile *types.LLMProfile, quiet bool) types.CutsResult {
+	return SaveDetectedCutsJSON(mainFile, totalDuration, adSegments, profile, quiet, false)
+}
+
+// SaveDetectedCutsJSON saves detected ads to the episode's .cuts.json. Normally
+// they are merged into the cuts already there, so a later run only ever adds.
+// With replace, the previous cuts are discarded: a forced re-detection has to be
+// able to remove a bad cut, and merging would keep it forever.
+func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdSegment, profile *types.LLMProfile, quiet, replace bool) types.CutsResult {
 	base := util.StripExt(mainFile)
 	cutsFile := base + ".cuts.json"
 
-	existingRaw, existingMerged, existingCutsData := loadExistingCuts(cutsFile)
+	var existingRaw []types.AdSegment
+	var existingMerged []types.MergedCutInterval
+	var existingCutsData *types.CutsData
+	if !replace {
+		existingRaw, existingMerged, existingCutsData = loadExistingCuts(cutsFile)
+	}
 	combined := append(existingRaw, adSegments...)
 	combined = sanitizeAdSegments(combined, totalDuration)
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,9 +33,33 @@ Return ONLY a raw JSON array of objects with the exact start and end seconds of 
 Guidelines:
 1. If an episode opens immediately with an ad, sponsor pitch, or a dramatic/narrative setup hook before the actual podcast theme/intro, start the interval at 0.0.
 2. Include conversational or creative lead-in hooks as part of the ad segment rather than waiting for the brand name to be uttered.
+3. Only mark genuine advertising. News stories, interviews, discussion and the show's own content are never ads, however short or promotional they sound. Every reason must name the sponsor, product or offer being promoted.
 
 If NO ads or sponsor plugs are found, return an empty JSON array: []
 Do not include markdown formatting or commentary outside the JSON array.`
+
+// MalformedReplyRetries is how many times a reply that is not the requested
+// JSON array is re-asked. Small models sometimes answer in the transcript's own
+// "[12.0s -> 20.0s, \"text\"]" line format; asking again with the format spelled
+// out fixes it far more often than the failure repeats.
+const MalformedReplyRetries = 2
+
+const MalformedReplyReminder = `Your previous reply was not a valid JSON array. Reply again with ONLY a raw JSON array of objects, each with numeric "start" and "end" seconds and a "reason" string, for example [{"start": 15.0, "end": 65.5, "reason": "Host read sponsor plug for VPN"}]. Do not copy the transcript's "[start -> end]" line format.`
+
+// MaxPlausibleAdSeconds is the longest single ad break believed. A reply with
+// a segment beyond it has usually lumped the show's own content in with the
+// ads, and is re-asked before it can reach the cutter.
+const MaxPlausibleAdSeconds = 15 * 60
+
+const ImplausibleAdReminder = `Your previous reply marked a single segment longer than 15 minutes as an ad. Ad breaks are short, usually under 3 minutes. Reply again listing each ad or sponsor plug as its own separate segment with its own exact start and end, and do not include the show's own content between them.`
+
+func longestAdSeconds(segs []types.AdSegment) float64 {
+	longest := 0.0
+	for _, seg := range segs {
+		longest = max(longest, seg.End-seg.Start)
+	}
+	return longest
+}
 
 const KeywordExtractionPrompt = `You are a transcription assistant. Your job is to extract key topics, names, technical terms,
 brand names, and unusual words from a podcast transcript segment.
@@ -307,7 +332,7 @@ func DetectAdsLLMTimeoutUsage(transcriptText string, profile types.LLMProfile, a
 		return nil, total, nil
 	}
 	userPrompt := adUserPrompt(transcriptText)
-	segs, usage, err := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
+	segs, usage, err := askForPlausibleAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
 	total.Add(usage)
 	if err != nil || len(segs) > 0 {
 		return segs, total, err
@@ -315,7 +340,7 @@ func DetectAdsLLMTimeoutUsage(transcriptText string, profile types.LLMProfile, a
 	// Empty answer: re-ask before accepting it. Any confirmation run that
 	// does find ads wins, because a miss is what an empty answer looks like.
 	for i := 0; i < EmptyResultConfirmations; i++ {
-		retry, retryUsage, retryErr := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
+		retry, retryUsage, retryErr := askForPlausibleAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
 		total.Add(retryUsage)
 		if retryErr != nil {
 			return nil, total, fmt.Errorf("ad detection confirmation failed: %w", retryErr)
@@ -330,6 +355,34 @@ func DetectAdsLLMTimeoutUsage(transcriptText string, profile types.LLMProfile, a
 func askForAdSegments(profile types.LLMProfile, userPrompt string, timeout time.Duration, apiKey string) ([]types.AdSegment, error) {
 	segs, _, err := askForAdSegmentsUsage(profile, userPrompt, timeout, apiKey)
 	return segs, err
+}
+
+// askForPlausibleAdSegmentsUsage is askForAdSegmentsUsage for the pipeline: a
+// reply that is not the requested JSON, or that holds an implausibly long ad,
+// is re-asked with the fault named. The profile probe deliberately does not use
+// it, since its job is to report what the endpoint answers.
+func askForPlausibleAdSegmentsUsage(profile types.LLMProfile, userPrompt string, timeout time.Duration, apiKey string) ([]types.AdSegment, LLMUsage, error) {
+	var total LLMUsage
+	prompt := userPrompt
+	for attempt := 0; ; attempt++ {
+		content, usage, err := CallLLMChatUsage(profile, SystemPrompt, prompt, 0, timeout, apiKey)
+		total.Add(usage)
+		if err != nil {
+			return nil, total, fmt.Errorf("LLM ad detection failed: %w", err)
+		}
+		segs, parseErr := ExtractJSONArray(content)
+		reminder := MalformedReplyReminder
+		if parseErr == nil {
+			if longestAdSeconds(segs) <= MaxPlausibleAdSeconds {
+				return segs, total, nil
+			}
+			reminder = ImplausibleAdReminder
+		}
+		if attempt >= MalformedReplyRetries {
+			return segs, total, parseErr
+		}
+		prompt = userPrompt + "\n\n" + reminder
+	}
 }
 
 func askForAdSegmentsUsage(profile types.LLMProfile, userPrompt string, timeout time.Duration, apiKey string) ([]types.AdSegment, LLMUsage, error) {
@@ -379,14 +432,36 @@ func ExtractJSONArray(content string) ([]types.AdSegment, error) {
 		}
 	}
 	if end < 0 {
-		return nil, fmt.Errorf("no matching JSON array end found in response")
+		return nil, fmt.Errorf("no matching JSON array end found in response (%d bytes, ends %q)", len(content), responseTail(content, 80))
 	}
 
 	var ads []types.AdSegment
 	if err := json.Unmarshal([]byte(content[start:end+1]), &ads); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ads JSON: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal ads JSON: %w%s", err, jsonErrorContext(content[start:end+1], err))
 	}
 	return ads, nil
+}
+
+// responseTail is the last n bytes of a model reply, for error messages that
+// need to show where a reply stopped.
+func responseTail(content string, n int) string {
+	if len(content) <= n {
+		return content
+	}
+	return content[len(content)-n:]
+}
+
+// jsonErrorContext quotes the text around a JSON syntax error, so a rejected
+// model reply can be diagnosed from the error alone instead of by re-running
+// the request.
+func jsonErrorContext(doc string, err error) string {
+	var syn *json.SyntaxError
+	if !errors.As(err, &syn) {
+		return ""
+	}
+	at := int(syn.Offset)
+	lo, hi := max(at-60, 0), min(at+60, len(doc))
+	return fmt.Sprintf(" near %q", doc[lo:hi])
 }
 
 // KeywordExtractionBudget bounds keyword extraction end to end.

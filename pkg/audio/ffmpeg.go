@@ -77,10 +77,13 @@ func ValidateWavFile(filePath string) bool {
 	return dur > 0
 }
 
-func KeepFractionIsPlausible(inputFile string, keepSegments [][2]float64) bool {
+// CheckKeepFraction returns an error when a cut would keep so little of the
+// source that the detector must have returned implausible timestamps, and nil
+// when the cut is plausible or the source duration is unknown.
+func CheckKeepFraction(inputFile string, keepSegments [][2]float64) error {
 	sourceDuration := GetAudioDuration(inputFile)
 	if sourceDuration <= 0 {
-		return true
+		return nil
 	}
 	kept := 0.0
 	for _, seg := range keepSegments {
@@ -89,12 +92,18 @@ func KeepFractionIsPlausible(inputFile string, keepSegments [][2]float64) bool {
 		}
 	}
 	if kept >= sourceDuration*minKeepFraction {
+		return nil
+	}
+	return fmt.Errorf("refusing to cut %s: the requested cut would keep only %.1fs of %.1fs (%.1f%%, floor %.0f%%), which usually means the ad detector returned implausible timestamps; --force llm discards the saved cuts and detects again",
+		inputFile, kept, sourceDuration, kept/sourceDuration*100, minKeepFraction*100)
+}
+
+func KeepFractionIsPlausible(inputFile string, keepSegments [][2]float64) bool {
+	err := CheckKeepFraction(inputFile, keepSegments)
+	if err == nil {
 		return true
 	}
-	fmt.Fprintf(os.Stderr,
-		"Refusing to cut '%s': the requested cut would keep only %.1fs of %.1fs (%.1f%%, floor %.0f%%).\n"+
-			"This usually means the ad detector returned implausible timestamps. The file was left unchanged.\n",
-		inputFile, kept, sourceDuration, kept/sourceDuration*100, minKeepFraction*100)
+	fmt.Fprintf(os.Stderr, "%v. The file was left unchanged.\n", err)
 	return false
 }
 

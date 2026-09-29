@@ -233,7 +233,7 @@ func finalizeGeminiRaceWinner(sourceAudioFile, jsonFile, mainMP3File, precutFile
 		handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile, totalDuration, selectedProfile, opts, fileStartTime, t0Step1, t0Step2)
 		return true, true
 	}
-	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, ads, &selectedProfile, opts.Quiet)
+	cutsResult := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, ads, &selectedProfile, opts.Quiet, opts.ForceLLM)
 	if cutsResult.Err != nil {
 		return false, true
 	}
@@ -336,7 +336,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 		return true
 	}
 
-	cutsResult := format.SaveCutsJSON(mainMP3File, totalDuration, adSegments, &selectedProfile, opts.Quiet)
+	cutsResult := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, adSegments, &selectedProfile, opts.Quiet, opts.ForceLLM)
 	if cutsResult.Err != nil {
 		return false
 	}

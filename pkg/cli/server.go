@@ -78,6 +78,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerDisableHourlySubcommand(opts, action),
 		buildServerCleanOrphansSubcommand(opts, action),
 		buildServerFlushSubcommand(opts, action),
+		buildServerRewindSubcommand(opts, action),
 		buildServerPublicationSubcommand(opts, action),
 	}
 }
@@ -125,6 +126,8 @@ func handleServerCommand(config Config, cli CLIOptions) error {
 		return handleServerCleanOrphans(config, cli)
 	case "flush":
 		return handleServerFlush(config, cli)
+	case "rewind":
+		return handleServerRewind(config, cli)
 	case "publication-sync":
 		return handleServerPublication(config, cli)
 	default:

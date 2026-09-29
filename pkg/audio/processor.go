@@ -41,6 +41,9 @@ func (p *FFmpegProcessor) Truncate(ctx context.Context, inputPath, outputPath st
 }
 
 func (p *FFmpegProcessor) Cut(ctx context.Context, inputPath string, keepSegments [][2]float64, outputPath string) error {
+	if err := CheckKeepFraction(inputPath, keepSegments); err != nil {
+		return err
+	}
 	if !CutAudioFFmpeg(inputPath, keepSegments, outputPath) {
 		return fmt.Errorf("failed to cut audio '%s' with %d segments", inputPath, len(keepSegments))
 	}

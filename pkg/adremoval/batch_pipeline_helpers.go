@@ -237,7 +237,7 @@ func runGeminiPipelineStep(job episodeJob) bool {
 		return true
 	}
 
-	cutsResult := format.SaveCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet)
+	cutsResult := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet, job.opts.ForceLLM)
 	if cutsResult.Err != nil {
 		return false
 	}

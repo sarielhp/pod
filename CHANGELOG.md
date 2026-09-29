@@ -8,6 +8,15 @@ were written; they are not in version order.
 ## [0.5.15] - 2026-09-27
 
 ### Added
+- **`pod server rewind <window> [podcast]`** undoes recent downloads so `pod fetch`
+  can be exercised from a clean state. It deletes every episode whose audio was
+  written within the window (`90m`, `24h`, `7d`) together with its transcript,
+  SRT/TXT, cuts, `.precut` original, status file, `.work/` leftovers and cached
+  details, drops it from the podcast queue, clears the feed's ETag, Last-Modified
+  and latest-episode markers so the next check sees the episodes as new, and
+  republishes the affected feeds. `--dry-run` lists what would go; otherwise it
+  asks first (`-f` skips the prompt). Age is the audio file's mtime, since pod
+  records no separate download time.
 - **`pod info check player`** lists which of mpv, cvlc, ffplay and mpg123 are
   installed, which one `pod player play` will use, and what is lost without
   mpv (in-place seeking, MPRIS media keys). It fails when none is installed.
@@ -17,6 +26,25 @@ were written; they are not in version order.
   none exists instead of timing out on the socket.
 
 ### Fixed
+- **Ad detection survives replies it used to reject.** A rewind-and-fetch of a
+  whole day showed 6 of 23 episodes failing in ad removal. Small models
+  sometimes answered in the transcript's own `[95.4s -> 147.1s, "text"]` line
+  format instead of JSON, or lumped 48 minutes of a 50-minute episode into one
+  "ad", or (on a short news show) labelled every news story an ad. A reply that
+  is not valid JSON, or that holds a single segment over 15 minutes, is now
+  re-asked up to twice with the required format spelled out; the prompt now says
+  that news, interviews and the show's own content are never ads. The cut that
+  refused the result (it would have kept 1.6% of the audio) still protects the
+  file.
+- **`--force llm` now really re-detects ads.** It re-ran detection but merged
+  the result into the episode's existing `.cuts.json`, so a bad cut from an
+  earlier run (a 342-second "plug" that made the cutter refuse the file) could
+  never be removed and every retry failed the same way. A forced detection now
+  replaces the saved cuts; without `--force` they still accumulate.
+- **Ad-detection errors now show what went wrong.** An unparseable reply quotes
+  the text around the error, and a truncated one shows how it ended. The final
+  "failed to cut audio with 5 segments" error now carries the reason the cut
+  was refused instead of only printing it earlier in the log.
 - **Episodes were listed and processed twice when a show is reachable through
   a symlink.** With a symlinked podcasts directory, or the alias symlinks pod
   leaves beside a renamed show, the MP3 walker visited the same directory once

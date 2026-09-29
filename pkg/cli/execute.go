@@ -83,6 +83,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return handleGenRSS(*config, cli)
 	case "detect":
 		return runDetectCommand(*config, cli)
+	case "repeats":
+		return runRepeatsCommand(cli)
 	case "cut":
 		return runCutCommand(*config, cli)
 	case "tui":

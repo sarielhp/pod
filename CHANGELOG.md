@@ -8,6 +8,18 @@ were written; they are not in version order.
 ## [0.5.15] - 2026-09-27
 
 ### Added
+- **`pod repeats <directory|transcript...>`** finds text that recurs across a show's
+  episodes (ads, self-promos, intros, credits, patron-name lists) by matching
+  runs of shared words, with no model call: 53 episodes take about a second.
+  It reports how much of each episode repeats, `--episode <text>` lists the
+  spans with their text, `--catalog` lists the texts that recur most (with
+  where in the episode they sit), and `--curve` scores it against labelled
+  episodes as the number of compared episodes grows. On 17 labelled History
+  Hit episodes, comparing against the other 52 found 81% of the ad time at 89%
+  precision; adding five other shows moved that by under two points, because
+  the rest are one-off dynamically inserted ads. Repetition also catches
+  content that legitimately recurs, so it is a detector to review, not a
+  cutter.
 - **`pod detect` can now score ad detection against labelled truth.** `--save-truth`
   writes an episode's segments to `<name>.ads.truth.json` (plain JSON, meant to be
   corrected by hand); any later `pod detect` on that episode prints precision,

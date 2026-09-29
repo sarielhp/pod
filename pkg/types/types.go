@@ -284,9 +284,16 @@ type CLIOptions struct {
 	DetectWriteCuts bool
 	DetectSaveTruth bool
 	DetectModel     string
-	DetectTimeout   string
-	DetectRepeat    int
-	CutsFile        string
+
+	// Repeats* belong to `pod repeats`.
+	RepeatsMinWords    int
+	RepeatsMinEpisodes int
+	RepeatsEpisode     string
+	RepeatsCatalog     bool
+	RepeatsCurve       bool
+	DetectTimeout      string
+	DetectRepeat       int
+	CutsFile           string
 
 	// DownloadedOnly restricts `info latest` to episodes on disk. The default
 	// lists everything the feeds have published, which is the useful question

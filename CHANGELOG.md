@@ -5,6 +5,17 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.25] - 2026-09-29
+
+### Changed
+- **`pod speakers` is gone; naming is part of `pod transcribe --speakers`.** One command now
+  transcribes, labels who is speaking, names the speakers and writes the readable transcript, so the
+  transcript is written once with the names in it. `--names SPEAKER_00=Name,...` names them by hand
+  (and implies `--speakers`), `--no-names` leaves the labels, and `--profile` picks the model that
+  names them. A transcript that fails to be named is still kept. Giving `pod transcribe` a
+  `.transcript.json` redoes only the names, without transcribing again: `--speakers` asks the
+  model, `--names` sets them, and `--clear-names` removes them. `pod speakers` was in 0.5.24 only.
+
 ## [0.5.24] - 2026-09-29
 
 ### Added

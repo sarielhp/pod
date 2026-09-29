@@ -142,3 +142,31 @@ func TestNamingAsksTheModelWithTheEvidenceAndRecordsItsAnswer(t *testing.T) {
 		t.Fatalf("names %v", res.Names)
 	}
 }
+
+func TestTranscribingNamesTheSpeakersUnlessToldNotTo(t *testing.T) {
+	newData := func() *types.TranscriptionData {
+		return &types.TranscriptionData{Speakers: []string{"SPEAKER_00", "SPEAKER_01"}}
+	}
+	td := newData()
+	nameTranscribedSpeakers(TranscribeRequest{Path: "/x/ep.mp3", SpeakerNames: map[string]string{"SPEAKER_00": "Elad"}}, td, types.Config{}, nil)
+	if td.SpeakerNames["SPEAKER_00"] != "Elad" {
+		t.Fatalf("names %v", td.SpeakerNames)
+	}
+	td = newData()
+	nameTranscribedSpeakers(TranscribeRequest{Path: "/x/ep.mp3", NoSpeakerNames: true, SpeakerNames: map[string]string{"SPEAKER_00": "Elad"}}, td, types.Config{}, nil)
+	if td.SpeakerNames != nil {
+		t.Fatalf("--no-names still named: %v", td.SpeakerNames)
+	}
+}
+
+func TestATranscriptIsKeptWhenNamingItFails(t *testing.T) {
+	td := &types.TranscriptionData{Speakers: []string{"SPEAKER_00"}}
+	nameTranscribedSpeakers(TranscribeRequest{Path: "/x/ep.mp3", SpeakerNames: map[string]string{"SPEAKER_09": "Typo"}}, td, types.Config{}, nil)
+	if td.SpeakerNames != nil {
+		t.Fatalf("a mistyped label must leave the transcript unnamed, got %v", td.SpeakerNames)
+	}
+	nameTranscribedSpeakers(TranscribeRequest{Path: "/x/ep.mp3"}, td, types.Config{}, nil)
+	if td.SpeakerNames != nil {
+		t.Fatal("no LLM profile is configured, so nothing can be named, and that must not be fatal")
+	}
+}

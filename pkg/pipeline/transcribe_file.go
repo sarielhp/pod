@@ -42,6 +42,13 @@ type TranscribeRequest struct {
 	// KeepAudio writes the extracted 16 kHz mono audio next to the transcript
 	// instead of discarding it with the rest of the working files.
 	KeepAudio bool
+
+	// With opts.Speakers, the speakers are also named: by SpeakerNames when given
+	// (label to name), else by a model using NameProfile (empty means the active
+	// profile). NoSpeakerNames leaves them as SPEAKER_00 and so on.
+	SpeakerNames   map[string]string
+	NameProfile    string
+	NoSpeakerNames bool
 }
 
 // TranscribeResult reports what a run produced.
@@ -88,6 +95,9 @@ func TranscribeFile(req TranscribeRequest, cfg types.Config, opts types.ProcOpti
 		return res, fmt.Errorf("transcribe %s: %w", filepath.Base(req.Path), err)
 	}
 	res.Data = td
+	if opts.Speakers {
+		nameTranscribedSpeakers(req, td, cfg, r)
+	}
 
 	if req.KeepAudio {
 		res.AudioOut = transcriptOutputPath(req, ".audio.wav")

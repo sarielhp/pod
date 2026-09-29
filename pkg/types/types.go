@@ -311,9 +311,10 @@ type CLIOptions struct {
 	SkipFavorites bool
 	StatusTop     int
 
-	// SpeakersSet and SpeakersClear belong to `pod speakers`.
-	SpeakersSet   string
-	SpeakersClear bool
+	// SpeakersSet, SpeakersClear and NoSpeakerNames belong to `pod transcribe --speakers`.
+	SpeakersSet    string
+	SpeakersClear  bool
+	NoSpeakerNames bool
 
 	// AnalyzeMinEpisodes belongs to `pod analyze`.
 	AnalyzeMinEpisodes int

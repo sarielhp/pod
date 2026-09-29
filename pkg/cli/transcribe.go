@@ -30,7 +30,11 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.String(&opts.ExportFormat, "--format <list>", "json", "Output formats: json, srt, txt, md (comma separated)"),
 			clihelp.String(&opts.Output, "-o, --output <dir>", "", "Write transcripts to this directory"),
 			clihelp.String(&opts.TranscribeMin, "-t, --tminutes <minutes>", "", "Transcribe only the first N minutes"),
-			clihelp.Bool(&opts.Speakers, "--speakers", false, "Label who is speaking, using a Whisper profile with \"diarize\": true (WhisperX)"),
+			clihelp.Bool(&opts.Speakers, "--speakers", false, "Label who is speaking, using a Whisper profile with \"diarize\": true (WhisperX), and name the speakers"),
+			clihelp.String(&opts.SpeakersSet, "--names <list>", "", "With --speakers, name them yourself as SPEAKER_00=Name,SPEAKER_01=Name instead of asking a model"),
+			clihelp.Bool(&opts.NoSpeakerNames, "--no-names", false, "With --speakers, leave the speakers as SPEAKER_00 and so on"),
+			clihelp.Bool(&opts.SpeakersClear, "--clear-names", false, "On a transcript already made, remove the speaker names"),
+			clihelp.String(&opts.UseLLM, "--profile <id/name>", "", "LLM profile that names the speakers (default: the active one)"),
 			clihelp.String(&opts.Language, "--language <code>", "", "Spoken language, e.g. en or he; default is detected"),
 			clihelp.Bool(&opts.KeepAudio, "--keep-audio", false, "Keep the extracted 16kHz audio beside the transcript"),
 			clihelp.String(&opts.WhisperEngine, "--whisper-engine <engine>", "", "Engine: local, docker, remote, gemini"),
@@ -42,7 +46,9 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 			{Line: "pod transcribe --missing --dry-run", Description: "List the downloaded episodes that have no transcript"},
 			{Line: "pod transcribe --missing", Description: "Transcribe all of them, newest first"},
 			{Line: "pod transcribe lecture.mkv", Description: "Extract the audio track and transcribe it"},
-			{Line: "pod transcribe --speakers --format json,md interview.mp3", Description: "Label the speakers and write a readable transcript"},
+			{Line: "pod transcribe --speakers --format json,md interview.mp3", Description: "Label and name the speakers and write a readable transcript"},
+			{Line: "pod transcribe --speakers ep.transcript.json", Description: "Redo only the names of a transcript already made"},
+			{Line: "pod transcribe --names 'SPEAKER_00=Elad,SPEAKER_03=Elad' ep.transcript.json", Description: "Name them yourself; two labels with one name are one person"},
 			{Line: "pod transcribe --format srt,txt talk.mp4", Description: "Produce subtitles and plain text"},
 			{Line: "pod transcribe -t 5 long-movie.mkv", Description: "Transcribe only the first five minutes"},
 		},
@@ -60,12 +66,17 @@ func transcribeOneLocked(path string, cfg Config, cli CLIOptions, opts ProcOptio
 		return pipeline.TranscribeResult{}, err
 	}
 	defer release()
+	speakerNames, _ := parseSpeakerAssignments(cli.SpeakersSet)
 	return pipeline.TranscribeFile(pipeline.TranscribeRequest{
 		Path:       path,
 		OutputDir:  cli.Output,
 		Formats:    strings.Split(cli.ExportFormat, ","),
 		MaxMinutes: transcribeMinutes(cli.TranscribeMin),
 		KeepAudio:  cli.KeepAudio,
+
+		SpeakerNames:   speakerNames,
+		NameProfile:    cli.UseLLM,
+		NoSpeakerNames: cli.NoSpeakerNames,
 	}, cfg, opts, reporter(cli))
 }
 
@@ -75,6 +86,19 @@ func runTranscribeCommand(cfg Config, cli CLIOptions) error {
 	}
 	if len(cli.Args) == 0 {
 		return fmt.Errorf("nothing to transcribe: name a file or directory, or use --missing")
+	}
+	if cli.SpeakersSet != "" {
+		cli.Speakers = true
+	}
+	if _, err := parseSpeakerAssignments(cli.SpeakersSet); err != nil {
+		return err
+	}
+	transcripts, media := splitTranscriptArgs(cli.Args)
+	if len(transcripts) > 0 {
+		if len(media) > 0 {
+			return fmt.Errorf("give either transcripts or media files, not both")
+		}
+		return nameExistingTranscripts(cfg, cli, transcripts)
 	}
 	paths, err := expandTranscribeTargets(cli.Args)
 	if err != nil {

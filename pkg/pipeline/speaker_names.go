@@ -78,7 +78,7 @@ func NameSpeakers(req NameSpeakersRequest, cfg types.Config, rep progress.Report
 	}
 	res.Speakers = td.Speakers
 
-	names, err := chooseSpeakerNames(req, td, path, cfg, r)
+	names, err := chooseSpeakerNames(req, td, mediaPathOf(path), cfg, r)
 	if err != nil {
 		return res, err
 	}
@@ -91,14 +91,14 @@ func NameSpeakers(req NameSpeakersRequest, cfg types.Config, rep progress.Report
 	return res, err
 }
 
-func chooseSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionData, path string, cfg types.Config, r progress.Reporter) (map[string]string, error) {
+func chooseSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionData, mediaPath string, cfg types.Config, r progress.Reporter) (map[string]string, error) {
 	switch {
 	case req.Clear:
 		return nil, nil
 	case len(req.Set) > 0:
 		return mergeSpeakerNames(td, req.Set)
 	}
-	return askModelForSpeakerNames(req, td, path, cfg, r)
+	return askModelForSpeakerNames(req, td, mediaPath, cfg, r)
 }
 
 // mergeSpeakerNames applies names given by hand over those already recorded,
@@ -126,7 +126,7 @@ func mergeSpeakerNames(td *types.TranscriptionData, set map[string]string) (map[
 	return names, nil
 }
 
-func askModelForSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionData, path string, cfg types.Config, r progress.Reporter) (map[string]string, error) {
+func askModelForSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionData, mediaPath string, cfg types.Config, r progress.Reporter) (map[string]string, error) {
 	profile, err := config.SelectLLMProfile(&cfg, req.Profile)
 	if err != nil {
 		return nil, err
@@ -143,8 +143,8 @@ func askModelForSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionDat
 		}
 		timeout = d
 	}
-	r.Infof("Naming %d speaker(s) in %s with %s...", len(td.Speakers), filepath.Base(path), profile.Name)
-	reply, err := detect.CallLLMChat(profile, speakerSystemPrompt, speakerPrompt(td, speakerContext(path)), 0, timeout, config.ResolveLLMAPIKey(profile, &cfg))
+	r.Infof("Naming %d speaker(s) in %s with %s...", len(td.Speakers), filepath.Base(mediaPath), profile.Name)
+	reply, err := detect.CallLLMChat(profile, speakerSystemPrompt, speakerPrompt(td, speakerContext(mediaPath)), 0, timeout, config.ResolveLLMAPIKey(profile, &cfg))
 	if err != nil {
 		return nil, fmt.Errorf("naming speakers: %w", err)
 	}
@@ -153,15 +153,19 @@ func askModelForSpeakerNames(req NameSpeakersRequest, td *types.TranscriptionDat
 
 const speakerSystemPrompt = "You work out who is speaking in a podcast transcript. You answer with a single JSON object and nothing else."
 
+// mediaPathOf is the audio file a transcript belongs to, by the library's naming.
+func mediaPathOf(transcriptPath string) string {
+	return strings.TrimSuffix(transcriptPath, ".transcript.json") + ".mp3"
+}
+
 // speakerContext is what is known about the episode besides its words: the
 // podcast it belongs to and its title, when the library recorded one.
-func speakerContext(transcriptPath string) string {
+func speakerContext(mediaPath string) string {
 	var parts []string
-	if dir := filepath.Base(filepath.Dir(transcriptPath)); dir != "." && dir != "" {
+	if dir := filepath.Base(filepath.Dir(mediaPath)); dir != "." && dir != "" && dir != string(filepath.Separator) {
 		parts = append(parts, "Podcast: "+strings.ReplaceAll(dir, "_", " "))
 	}
-	audio := strings.TrimSuffix(transcriptPath, ".transcript.json") + ".mp3"
-	if id := episode.LoadIdentity(audio); id != nil && id.Title != "" {
+	if id := episode.LoadIdentity(mediaPath); id != nil && id.Title != "" {
 		parts = append(parts, "Episode title: "+id.Title)
 	}
 	return strings.Join(parts, "\n")
@@ -317,4 +321,21 @@ func writeSpeakerNames(path string, td *types.TranscriptionData, markdown bool) 
 		return written, err
 	}
 	return append(written, md), nil
+}
+
+// nameTranscribedSpeakers names the speakers of a transcript just made. Naming
+// is an extra, so a failure is reported and the transcript is kept: the
+// transcription is the expensive part and must not be lost to a model error or a
+// mistyped label, both of which can be put right afterwards.
+func nameTranscribedSpeakers(req TranscribeRequest, td *types.TranscriptionData, cfg types.Config, rep progress.Reporter) {
+	r := progress.Or(rep)
+	if req.NoSpeakerNames || len(td.Speakers) == 0 {
+		return
+	}
+	names, err := chooseSpeakerNames(NameSpeakersRequest{Set: req.SpeakerNames, Profile: req.NameProfile}, td, req.Path, cfg, r)
+	if err != nil {
+		r.Warnf("could not name the speakers: %v", err)
+		return
+	}
+	td.SpeakerNames = names
 }

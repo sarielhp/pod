@@ -103,7 +103,6 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 			buildDetectCommand(opts, action),
 			buildRepeatsCommand(opts, action),
 			buildAnalyzeCommand(opts, action),
-			buildSpeakersCommand(opts, action),
 			buildGenRSSCommand(opts, action),
 			buildTranscribeCommand(opts, action),
 			buildCutCommand(opts, action),

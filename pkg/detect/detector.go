@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -436,11 +437,25 @@ func ExtractJSONArray(content string) ([]types.AdSegment, error) {
 	}
 
 	var ads []types.AdSegment
-	if err := json.Unmarshal([]byte(content[start:end+1]), &ads); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ads JSON: %w%s", err, jsonErrorContext(content[start:end+1], err))
+	raw := content[start : end+1]
+	err := json.Unmarshal([]byte(raw), &ads)
+	if err != nil {
+		ads = nil
+		if repaired := unitSuffixedTimes.ReplaceAllString(raw, "$1"); repaired != raw && json.Unmarshal([]byte(repaired), &ads) == nil {
+			return ads, nil
+		}
+		return nil, fmt.Errorf("failed to unmarshal ads JSON: %w%s", err, jsonErrorContext(raw, err))
 	}
 	return ads, nil
 }
+
+// unitSuffixedTimes matches a start or end the model wrote with the unit it saw
+// in the transcript ("start": 33.8s) instead of as a bare number. The transcript
+// lines are timed "[33.8s -> 62.6s]", and a model that echoes that form produces
+// JSON no parser accepts; without this the episode was reported as undetectable
+// (2 of 17 in the labelled set, with different episodes each run, since it is a
+// habit of the model and not of the episode).
+var unitSuffixedTimes = regexp.MustCompile(`("(?:start|end)"\s*:\s*-?\d+(?:\.\d+)?)s\b`)
 
 // responseTail is the last n bytes of a model reply, for error messages that
 // need to show where a reply stopped.

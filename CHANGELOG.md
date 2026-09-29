@@ -18,6 +18,11 @@ were written; they are not in version order.
   headed by the speaker and time, broken into paragraphs at pauses. `.srt` and `.txt` output now
   lead each line with the speaker when there is one.
 
+### Fixed
+- **Ad detection no longer fails when the model writes times with an `s`** (`"start": 33.8s`),
+  echoing the form of the transcript lines. Such a reply was rejected as unparseable and the episode
+  reported as undetectable: 2 of 17 episodes per run in the labelled set, a different two each time.
+
 ## [0.5.23] - 2026-09-29
 
 ### Added

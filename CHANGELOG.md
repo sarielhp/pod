@@ -5,6 +5,16 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.19] - 2026-09-29
+
+### Fixed
+- **Lock files no longer pile up.** Every lock pod takes on a file (an episode being processed, a
+  status file being updated, a queue) left an empty `.lock` file behind when released, so a library
+  slowly filled with them: 1,752 in this one. A lock file is now deleted when its lock is released,
+  with a check that keeps two processes from ending up holding "the same" lock on different files,
+  and any stale ones (from older versions, or from a process that died) are swept away at the start
+  of a run. Lock files that are held are never touched. The `gofrs/flock` dependency is gone.
+
 ## [0.5.18] - 2026-09-29
 
 ### Added

@@ -28,6 +28,7 @@ func Execute(args []string) int {
 		if cli.PodcastsDir != "" {
 			root = cli.PodcastsDir
 		}
+		util.CleanupStaleLocks(root)
 		removed, err := util.CleanupStaleWorkDirs(root, time.Now())
 		if err != nil {
 			fmt.Fprintf(errFor(cli), "Warning: stale work cleanup: %v\n", err)

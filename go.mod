@@ -10,7 +10,6 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/eliukblau/pixterm v1.3.3
 	github.com/fatih/color v1.19.0
-	github.com/gofrs/flock v0.13.1
 	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/sarielhp/clihelp v0.3.36
 	github.com/tcolgate/mp3 v0.0.0-20170426193717-e79c5a46d300
@@ -68,6 +67,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.8.1 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0 // indirect

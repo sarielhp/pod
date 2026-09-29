@@ -91,3 +91,30 @@ func printSpeakerNames(w io.Writer, cli CLIOptions, res pipeline.NameSpeakersRes
 		}
 	}
 }
+
+// rendersOnly is a request to write other forms of transcripts already made:
+// --format with no naming option.
+func rendersOnly(cli CLIOptions) bool {
+	return strings.TrimSpace(cli.ExportFormat) != "" && !cli.Speakers && !cli.SpeakersClear && cli.SpeakersSet == ""
+}
+
+// renderExistingTranscripts makes the readable, subtitle or text form of a
+// transcript from its JSON, without transcribing or asking a model.
+func renderExistingTranscripts(cli CLIOptions, paths []string) error {
+	var failures []string
+	for _, path := range paths {
+		written, err := pipeline.RenderTranscript(path, strings.Split(cli.ExportFormat, ","))
+		if err != nil {
+			util.FprintError(errFor(cli), "%s: %v\n", filepath.Base(path), err)
+			failures = append(failures, filepath.Base(path))
+			continue
+		}
+		for _, w := range written {
+			fmt.Fprintln(outFor(cli), w)
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%d of %d transcript(s) could not be rendered: %s", len(failures), len(paths), strings.Join(failures, ", "))
+	}
+	return nil
+}

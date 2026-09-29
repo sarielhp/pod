@@ -203,3 +203,22 @@ func TestReadableTitleIsTheFileNameNotTheOriginalsExtension(t *testing.T) {
 		t.Fatalf("title %q", got)
 	}
 }
+
+func TestRenderingFromTheJSONReflectsItsNamesAndNeedsNoModel(t *testing.T) {
+	path := diarizedTranscript(t)
+	if _, err := NameSpeakers(NameSpeakersRequest{Path: path, Set: map[string]string{"SPEAKER_00": "Elad"}}, types.Config{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	written, err := RenderTranscript(path, []string{"md", "srt", "json"})
+	if err != nil || len(written) != 2 {
+		t.Fatalf("written %v, err %v", written, err)
+	}
+	md, _ := os.ReadFile(written[0])
+	srt, _ := os.ReadFile(written[1])
+	if !strings.Contains(string(md), "**Elad**") || !strings.Contains(string(srt), "Elad: Welcome") {
+		t.Fatalf("md:\n%s\nsrt:\n%s", md, srt)
+	}
+	if _, err := RenderTranscript(path, []string{"pdf"}); err == nil {
+		t.Fatal("an unknown format must be an error")
+	}
+}

@@ -36,3 +36,37 @@ func TestATranscriptNeedsAnInstructionToBeRenamed(t *testing.T) {
 		t.Fatal("--clear-names with --names must be refused")
 	}
 }
+
+func TestSpeakersWriteJSONAndMarkdownUnlessToldOtherwise(t *testing.T) {
+	cases := []struct {
+		flag     string
+		speakers bool
+		want     []string
+	}{
+		{"", false, []string{"json"}},
+		{"", true, []string{"json", "md"}},
+		{"json", true, []string{"json"}},
+		{"srt,txt", true, []string{"srt", "txt"}},
+		{"md", false, []string{"md"}},
+	}
+	for _, c := range cases {
+		if got := transcribeFormats(c.flag, c.speakers); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("flag %q speakers %v: got %v, want %v", c.flag, c.speakers, got, c.want)
+		}
+	}
+}
+
+func TestFormatWithoutANamingOptionOnlyRenders(t *testing.T) {
+	var cli CLIOptions
+	cli.ExportFormat = "md"
+	if !rendersOnly(cli) {
+		t.Fatal("--format alone on a transcript is a render")
+	}
+	cli.Speakers = true
+	if rendersOnly(cli) {
+		t.Fatal("--speakers means naming")
+	}
+	if rendersOnly(CLIOptions{}) {
+		t.Fatal("no --format is not a render")
+	}
+}

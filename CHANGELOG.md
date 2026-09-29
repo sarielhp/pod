@@ -7,6 +7,13 @@ were written; they are not in version order.
 
 ## [0.5.27] - 2026-09-29
 
+### Changed
+- **`pod transcribe --speakers` writes the JSON and the readable Markdown by default**, with no
+  `--format` needed. `--format` still overrides it.
+- **The `.md`, `.srt` and `.txt` can be made again from the JSON alone**:
+  `pod transcribe --format md,srt ep.speakers.json`. No model or server is involved, and the result
+  always agrees with the names and text the JSON holds, including names edited by hand.
+
 ### Fixed
 - **`pod transcribe --speakers` names the server it is waiting on.** The wake-up, retry and failure
   messages said "Whisper" even when the request had gone to WhisperX; they now say "WhisperX". The

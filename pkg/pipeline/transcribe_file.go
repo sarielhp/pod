@@ -23,6 +23,12 @@ type TranscribeRequest struct {
 	// Path is the audio or video file to transcribe.
 	Path string
 
+	// OutputBase, when set, names the outputs: they are written to OutputBase plus
+	// a suffix such as ".transcript.json", ignoring OutputDir. It lets an episode be
+	// transcribed from its uncut original while the transcript is named after the
+	// episode.
+	OutputBase string
+
 	// OutputDir is where the transcript files are written. Empty writes them
 	// beside the input, which is the convention the rest of the tool follows.
 	OutputDir string
@@ -172,6 +178,9 @@ func writeTranscriptFormats(req TranscribeRequest, td *types.TranscriptionData, 
 // one was given. The source extension is replaced rather than appended, so a
 // video yields "lecture.transcript.json" and not "lecture.mkv.transcript.json".
 func transcriptOutputPath(req TranscribeRequest, suffix string) string {
+	if req.OutputBase != "" {
+		return req.OutputBase + suffix
+	}
 	base := util.StripExt(filepath.Base(req.Path)) + suffix
 	dir := req.OutputDir
 	if dir == "" {

@@ -14,6 +14,8 @@ func buildQueueRecutSubcommand(opts *CLIOptions, action *string) clihelp.Command
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),
 			clihelp.Int(&opts.Count, "-n, --limit <number>", 0, "Maximum number of episodes to recut"),
+			clihelp.Bool(&opts.RecutBoilerplate, "--boilerplate", false, "Also cut the podcast's recorded boilerplate (see 'pod analyze'), with no AI call"),
+			clihelp.Bool(&opts.DryRun, "--dry-run", false, "With --boilerplate, report what would be cut without changing anything"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "queue"

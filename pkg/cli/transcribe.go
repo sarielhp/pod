@@ -21,8 +21,11 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Parameters: []clihelp.Param{
 			{Name: "<path...>", Description: "Audio or video files, or directories to scan"},
 		},
-		Args: clihelp.MinimumNArgs(1),
+		Args: clihelp.MinimumNArgs(0),
 		Options: []clihelp.Option{
+			clihelp.Bool(&opts.TranscribeMissing, "--missing", false, "Transcribe every downloaded episode that has no transcript; the arguments name podcasts, and none means all"),
+			clihelp.Int(&opts.Count, "-n, --limit <n>", 0, "With --missing, transcribe at most this many episodes"),
+			clihelp.Bool(&opts.DryRun, "--dry-run", false, "With --missing, list what would be transcribed and how long it is"),
 			clihelp.String(&opts.ExportFormat, "--format <list>", "json", "Output formats: json, srt, txt (comma separated)"),
 			clihelp.String(&opts.Output, "-o, --output <dir>", "", "Write transcripts to this directory"),
 			clihelp.String(&opts.TranscribeMin, "-t, --tminutes <minutes>", "", "Transcribe only the first N minutes"),
@@ -33,6 +36,8 @@ func buildTranscribeCommand(opts *CLIOptions, action *string) clihelp.Command {
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
 		},
 		Examples: []clihelp.Example{
+			{Line: "pod transcribe --missing --dry-run", Description: "List the downloaded episodes that have no transcript"},
+			{Line: "pod transcribe --missing", Description: "Transcribe all of them, newest first"},
 			{Line: "pod transcribe lecture.mkv", Description: "Extract the audio track and transcribe it"},
 			{Line: "pod transcribe --format srt,txt talk.mp4", Description: "Produce subtitles and plain text"},
 			{Line: "pod transcribe -t 5 long-movie.mkv", Description: "Transcribe only the first five minutes"},
@@ -61,6 +66,12 @@ func transcribeOneLocked(path string, cfg Config, cli CLIOptions, opts ProcOptio
 }
 
 func runTranscribeCommand(cfg Config, cli CLIOptions) error {
+	if cli.TranscribeMissing {
+		return runTranscribeMissing(cfg, cli)
+	}
+	if len(cli.Args) == 0 {
+		return fmt.Errorf("nothing to transcribe: name a file or directory, or use --missing")
+	}
 	paths, err := expandTranscribeTargets(cli.Args)
 	if err != nil {
 		return err

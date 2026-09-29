@@ -299,9 +299,12 @@ type CLIOptions struct {
 	// AnalyzeMinEpisodes belongs to `pod analyze`.
 	AnalyzeMinEpisodes int
 	ShowBoilerplate    bool
-	DetectTimeout      string
-	DetectRepeat       int
-	CutsFile           string
+
+	// TranscribeMissing belongs to `pod transcribe`.
+	TranscribeMissing bool
+	DetectTimeout     string
+	DetectRepeat      int
+	CutsFile          string
 
 	// DownloadedOnly restricts `info latest` to episodes on disk. The default
 	// lists everything the feeds have published, which is the useful question

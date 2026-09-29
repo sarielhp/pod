@@ -122,6 +122,8 @@ func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []t
 	llmInfo := "Unknown"
 	if profile != nil {
 		llmInfo = fmt.Sprintf("%s (%s)", profile.Name, profile.Model)
+	} else if existingCutsData != nil && existingCutsData.LLMUsed != "" {
+		llmInfo = existingCutsData.LLMUsed
 	}
 
 	cutsData := types.CutsData{
@@ -160,4 +162,31 @@ func failedCutsResult(cutsFile string, keep [][2]float64, err error, quiet bool)
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 	return types.CutsResult{CutsFile: cutsFile, KeepSegments: keep, Err: err}
+}
+
+// CutsPreview says what merging more cuts into an episode's cuts file would do.
+type CutsPreview struct {
+	Changed  bool
+	AddedSec float64
+}
+
+// PreviewCuts reports, without writing anything, whether adding adSegments to the
+// episode's existing cuts would change the set of intervals cut, and by how many
+// seconds it would grow.
+func PreviewCuts(mainFile string, totalDuration float64, adSegments []types.AdSegment) CutsPreview {
+	existingRaw, existingMerged, existing := loadExistingCuts(util.StripExt(mainFile) + ".cuts.json")
+	combined := sanitizeAdSegments(append(existingRaw, adSegments...), totalDuration)
+	merged, _, _ := buildMergedAndKeepIntervals(totalDuration, combined)
+	return CutsPreview{
+		Changed:  existing == nil || !equalMergedIntervals(existingMerged, merged),
+		AddedSec: mergedSeconds(merged) - mergedSeconds(existingMerged),
+	}
+}
+
+func mergedSeconds(intervals []types.MergedCutInterval) float64 {
+	total := 0.0
+	for _, iv := range intervals {
+		total += iv.End - iv.Start
+	}
+	return total
 }

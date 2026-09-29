@@ -5,6 +5,33 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.17] - 2026-09-29
+
+### Added
+- **`pod transcribe --missing [podcast|directory...]`** transcribes every downloaded
+  episode that has no transcript, newest first; with no argument it covers the whole
+  library. It only writes `<episode>.transcript.json` beside the audio: no status
+  change, no queue entry, no cut. An episode already cut is transcribed from its
+  uncut `.precut` original, so the transcript's timestamps match the original, but
+  the transcript is still named after the episode. It skips an episode another pod
+  process holds (a rerun picks it up), carries on past a failure, and reports elapsed
+  time and roughly how long is left. `--dry-run` lists the episodes and their total
+  length, and `-n <count>` limits the run. Rerunning picks up where an interrupted
+  run stopped, and the transcripts feed `pod analyze`, `pod repeats` and
+  `pod rm_ads recut --boilerplate`.
+- **`pod rm_ads recut --boilerplate <podcast|directory|file>`** (also `pod queue recut`)
+  refreshes already-processed episodes with their podcast's recorded boilerplate (see
+  `pod analyze`), without calling any model. The passages are matched against each
+  episode's transcript and added to its existing `.cuts.json`, which is otherwise left
+  as it is, and the audio is recut from the uncut `.precut` original. `--dry-run`
+  reports what would change and writes nothing. An episode is skipped, with the
+  reason, when it has no cuts file or transcript, when the transcript does not match
+  the original audio, when it is being processed remotely, when its `.precut` original
+  was deleted after something was cut from it, or when the boilerplate would add under
+  two seconds. If a recut fails the previous cuts file is put back, and a second run
+  over the same episodes does nothing. Unlike `pod rm_ads <podcast>`, it never queues
+  an episode for ad removal.
+
 ## [0.5.16] - 2026-09-28
 
 ### Added

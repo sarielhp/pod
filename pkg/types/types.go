@@ -300,6 +300,10 @@ type CLIOptions struct {
 	AnalyzeMinEpisodes int
 	ShowBoilerplate    bool
 
+	// RenameBackup and RenameUndo belong to `pod server rename-episodes`.
+	RenameBackup string
+	RenameUndo   string
+
 	// TranscribeMissing belongs to `pod transcribe`.
 	TranscribeMissing bool
 	DetectTimeout     string

@@ -11,6 +11,7 @@ import (
 	"github.com/sarielhp/clihelp"
 
 	"pod/pkg/detect"
+	"pod/pkg/episode"
 	"pod/pkg/format"
 	"pod/pkg/pipeline"
 )
@@ -118,7 +119,7 @@ func loadRepeatShow(paths []string, opts detect.RepeatOptions) (*repeatShow, err
 		if err != nil {
 			return nil, err
 		}
-		name := strings.TrimSuffix(filepath.Base(path), ".transcript.json")
+		name := episodeLabel(path)
 		show.corpus.Add(name, detect.WordsOf(td))
 		show.paths = append(show.paths, path)
 	}
@@ -162,4 +163,14 @@ func encodeJSON(cli CLIOptions, v any) error {
 	enc := json.NewEncoder(outFor(cli))
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
+}
+
+// episodeLabel names a transcript for display: the episode's recorded title when
+// the audio's status file has one, otherwise the transcript's own file name.
+func episodeLabel(transcriptPath string) string {
+	stem := strings.TrimSuffix(transcriptPath, ".transcript.json")
+	if id := episode.LoadIdentity(stem + ".mp3"); id != nil && id.Title != "" {
+		return id.Title
+	}
+	return filepath.Base(stem)
 }

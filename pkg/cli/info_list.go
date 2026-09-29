@@ -234,7 +234,7 @@ func collectLatestEpisodeItems(allMp3s []string, podTitleMap, podIDMap map[strin
 			continue
 		}
 		podDir := filepath.Dir(mp3)
-		epName := strings.TrimSuffix(filepath.Base(mp3), filepath.Ext(mp3))
+		epName := episode.EpisodeTitleFromPath(mp3)
 		if strings.EqualFold(filepath.Base(mp3), "podcast.mp3") {
 			epName = filepath.Base(podDir)
 			podDir = filepath.Dir(podDir)

@@ -8,6 +8,18 @@ were written; they are not in version order.
 ## [0.5.18] - 2026-09-29
 
 ### Added
+- **`pod server rename-episodes`** renames existing episode files to the short codes, so nothing
+  is left depending on a long, title-based name. All of an episode's files move together
+  (audio, uncut original, transcript, cuts, status, fingerprint), its short ID is kept, and the
+  processing queue, player queue, status files, cache and published feeds are updated to match.
+  Before anything moves, every transcript, cuts file, status file, queue and feed is copied to a
+  backup directory beside the podcasts directory and each copy is checked against its original by
+  SHA-256; the audio is not copied, since a rename does not touch it. Each rename is written to a
+  journal as it happens, an episode that fails part-way is put back as it was, and
+  `--undo <backup>` reverses the whole thing. Episodes without a recorded identity (run
+  `pod server identify` first) and the leftover files of episodes whose audio was pruned are not
+  touched. `--dry-run` reports the plan. Note that the audio file names in the published feed
+  change, so anything subscribed to it sees new file URLs; the episode GUIDs are unchanged.
 - **New downloads get short opaque file names**, `2026-09-28_3f9a1c07be.mp3`: the publication
   date, so a directory sorts by age, and a code derived from the episode GUID. The title no
   longer appears in the name, so a long title in any script can no longer make a file name
@@ -23,6 +35,8 @@ were written; they are not in version order.
   stable local identity. `--dry-run` reports the counts first.
 
 ### Fixed
+- **Listings show the recorded episode title, not the file name.** `pod info latest` and `pod repeats`
+  now read the title from the episode's record, which matters once file names are short codes.
 - **Errors stand out.** An error now starts on a line of its own after a blank line, so it
   can no longer run on from a progress line, and is bold red on a terminal (plain when
   output is piped, and off with `NO_COLOR`). This covers the final `Error:` line, the

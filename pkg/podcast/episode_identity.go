@@ -126,19 +126,28 @@ func (l *LocalEpisodes) Find(fe backend.FeedEpisode) (string, bool) {
 // however long or in whatever script the title is.
 func NewEpisodeFilename(podDir string, fe backend.FeedEpisode) string {
 	guid, _ := feedGUID(fe)
+	return EpisodeStem(guid, GetPubMS(fe), func(stem string) bool {
+		return fileHoldsOtherEpisode(filepath.Join(podDir, stem+".mp3"), guid)
+	}) + ".mp3"
+}
+
+// EpisodeStem is the file name stem, without extension, for an episode: the
+// publication date when there is one and a code derived from the GUID. taken
+// says whether a stem is already in use by another episode; a longer code is
+// tried until one is free.
+func EpisodeStem(guid string, publishedMs int64, taken func(stem string) bool) string {
 	sum := sha256.Sum256([]byte(guid))
 	code := hex.EncodeToString(sum[:])
 	prefix := ""
-	if ms := GetPubMS(fe); ms > 0 {
-		prefix = time.UnixMilli(ms).UTC().Format("2006-01-02") + "_"
+	if publishedMs > 0 {
+		prefix = time.UnixMilli(publishedMs).UTC().Format("2006-01-02") + "_"
 	}
 	for n := 10; n < len(code); n += 6 {
-		name := prefix + code[:n] + ".mp3"
-		if !fileHoldsOtherEpisode(filepath.Join(podDir, name), guid) {
-			return name
+		if stem := prefix + code[:n]; !taken(stem) {
+			return stem
 		}
 	}
-	return prefix + code + ".mp3"
+	return prefix + code
 }
 
 // fileHoldsOtherEpisode reports whether path exists and belongs to an episode

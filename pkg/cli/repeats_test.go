@@ -32,7 +32,15 @@ func writeShow(t *testing.T) string {
 // same sponsor read among otherwise unique text.
 func writeShowOf(t *testing.T, episodes, withRead int) string {
 	t.Helper()
-	dir := t.TempDir()
+	return writeShowInto(t, t.TempDir(), episodes, withRead)
+}
+
+// writeShowInto is writeShowOf for a directory the caller chose.
+func writeShowInto(t *testing.T, dir string, episodes, withRead int) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < episodes; i++ {
 		td := types.TranscriptionData{Segments: []types.TranscriptionSegment{
 			{Start: 0, End: 30, Text: uniqueWords("open", i, 30)},

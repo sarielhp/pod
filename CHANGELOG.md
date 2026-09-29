@@ -5,6 +5,15 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.20] - 2026-09-29
+
+### Changed
+- **`pod analyze` with no argument analyses every podcast**, and reports a whole library
+  compactly: one line for each podcast analysed (transcripts, phrases, how many are new or
+  dropped), a single line saying how many were skipped for having fewer than 10 transcripts,
+  and totals. Phrases are listed only with `--verbose`, and a dry run over the library no
+  longer prints every phrase of every show. Analysing one podcast is unchanged.
+
 ## [0.5.19] - 2026-09-29
 
 ### Fixed

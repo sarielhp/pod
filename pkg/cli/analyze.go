@@ -20,11 +20,11 @@ func buildAnalyzeCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Name:        "analyze",
 		Hidden:      true,
 		Description: "Learn a show's boilerplate (intros, credits, standing promos) and record it in its podcast.json",
-		UsageLine:   "pod analyze [options] <podcast|directory>...",
+		UsageLine:   "pod analyze [options] [<podcast|directory>...]",
 		Parameters: []clihelp.Param{
-			{Name: "<podcast|directory>...", Description: "Podcast by name, index or ID, a podcast directory, or 'all'"},
+			{Name: "[<podcast|directory>...]", Description: "Podcasts by name, index or ID, or directories; none means every podcast"},
 		},
-		Args: clihelp.MinimumNArgs(1),
+		Args: clihelp.MinimumNArgs(0),
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.AnalyzeMinEpisodes, "--min-episodes <n>", pipeline.DefaultBoilerplateEpisodes, "Record text found in at least this many episodes"),
 			clihelp.Int(&opts.RepeatsMinWords, "--min-words <n>", 20, "Shortest recurring passage to record, in words"),
@@ -36,7 +36,8 @@ func buildAnalyzeCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Examples: []clihelp.Example{
 			{Line: "pod analyze --show-bp hard_fork", Description: "Read the boilerplate recorded for a podcast, in full"},
 			{Line: "pod analyze --dry-run 'Fresh Air'", Description: "See which passages would be recorded as boilerplate"},
-			{Line: "pod analyze all", Description: "Record boilerplate for every podcast with enough episodes"},
+			{Line: "pod analyze", Description: "Record boilerplate for every podcast with enough transcripts, one line each"},
+			{Line: "pod analyze --dry-run -v", Description: "Preview the whole library, listing each podcast's phrases"},
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "analyze"
@@ -47,17 +48,24 @@ func buildAnalyzeCommand(opts *CLIOptions, action *string) clihelp.Command {
 }
 
 func runAnalyzeCommand(cfg Config, cli CLIOptions) error {
-	dirs, err := analyzeTargets(cfg, cli)
+	dirs, err := missingTargets(cfg, cli)
 	if err != nil {
 		return err
 	}
-	var failures int
+	switch {
+	case cli.ShowBoilerplate:
+		return eachPodcast(cli, dirs, showBoilerplate)
+	case len(dirs) == 1:
+		return eachPodcast(cli, dirs, analyzeOne)
+	}
+	return analyzeMany(cli, dirs)
+}
+
+// eachPodcast applies f to every directory, reporting the ones it fails on.
+func eachPodcast(cli CLIOptions, dirs []string, f func(CLIOptions, string) error) error {
+	failures := 0
 	for _, dir := range dirs {
-		run := analyzeOne
-		if cli.ShowBoilerplate {
-			run = showBoilerplate
-		}
-		if err := run(cli, dir); err != nil {
+		if err := f(cli, dir); err != nil {
 			util.FprintError(errFor(cli), "%s: %v\n", dir, err)
 			failures++
 		}
@@ -66,6 +74,57 @@ func runAnalyzeCommand(cfg Config, cli CLIOptions) error {
 		return fmt.Errorf("%d of %d podcast(s) could not be analysed", failures, len(dirs))
 	}
 	return nil
+}
+
+// analyzeMany analyses many podcasts and reports them compactly: one line for
+// each podcast that was analysed, one line saying how many were too small, and
+// totals. A podcast's phrases are listed only with --verbose, since for a whole
+// library a list of every phrase is more than anyone reads.
+func analyzeMany(cli CLIOptions, dirs []string) error {
+	opts := pipeline.AnalyzeOptions{MinEpisodes: cli.AnalyzeMinEpisodes, MinWords: cli.RepeatsMinWords, DryRun: cli.DryRun}
+	w := progressFor(cli)
+	var analysed, failed, phrases, added, dropped int
+	var skipped []string
+	for _, dir := range dirs {
+		res, err := pipeline.AnalyzePodcast(dir, opts)
+		name := listTitle(filepath.Base(dir))
+		switch {
+		case err != nil:
+			util.FprintError(errFor(cli), "%s: %v", name, err)
+			failed++
+		case res.Skipped != "":
+			skipped = append(skipped, name)
+		default:
+			analysed++
+			phrases += len(res.Phrases)
+			added += res.Added
+			dropped += res.Dropped
+			fmt.Fprintf(w, "  %-44s %4d transcripts  %-11s (%d new, %d dropped)\n", clip(name, 44), res.Transcripts, plural(len(res.Phrases), "phrase"), res.Added, res.Dropped)
+			if cli.Verbose {
+				listPhrases(outFor(cli), res)
+			}
+		}
+	}
+	printAnalyzeSummary(cli, analysed, failed, phrases, added, dropped, skipped)
+	if failed > 0 {
+		return fmt.Errorf("%d of %d podcast(s) could not be analysed", failed, len(dirs))
+	}
+	return nil
+}
+
+func printAnalyzeSummary(cli CLIOptions, analysed, failed, phrases, added, dropped int, skipped []string) {
+	verb := "recorded"
+	if cli.DryRun {
+		verb = "would record"
+	}
+	w := outFor(cli)
+	fmt.Fprintf(w, "\nAnalysed %d podcast(s): %s %d boilerplate phrase(s) (%d new, %d dropped).\n", analysed, verb, phrases, added, dropped)
+	if len(skipped) > 0 {
+		fmt.Fprintf(w, "%d podcast(s) have fewer than %d transcripts and were skipped.\n", len(skipped), pipeline.MinAnalyzeTranscripts)
+		if cli.Verbose {
+			fmt.Fprintf(w, "  %s\n", strings.Join(skipped, ", "))
+		}
+	}
 }
 
 func analyzeTargets(cfg Config, cli CLIOptions) ([]string, error) {
@@ -194,4 +253,12 @@ func orDash(s string) string {
 		return "-"
 	}
 	return s
+}
+
+// plural is a count with its noun, "1 phrase" or "3 phrases".
+func plural(n int, noun string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, noun)
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }

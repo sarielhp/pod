@@ -5,6 +5,25 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.16] - 2026-09-28
+
+### Added
+- **`pod analyze --show-bp <podcast>`** prints the boilerplate already recorded in a
+  podcast's `podcast.json`, in full and word-wrapped, each phrase under a rule with how
+  many episodes carry it, where in the episode it sits, its length in words and seconds,
+  and any `disabled` or `manual` flag. It only reads. Rerunning `pod analyze` now also
+  records each phrase's measured length; entries recorded earlier show an estimate
+  marked `~` until then.
+
+### Fixed
+- **`pod analyze` reported phrases as "dropped" on a rerun that changed nothing.** When
+  several recorded phrases were variants of one read, each newly found phrase was
+  matched to only the first similar entry, so the others were counted as dropped
+  (four on Dan Snow's History Hit) although their text was still in the list. Nothing
+  was lost from `podcast.json`, but the report was wrong, and a `disabled` flag could
+  in principle have been read from the wrong variant. Each recorded phrase now maps to
+  the found phrase it most resembles, so an unchanged catalogue gives `0 new, 0 dropped`.
+
 ## [0.5.15] - 2026-09-27
 
 ### Changed

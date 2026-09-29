@@ -41,8 +41,11 @@ type BoilerplatePhrase struct {
 	Text     string `json:"text"`
 	Episodes int    `json:"episodes,omitempty"`
 	Position string `json:"position,omitempty"`
-	Disabled bool   `json:"disabled,omitempty"`
-	Manual   bool   `json:"manual,omitempty"`
+	// Seconds is how long the passage runs when spoken, measured on the episode it
+	// was read from. Zero on entries recorded before it was kept.
+	Seconds  float64 `json:"seconds,omitempty"`
+	Disabled bool    `json:"disabled,omitempty"`
+	Manual   bool    `json:"manual,omitempty"`
 }
 
 type PodcastConfig struct {

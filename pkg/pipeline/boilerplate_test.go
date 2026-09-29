@@ -135,3 +135,57 @@ func TestBoilerplateCutsHonoursDisabledAndMissingConfig(t *testing.T) {
 		t.Errorf("a disabled phrase must not cut, got %+v", cuts)
 	}
 }
+
+// overlappingVariants returns two distinct 40-word phrases where the second
+// shares 70% of its word runs with the first, as variants of one read do.
+func overlappingVariants() (string, string) {
+	words := func(prefix string, from, to int) []string {
+		var out []string
+		for i := from; i < to; i++ {
+			out = append(out, fmt.Sprintf("%s%d", prefix, i))
+		}
+		return out
+	}
+	a := strings.Join(words("w", 0, 40), " ")
+	b := strings.Join(append(words("w", 10, 40), words("b", 0, 10)...), " ")
+	return a, b
+}
+
+func TestRerunOverOverlappingVariantsChangesNothing(t *testing.T) {
+	t.Parallel()
+	a, b := overlappingVariants()
+	if detect.PhraseOverlap(a, b, detect.RepeatOptions{}) < 0.5 {
+		t.Fatal("test premise: the variants must resemble each other")
+	}
+	found := []detect.Phrase{{Text: a, Episodes: 30}, {Text: b, Episodes: 20}}
+	existing := []config.BoilerplatePhrase{{Text: a, Episodes: 30}, {Text: b, Episodes: 20}}
+
+	merged, added, dropped := mergePhrases(existing, found, detect.RepeatOptions{})
+	if added != 0 || dropped != 0 || len(merged) != 2 {
+		t.Fatalf("a rerun over unchanged data must add and drop nothing, got %d added, %d dropped, %+v", added, dropped, merged)
+	}
+}
+
+func TestDisabledFlagStaysOnItsOwnVariant(t *testing.T) {
+	t.Parallel()
+	a, b := overlappingVariants()
+	found := []detect.Phrase{{Text: a, Episodes: 30}, {Text: b, Episodes: 20}}
+	existing := []config.BoilerplatePhrase{{Text: a, Episodes: 30}, {Text: b, Episodes: 20, Disabled: true}}
+
+	merged, _, _ := mergePhrases(existing, found, detect.RepeatOptions{})
+	if merged[0].Disabled || !merged[1].Disabled {
+		t.Errorf("only the second variant was disabled, got %+v", merged)
+	}
+}
+
+func TestAnalyzingTwiceIsIdempotent(t *testing.T) {
+	dir := showWith(t, 12, 8)
+	first, err := AnalyzePodcast(dir, AnalyzeOptions{})
+	if err != nil || first.Added != 1 {
+		t.Fatalf("first run: %+v (err %v)", first, err)
+	}
+	second, err := AnalyzePodcast(dir, AnalyzeOptions{})
+	if err != nil || second.Added != 0 || second.Dropped != 0 || len(second.Phrases) != 1 {
+		t.Errorf("second run should change nothing: %+v (err %v)", second, err)
+	}
+}

@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sarielhp/clihelp"
 
+	"pod/pkg/config"
+	"pod/pkg/format"
 	"pod/pkg/pipeline"
 )
 
@@ -23,11 +27,13 @@ func buildAnalyzeCommand(opts *CLIOptions, action *string) clihelp.Command {
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.AnalyzeMinEpisodes, "--min-episodes <n>", pipeline.DefaultBoilerplateEpisodes, "Record text found in at least this many episodes"),
 			clihelp.Int(&opts.RepeatsMinWords, "--min-words <n>", 20, "Shortest recurring passage to record, in words"),
+			clihelp.Bool(&opts.ShowBoilerplate, "--show-bp", false, "Show the boilerplate already recorded for the podcast, in full, without analysing"),
 			clihelp.Bool(&opts.DryRun, "--dry-run", false, "Show what would be recorded without writing podcast.json"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "List every phrase"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress output"),
 		},
 		Examples: []clihelp.Example{
+			{Line: "pod analyze --show-bp hard_fork", Description: "Read the boilerplate recorded for a podcast, in full"},
 			{Line: "pod analyze --dry-run 'Fresh Air'", Description: "See which passages would be recorded as boilerplate"},
 			{Line: "pod analyze all", Description: "Record boilerplate for every podcast with enough episodes"},
 		},
@@ -46,7 +52,11 @@ func runAnalyzeCommand(cfg Config, cli CLIOptions) error {
 	}
 	var failures int
 	for _, dir := range dirs {
-		if err := analyzeOne(cli, dir); err != nil {
+		run := analyzeOne
+		if cli.ShowBoilerplate {
+			run = showBoilerplate
+		}
+		if err := run(cli, dir); err != nil {
 			fmt.Fprintf(errFor(cli), "%s: %v\n", dir, err)
 			failures++
 		}
@@ -110,4 +120,77 @@ func listPhrases(w io.Writer, res pipeline.AnalyzeResult) {
 		}
 		fmt.Fprintf(w, "  %3d eps  %-5s %s%s\n", p.Episodes, p.Position, clip(p.Text, 140), flag)
 	}
+}
+
+const (
+	boilerplateWrapWidth = 96
+	// wordsPerSecond is a conversational speaking rate, used to estimate the
+	// length of a phrase recorded before its duration was kept.
+	wordsPerSecond = 2.5
+)
+
+// showBoilerplate prints the boilerplate recorded in a podcast's podcast.json,
+// in full, word-wrapped and separated by rules. It reads only: nothing is
+// analysed or written.
+func showBoilerplate(cli CLIOptions, dir string) error {
+	cfg, err := config.LoadPodcastConfigErr(dir, config.PodcastConfig{})
+	if err != nil {
+		return err
+	}
+	w := outFor(cli)
+	folder := filepath.Base(filepath.Clean(dir))
+	if len(cfg.Boilerplate) == 0 {
+		fmt.Fprintf(w, "%s: no boilerplate recorded. Run 'pod analyze %s' to learn it.\n", listTitle(folder), folder)
+		return nil
+	}
+	heavy := strings.Repeat("━", boilerplateWrapWidth+4)
+	light := strings.Repeat("┈", boilerplateWrapWidth+4)
+	fmt.Fprintf(w, "%s: %d boilerplate phrase(s)\n", listTitle(folder), len(cfg.Boilerplate))
+	for i, p := range cfg.Boilerplate {
+		fmt.Fprintf(w, "%s\n%2d  %d eps · %s · %d words · %s%s\n%s\n", heavy, i+1, p.Episodes, orDash(p.Position), len(strings.Fields(p.Text)), phraseLength(p), phraseFlags(p), light)
+		for _, line := range wrapText(p.Text, boilerplateWrapWidth) {
+			fmt.Fprintf(w, "    %s\n", line)
+		}
+	}
+	fmt.Fprintln(w, heavy)
+	return nil
+}
+
+// phraseSeconds is how long a phrase runs: the measured duration when it was
+// kept, otherwise an estimate from its word count. The boolean is true for an
+// estimate.
+func phraseSeconds(p config.BoilerplatePhrase) (float64, bool) {
+	if p.Seconds > 0 {
+		return p.Seconds, false
+	}
+	return float64(len(strings.Fields(p.Text))) / wordsPerSecond, true
+}
+
+func phraseLength(p config.BoilerplatePhrase) string {
+	secs, estimated := phraseSeconds(p)
+	if estimated {
+		return "~" + format.FormatClock(secs)
+	}
+	return format.FormatClock(secs)
+}
+
+func phraseFlags(p config.BoilerplatePhrase) string {
+	var flags []string
+	if p.Disabled {
+		flags = append(flags, "disabled")
+	}
+	if p.Manual {
+		flags = append(flags, "manual")
+	}
+	if len(flags) == 0 {
+		return ""
+	}
+	return "  [" + strings.Join(flags, ", ") + "]"
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }

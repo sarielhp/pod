@@ -11,6 +11,8 @@ type Phrase struct {
 	// Position is where in its episode the phrase was read, from 0 (start) to 1.
 	Position float64
 	Words    int
+	// Seconds is how long the passage runs in the episode it was read from.
+	Seconds float64
 }
 
 // BoilerplatePhrases returns one representative phrase for each distinct text
@@ -49,7 +51,7 @@ func (c *Corpus) candidateFor(id int, r Repeat) candidatePhrase {
 	span := ep.words[r.StartWord : r.EndWord+1]
 	dur := ep.words[len(ep.words)-1].End
 	return candidatePhrase{
-		Phrase: Phrase{Text: r.Text, Episodes: r.Episodes + 1, Position: r.Start / max(dur, 1), Words: len(span)},
+		Phrase: Phrase{Text: r.Text, Episodes: r.Episodes + 1, Position: r.Start / max(dur, 1), Words: len(span), Seconds: r.End - r.Start},
 		hashes: shingleHashes(span, c.opts.Shingle),
 	}
 }
@@ -77,13 +79,14 @@ func dedupePhrases(candidates []candidatePhrase) []Phrase {
 	return out
 }
 
-// SimilarPhrases reports whether two texts share at least half of their word
-// runs, which is how a reworded version of a phrase is recognised as the same.
-func SimilarPhrases(a, b string, opts RepeatOptions) bool {
+// PhraseOverlap is the fraction of the shorter text's word runs that also occur
+// in the other, from 0 (nothing shared) to 1 (one contains the other). It is how
+// a reworded version of a phrase is recognised as the same phrase.
+func PhraseOverlap(a, b string, opts RepeatOptions) float64 {
 	k := NewCorpus(opts).opts.Shingle
 	ha, hb := shingleHashes(wordsOfText(a), k), shingleHashes(wordsOfText(b), k)
 	if len(ha) == 0 || len(hb) == 0 {
-		return false
+		return 0
 	}
 	set := make(map[uint64]bool, len(hb))
 	for _, h := range hb {
@@ -95,7 +98,7 @@ func SimilarPhrases(a, b string, opts RepeatOptions) bool {
 			shared++
 		}
 	}
-	return shared*2 >= min(len(ha), len(hb))
+	return float64(shared) / float64(min(len(ha), len(hb)))
 }
 
 // PhraseMatcher finds known phrases in a transcript. It is the cheap half of

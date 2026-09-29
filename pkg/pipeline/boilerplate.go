@@ -88,42 +88,60 @@ func corpusOf(paths []string, opts detect.RepeatOptions) (*detect.Corpus, error)
 	return corpus, nil
 }
 
+// sameThreshold is how much of two phrases must be shared for one to count as a
+// version of the other.
+const sameThreshold = 0.5
+
 // mergePhrases combines the phrases already on file with a fresh analysis.
-// A reworded version of a disabled phrase stays disabled, and manual entries are
-// never dropped; other entries the analysis no longer supports are removed.
+//
+// Each entry on file maps to the found phrase it most resembles, so a rerun over
+// unchanged transcripts leaves the list exactly as it was: nothing added and
+// nothing dropped, even when several variants of one read overlap. A found
+// phrase inherits "disabled" and "manual" from every entry that maps to it, so a
+// reworded version of a disabled phrase stays disabled. An entry that resembles
+// nothing found is dropped, unless a person disabled it or wrote it by hand.
 func mergePhrases(existing []config.BoilerplatePhrase, found []detect.Phrase, opts detect.RepeatOptions) (merged []config.BoilerplatePhrase, added, dropped int) {
-	matched := make([]bool, len(existing))
-	for _, phrase := range found {
-		entry := config.BoilerplatePhrase{Text: phrase.Text, Episodes: phrase.Episodes, Position: positionName(phrase.Position)}
-		if i := similarEntry(existing, phrase.Text, opts); i >= 0 {
-			matched[i] = true
-			entry.Disabled, entry.Manual = existing[i].Disabled, existing[i].Manual
-		} else {
-			added++
-		}
-		merged = append(merged, entry)
-	}
+	mapped := make([][]int, len(found))
+	var orphans []config.BoilerplatePhrase
 	for i, old := range existing {
-		if matched[i] {
-			continue
-		}
-		if old.Manual || old.Disabled {
-			merged = append(merged, old)
+		if j := closestPhrase(found, old.Text, opts); j >= 0 {
+			mapped[j] = append(mapped[j], i)
+		} else if old.Manual || old.Disabled {
+			orphans = append(orphans, old)
 		} else {
 			dropped++
 		}
 	}
+	for j, phrase := range found {
+		entry := config.BoilerplatePhrase{Text: phrase.Text, Episodes: phrase.Episodes, Position: positionName(phrase.Position), Seconds: phrase.Seconds}
+		if len(mapped[j]) == 0 {
+			added++
+		}
+		for _, i := range mapped[j] {
+			entry.Disabled = entry.Disabled || existing[i].Disabled
+			entry.Manual = entry.Manual || existing[i].Manual
+		}
+		merged = append(merged, entry)
+	}
+	merged = append(merged, orphans...)
 	sort.SliceStable(merged, func(i, j int) bool { return merged[i].Episodes > merged[j].Episodes })
 	return merged, added, dropped
 }
 
-func similarEntry(existing []config.BoilerplatePhrase, text string, opts detect.RepeatOptions) int {
-	for i, e := range existing {
-		if detect.SimilarPhrases(e.Text, text, opts) {
+// closestPhrase is the index of the found phrase text resembles most, or -1 when
+// none resembles it enough. Identical text always wins.
+func closestPhrase(found []detect.Phrase, text string, opts detect.RepeatOptions) int {
+	best, bestScore := -1, sameThreshold
+	for i, p := range found {
+		score := detect.PhraseOverlap(text, p.Text, opts)
+		if p.Text == text {
 			return i
 		}
+		if score >= bestScore && (best < 0 || score > bestScore) {
+			best, bestScore = i, score
+		}
 	}
-	return -1
+	return best
 }
 
 func positionName(frac float64) string {

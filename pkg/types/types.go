@@ -298,6 +298,7 @@ type CLIOptions struct {
 
 	// AnalyzeMinEpisodes belongs to `pod analyze`.
 	AnalyzeMinEpisodes int
+	ShowBoilerplate    bool
 	DetectTimeout      string
 	DetectRepeat       int
 	CutsFile           string

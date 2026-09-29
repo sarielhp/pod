@@ -14,16 +14,22 @@ import (
 func buildServerPruneSubcommand(opts *CLIOptions, action *string, keepVal *int) clihelp.Command {
 	return clihelp.Command{
 		Name:        "prune",
-		Description: "Delete older MP3 files per podcast keep policy or retention limit (preserves transcripts)",
+		Description: "Delete older audio by keep policy, or keep only the newest N episodes of each podcast (transcripts are preserved)",
 		UsageLine:   "pod server prune [number] [options]",
 		Parameters:  []clihelp.Param{{Name: "[number]", Description: "Number of latest episodes to keep per podcast"}},
 		Args:        clihelp.RangeArgs(0, 1),
+		Examples: []clihelp.Example{
+			{Line: "pod server prune 5 --skip-favorites --dry-run", Description: "Preview keeping the newest 5 episodes of every non-favorite podcast"},
+			{Line: "pod server prune 3 -p 'Fresh Air'", Description: "Keep the newest 3 episodes of one podcast"},
+		},
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Specify podcast"),
 			clihelp.Int(keepVal, "-k, --keep <number>", -1, "Keep policy count"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 			clihelp.Bool(&opts.DryRun, "--dry-run", false, "Dry run"),
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Detailed outputs"),
+			clihelp.Bool(&opts.SkipFavorites, "--skip-favorites", false, "With a count, leave favorite podcasts alone"),
+			clihelp.Bool(&opts.ForceDelete, "-f, --force", false, "With a count, delete without asking for confirmation"),
 		},
 		Run: func(ctx *clihelp.Context) error {
 			*action = "server"
@@ -45,6 +51,9 @@ func buildServerPruneSubcommand(opts *CLIOptions, action *string, keepVal *int) 
 }
 
 func handleServerKeep(config Config, cli CLIOptions) error {
+	if cli.KeepCount != nil && *cli.KeepCount > 0 {
+		return pruneLibraryByCount(config, cli, *cli.KeepCount)
+	}
 	b, err := backend.FromAppConfig(&config, reporter(cli))
 	if err != nil {
 		return fmt.Errorf("podcast server not configured: %w", err)
@@ -53,30 +62,7 @@ func handleServerKeep(config Config, cli CLIOptions) error {
 	if err != nil {
 		return err
 	}
-	keep := -1
-	if cli.KeepCount != nil {
-		keep = *cli.KeepCount
-	}
-	if keep > 0 {
-		return prunePodcastsByCount(b, podcasts, keep, cli)
-	}
 	return prunePodcastsByKeepPolicy(config, cli, b, podcasts)
-}
-
-func prunePodcastsByCount(b backend.Backend, podcasts []backend.Podcast, keep int, cli CLIOptions) error {
-	for _, item := range podcasts {
-		title := item.Media.Metadata.Title
-		if title == "" {
-			title = "Untitled"
-		}
-		deleted, err := b.ApplyKeepPolicy(item.ID, title, keep, cli.DryRun)
-		if err != nil && !cli.Quiet {
-			fmt.Fprintf(outFor(cli), "! Error applying keep policy to %s: %v\n", title, err)
-		} else if !cli.Quiet {
-			fmt.Fprintf(outFor(cli), "✓ %s: pruned %d episode(s) (limit: %d)\n", title, deleted, keep)
-		}
-	}
-	return nil
 }
 
 func prunePodcastsByKeepPolicy(cfg Config, cli CLIOptions, b backend.Backend, podcasts []backend.Podcast) error {

@@ -292,6 +292,10 @@ type CLIOptions struct {
 	RepeatsCatalog     bool
 	RepeatsCurve       bool
 
+	// SkipFavorites belongs to `pod server prune`, StatusTop to `pod server status`.
+	SkipFavorites bool
+	StatusTop     int
+
 	// AnalyzeMinEpisodes belongs to `pod analyze`.
 	AnalyzeMinEpisodes int
 	DetectTimeout      string

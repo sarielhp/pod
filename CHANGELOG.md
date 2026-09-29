@@ -14,6 +14,17 @@ were written; they are not in version order.
   and F12 (snapshot) are unchanged.
 
 ### Added
+- **`pod server status`** reports what the library holds and what it costs: podcasts
+  (and how many are favorites), subscriptions, episodes on disk, how many have ads
+  removed or a transcript, disk use split into audio, uncut originals, transcripts
+  and cuts, work leftovers and everything else, free space on the filesystem, the
+  largest podcasts (`--top <n>`), and how much `pod server prune 5
+  --skip-favorites` would free. `--json` gives the same figures.
+- **`pod server prune <n>` keeps the newest n episodes of every podcast**, and takes
+  `--skip-favorites` to leave favorites alone and `-f/--force` to skip the
+  confirmation. It deletes the audio and its uncut original and keeps transcripts,
+  cuts and status files, so they can still feed `pod analyze`. It reports the space
+  freed, and `--dry-run` lists every file.
 - **TUI: F9 toggles a podcast's favorite status, and favorites show a heart (♥)**
   in the podcast list. It works from the podcast list or from inside a podcast,
   and has the same effect as `pod server favorite` (auto-download of new
@@ -68,6 +79,10 @@ were written; they are not in version order.
   none exists instead of timing out on the socket.
 
 ### Fixed
+- **`pod server prune 5` pruned only podcast number 5.** The count was also taken as
+  a podcast selector, so the command touched a single podcast instead of the library,
+  and its dry run said "pruned" rather than "would prune". The count no longer selects
+  a podcast; `-p <podcast>` does.
 - **Ad detection survives replies it used to reject.** A rewind-and-fetch of a
   whole day showed 6 of 23 episodes failing in ad removal. Small models
   sometimes answered in the transcript's own `[95.4s -> 147.1s, "text"]` line

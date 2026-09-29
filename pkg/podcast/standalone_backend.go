@@ -375,19 +375,7 @@ func (b *StandaloneBackend) ApplyKeepPolicy(podcastID, podcastTitle string, keep
 	if err != nil {
 		return 0, err
 	}
-	files := util.FindMP3Files(p.Path)
-	if len(files) <= keep {
-		return 0, nil
-	}
-	sort.Slice(files, func(i, j int) bool {
-		fi1, _ := os.Stat(files[i])
-		fi2, _ := os.Stat(files[j])
-		if fi1 == nil || fi2 == nil {
-			return files[i] < files[j]
-		}
-		return fi1.ModTime().Before(fi2.ModTime())
-	})
-	toDelete := files[:len(files)-keep]
+	toDelete := oldestBeyond(util.FindMP3Files(p.Path), keep)
 	deleted := 0
 	var failures []error
 	for _, f := range toDelete {

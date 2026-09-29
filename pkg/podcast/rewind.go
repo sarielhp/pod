@@ -186,10 +186,20 @@ func isWorkFileOf(rest string) bool {
 }
 
 func podcastCacheFiles(podDir string, episodes []RewindEpisode) []string {
+	names := make([]string, 0, len(episodes))
+	for _, ep := range episodes {
+		names = append(names, filepath.Base(ep.Audio))
+	}
+	return staleCacheFiles(podDir, names)
+}
+
+// staleCacheFiles are the cached index of a podcast and the cached details of
+// the named episodes, which go stale when those episodes are removed. Both are
+// rebuilt on demand.
+func staleCacheFiles(podDir string, audioNames []string) []string {
 	cacheDir := CacheDirForPodcast(podDir)
 	files := []string{filepath.Join(cacheDir, "index.json")}
-	for _, ep := range episodes {
-		name := filepath.Base(ep.Audio)
+	for _, name := range audioNames {
 		files = append(files, filepath.Join(cacheDir, "details", detailFileName(name)))
 	}
 	return files

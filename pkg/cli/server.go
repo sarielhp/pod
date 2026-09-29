@@ -80,6 +80,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerFlushSubcommand(opts, action),
 		buildServerRewindSubcommand(opts, action),
 		buildServerPublicationSubcommand(opts, action),
+		buildServerStatusSubcommand(opts, action),
 	}
 }
 
@@ -130,6 +131,8 @@ func handleServerCommand(config Config, cli CLIOptions) error {
 		return handleServerRewind(config, cli)
 	case "publication-sync":
 		return handleServerPublication(config, cli)
+	case "status":
+		return handleServerStatus(config, cli)
 	default:
 		return fmt.Errorf("unknown server subcommand %q", subcmd)
 	}

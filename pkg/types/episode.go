@@ -31,8 +31,28 @@ type EpisodeAdCut struct {
 	Reason string  `json:"reason,omitempty"`
 }
 
+// EpisodeIdentity says which feed episode a file is. It is written when the
+// episode is downloaded and read back instead of inferring the answer from the
+// file's name: a name is only a label, and matching on it broke whenever a title
+// was reworded, truncated or renamed. The record lives in the episode's own
+// status file, so it moves and is deleted with the episode.
+type EpisodeIdentity struct {
+	// GUID is the feed's identifier for the episode. When the feed gave none, or
+	// the episode predates this record and could not be found in the feed, it is
+	// one made locally and Synthetic is set.
+	GUID         string `json:"guid"`
+	Synthetic    bool   `json:"synthetic,omitempty"`
+	Title        string `json:"title,omitempty"`
+	FeedURL      string `json:"feed_url,omitempty"`
+	EnclosureURL string `json:"enclosure_url,omitempty"`
+	PublishedAt  int64  `json:"published_at_ms,omitempty"`
+	Season       string `json:"season,omitempty"`
+	Episode      string `json:"episode,omitempty"`
+}
+
 type EpisodeStatusFile struct {
 	ID                    string           `json:"id,omitempty"`
+	Identity              *EpisodeIdentity `json:"identity,omitempty"`
 	Version               int              `json:"version"`
 	MediaFile             string           `json:"media_file"`
 	Status                EpisodeState     `json:"status"`

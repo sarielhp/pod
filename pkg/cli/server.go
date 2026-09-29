@@ -81,6 +81,7 @@ func buildServerSubcommands(opts *CLIOptions, action *string, countVal, keepVal 
 		buildServerRewindSubcommand(opts, action),
 		buildServerPublicationSubcommand(opts, action),
 		buildServerStatusSubcommand(opts, action),
+		buildServerIdentifySubcommand(opts, action),
 	}
 }
 
@@ -133,6 +134,8 @@ func handleServerCommand(config Config, cli CLIOptions) error {
 		return handleServerPublication(config, cli)
 	case "status":
 		return handleServerStatus(config, cli)
+	case "identify":
+		return handleServerIdentify(config, cli)
 	default:
 		return fmt.Errorf("unknown server subcommand %q", subcmd)
 	}

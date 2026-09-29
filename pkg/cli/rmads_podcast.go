@@ -338,6 +338,9 @@ func episodeAudioCandidates(podDir, raw string) []string {
 }
 
 func findLocalPathForFeedEpisode(podDir string, fe backend.FeedEpisode, item *backend.Podcast) (string, bool) {
+	if path, ok := podcast.NewLocalEpisodes(podDir).Find(fe); ok {
+		return path, true
+	}
 	if path, ok := findMatchingEpisodeInItem(podDir, fe, item); ok {
 		return path, true
 	}
@@ -406,7 +409,7 @@ func findMatchingEpisodeInItem(podDir string, fe backend.FeedEpisode, item *back
 	return "", false
 }
 
-func tryDirectDownloadEpisode(podDir string, fe backend.FeedEpisode, quiet bool) (string, bool) {
+func tryDirectDownloadEpisode(podDir, feedURL string, fe backend.FeedEpisode, quiet bool) (string, bool) {
 	encURL := fe.EnclosureURL
 	if fe.Enclosure != nil && fe.Enclosure.URL != "" {
 		encURL = fe.Enclosure.URL
@@ -418,6 +421,7 @@ func tryDirectDownloadEpisode(podDir string, fe backend.FeedEpisode, quiet bool)
 	destPath := filepath.Join(podDir, safeTitle+".mp3")
 	d := podcast.NewDownloader()
 	if err := d.DownloadEpisode(context.Background(), encURL, destPath, reporterFromQuiet(quiet)); err == nil {
+		_ = podcast.RecordFeedEpisode(destPath, fe, feedURL)
 		return destPath, true
 	}
 	return "", false
@@ -428,7 +432,11 @@ func downloadSingleFeedEpisode(b backend.Backend, item *backend.Podcast, podDir 
 		fmt.Printf("Downloading latest episode: %s\n", fe.Title)
 	}
 
-	if destPath, ok := tryDirectDownloadEpisode(podDir, fe, quiet); ok {
+	feedURL := ""
+	if item != nil {
+		feedURL = item.Media.Metadata.FeedURL
+	}
+	if destPath, ok := tryDirectDownloadEpisode(podDir, feedURL, fe, quiet); ok {
 		return destPath, nil
 	}
 

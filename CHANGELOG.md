@@ -7,6 +7,16 @@ were written; they are not in version order.
 
 ## [0.5.18] - 2026-09-29
 
+### Added
+- **Each downloaded episode now records which feed episode it is.** The feed GUID, title,
+  audio URL, publication date and episode number are stored in the episode's own status
+  file when it is downloaded, and `pod fetch` and the other "is this already downloaded"
+  checks match on that GUID first. Until now they guessed from the file's name, which broke
+  whenever a title was reworded or shortened. Titles shown in lists come from the record too.
+  `pod server identify` records it for episodes downloaded earlier: it matches each file to
+  its feed episode by its old name, once, and gives any episode the feed no longer lists a
+  stable local identity. `--dry-run` reports the counts first.
+
 ### Fixed
 - **Errors stand out.** An error now starts on a line of its own after a blank line, so it
   can no longer run on from a progress line, and is bold red on a terminal (plain when

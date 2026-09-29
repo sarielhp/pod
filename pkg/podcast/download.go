@@ -105,10 +105,19 @@ func buildDownloadedChecker(item backend.Podcast, index *PodcastEpisodeIndex, ac
 	}
 
 	diskTitles := scanPodcastDiskTitles(item, podcastsDir)
+	var local *LocalEpisodes
+	if item.Path != "" {
+		local = NewLocalEpisodes(item.Path)
+	}
 
 	return func(ep backend.FeedEpisode) bool {
 		if index.HasAudio(ep) {
 			return true
+		}
+		if local != nil {
+			if _, ok := local.Find(ep); ok {
+				return true
+			}
 		}
 		encURL := ""
 		if ep.Enclosure != nil {

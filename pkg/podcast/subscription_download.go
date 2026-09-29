@@ -193,34 +193,7 @@ func downloadedEpisodeChecker(podDir string) func(backend.FeedEpisode) bool {
 // do not — so a feed episode is matched against several spellings of its own
 // name rather than only the one this version would write.
 func downloadedEpisodeLocator(podDir string) func(backend.FeedEpisode) (string, bool) {
-	existing := make(map[string]string)
-	for _, f := range util.FindMP3Files(podDir) {
-		name := strings.ToLower(strings.TrimSuffix(filepath.Base(f), ".mp3"))
-		if _, seen := existing[name]; !seen {
-			existing[name] = f
-		}
-		stripped := strings.ToLower(StripEpisodeFilenamePrefix(name))
-		if _, seen := existing[stripped]; !seen {
-			existing[stripped] = f
-		}
-	}
-	return func(ep backend.FeedEpisode) (string, bool) {
-		pubMs := GetPubMS(ep)
-		var pubTime time.Time
-		if pubMs > 0 {
-			pubTime = time.UnixMilli(pubMs).UTC()
-		}
-		for _, key := range []string{
-			strings.ToLower(strings.TrimSuffix(FormatEpisodeFilename(pubTime, ep.Episode, ep.Title), ".mp3")),
-			strings.ToLower(SanitizeTitle(ep.Title)),
-			strings.ToLower(strings.TrimSpace(ep.Title)),
-		} {
-			if path, ok := existing[key]; ok {
-				return path, true
-			}
-		}
-		return "", false
-	}
+	return NewLocalEpisodes(podDir).Find
 }
 
 // shouldQueueForAdRemoval reports whether episodes downloaded for this
@@ -296,7 +269,7 @@ func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts Subscr
 	shouldQueue := opts.AlwaysQueue || shouldQueueForAdRemoval(plan.PodDir, plan.Sub, opts.Defaults)
 	downloaded := 0
 	for _, ep := range plan.ToDownload {
-		if err := l.downloadEpisode(d, plan.PodDir, ep, shouldQueue); err != nil {
+		if err := l.downloadEpisode(d, plan.PodDir, plan.Sub.FeedURL, ep, shouldQueue); err != nil {
 			l.progress.Warnf("    Download error for %q: %v", ep.Title, err)
 			continue
 		}
@@ -307,7 +280,7 @@ func (l *Library) downloadPlan(d *Downloader, plan SubscriptionPlan, opts Subscr
 	return downloaded, nil
 }
 
-func (l *Library) downloadEpisode(d *Downloader, podDir string, ep backend.FeedEpisode, shouldQueue bool) error {
+func (l *Library) downloadEpisode(d *Downloader, podDir, feedURL string, ep backend.FeedEpisode, shouldQueue bool) error {
 	encURL := ep.EnclosureURL
 	if ep.Enclosure != nil && ep.Enclosure.URL != "" {
 		encURL = ep.Enclosure.URL
@@ -329,6 +302,7 @@ func (l *Library) downloadEpisode(d *Downloader, podDir string, ep backend.FeedE
 		return err
 	}
 
+	_ = RecordFeedEpisode(destPath, ep, feedURL)
 	if pubMs > 0 {
 		st := episode.GetOrCreateEpisodeStatus(destPath)
 		st.PublishedAt = time.UnixMilli(pubMs).UTC().Format(time.RFC3339)

@@ -76,6 +76,11 @@ func buildFeedEpisodeLookup(eps []backend.FeedEpisode) map[string]backend.FeedEp
 // that FormatEpisodeFilename adds stripped off. The order is significant: the
 // first key that hits wins, and the later keys are progressively lossier.
 func lookupFeedEpisode(path, title string, feedMap map[string]backend.FeedEpisode) (backend.FeedEpisode, bool) {
+	if id := episode.LoadIdentity(path); id != nil {
+		if ep, ok := feedMap[id.GUID]; ok {
+			return ep, true
+		}
+	}
 	stem := util.StripExt(filepath.Base(path))
 	for _, key := range []string{
 		strings.ToLower(SanitizeTitle(title)),
@@ -118,8 +123,12 @@ func buildEpisodeMeta(path, podDir string, fi os.FileInfo, feedMap map[string]ba
 		}
 	}
 	if guid == "" {
-		h := sha256.Sum256([]byte(relPath))
-		guid = "pod:ep:" + hex.EncodeToString(h[:8])
+		if id := episode.LoadIdentity(path); id != nil {
+			guid = id.GUID
+		} else {
+			h := sha256.Sum256([]byte(relPath))
+			guid = "pod:ep:" + hex.EncodeToString(h[:8])
+		}
 	}
 	if pubMs <= 0 {
 		if pubTime := GetEpisodePublicationTime(path); !pubTime.IsZero() {

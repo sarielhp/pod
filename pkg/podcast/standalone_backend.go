@@ -301,6 +301,7 @@ func (b *StandaloneBackend) DownloadEpisodes(podcastID string, episodes []backen
 			return fmt.Errorf("download %s: %w", ep.Title, err)
 		}
 		initDownloadedEpisodeStatus(destPath, fn, ep, pubTime)
+		_ = RecordFeedEpisode(destPath, ep, p.Media.Metadata.FeedURL)
 	}
 	sub := Subscription{
 		ID:       p.ID,

@@ -24,8 +24,13 @@ func DetectPodcastDirForAudio(audioPath string) string {
 	return dir
 }
 
-// EpisodeTitleFromPath derives the display title of an episode from its file path.
+// EpisodeTitleFromPath is the display title of an episode: the title recorded
+// with the episode when there is one, and otherwise one derived from the file's
+// name, which is all that episodes downloaded before identities were recorded have.
 func EpisodeTitleFromPath(audioPath string) string {
+	if id := LoadIdentity(audioPath); id != nil && strings.TrimSpace(id.Title) != "" {
+		return id.Title
+	}
 	base := filepath.Base(audioPath)
 	stem := util.StripExt(base)
 	if strings.EqualFold(stem, "podcast") {

@@ -31,7 +31,9 @@ func runBoilerplateRecut(config Config, cli CLIOptions) error {
 
 // boilerplateRecutTargets turns the arguments into episode audio files. A
 // directory or a podcast name stands for every episode of that podcast, an audio
-// file for itself, and no argument at all for every episode of every podcast.
+// file for itself, and no argument at all for every episode of every podcast. They
+// come newest first by publication date, across podcasts, so that a limit such as
+// -n 20 means the twenty newest episodes.
 func boilerplateRecutTargets(config Config, cli CLIOptions) ([]string, error) {
 	args := append([]string(nil), cli.Args...)
 	if cli.Podcast != "" {
@@ -57,7 +59,7 @@ func boilerplateRecutTargets(config Config, cli CLIOptions) ([]string, error) {
 	for _, dir := range dirs {
 		files = append(files, util.FindMP3Files(dir)...)
 	}
-	sort.Strings(files)
+	sortFilesByPublicationTime(files)
 	return files, nil
 }
 

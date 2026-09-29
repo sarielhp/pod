@@ -14,7 +14,8 @@ were written; they are not in version order.
   already covered, uncut original gone), with the total boilerplate time added. A podcast name, a
   directory or an audio file narrows it as before, `-n` stops after that many recuts, and
   `--dry-run` still writes nothing. It no longer goes through the ad-removal path, so it shows no
-  per-episode headers and never marks an episode as being transcribed.
+  per-episode headers and never marks an episode as being transcribed. Episodes are taken newest
+  first by publication date, across all podcasts, so `-n 20` means the twenty newest.
 
 ## [0.5.20] - 2026-09-29
 

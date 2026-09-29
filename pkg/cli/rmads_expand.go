@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"pod/pkg/config"
 	"pod/pkg/episode"
@@ -63,13 +64,19 @@ func expandSingleDirectoryArg(arg string, opts types.ProcOptions, appCfg types.C
 	return groupAndFilterAudioByPodcast(rawMp3Files, opts, appCfg)
 }
 
+// sortFilesByPublicationTime orders episodes newest first by publication date,
+// falling back to the path for episodes published at the same moment. Each date
+// is looked up once, since finding it can mean reading several files.
 func sortFilesByPublicationTime(files []string) {
 	if len(files) <= 1 {
 		return
 	}
+	published := make(map[string]time.Time, len(files))
+	for _, f := range files {
+		published[f] = podcast.GetEpisodePublicationTime(f)
+	}
 	sort.SliceStable(files, func(i, j int) bool {
-		ti := podcast.GetEpisodePublicationTime(files[i])
-		tj := podcast.GetEpisodePublicationTime(files[j])
+		ti, tj := published[files[i]], published[files[j]]
 		if ti.Equal(tj) {
 			return files[i] < files[j]
 		}

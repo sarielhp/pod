@@ -5,6 +5,22 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.28] - 2026-10-06
+
+### Added
+- **`pod search <query>` finds podcasts and `pod search add <id-or-feed-url>` subscribes to one.**
+  Search uses Podcast Index when API credentials are configured and falls back to Apple's keyless
+  search when they are not, so it works the moment pod is installed. A feed URL is accepted directly.
+- **Podcast Index credentials are read from a file, never from `config.json`.** The default is
+  `~/.config/auth/podcast_index_key.json` (a JSON object with `api_key` and `api_secret`; the older
+  `Key:`/`Secret:` text file is still read). Point pod elsewhere with
+  `pod config set podcastindex-api-key-file <path>`, or override a single run with
+  `PODCASTINDEX_API_KEY` and `PODCASTINDEX_API_SECRET`.
+
+### Changed
+- **The `pod server` command is renamed `pod library`.** Every `pod server …` invocation becomes
+  `pod library …`, and its one-letter abbreviation is now `l` — the letter `s` belongs to `pod search`.
+
 ## [0.5.27] - 2026-09-29
 
 ### Changed

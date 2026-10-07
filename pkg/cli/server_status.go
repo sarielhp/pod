@@ -16,14 +16,14 @@ func buildServerStatusSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "status",
 		Description: "Report what the library holds and how much disk space it uses",
-		UsageLine:   "pod server status [--top <n>] [--json]",
+		UsageLine:   "pod library status [--top <n>] [--json]",
 		Args:        clihelp.MaximumNArgs(0),
 		Options: []clihelp.Option{
 			clihelp.Int(&opts.StatusTop, "--top <n>", 10, "How many of the largest podcasts to list"),
 			clihelp.Bool(&opts.JSON, "--json", false, "Output the figures as JSON"),
 		},
 		Run: func(_ *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "status"
 			return nil
 		},
@@ -59,7 +59,7 @@ func printLibraryStats(w io.Writer, st podcast.LibraryStats) {
 	}
 	printLargest(w, st)
 	if st.PrunableBytes > 0 {
-		fmt.Fprintf(w, "\nKeeping only the newest %d episodes of each non-favorite podcast would free %s:\n  pod server prune %d --skip-favorites --dry-run\n",
+		fmt.Fprintf(w, "\nKeeping only the newest %d episodes of each non-favorite podcast would free %s:\n  pod library prune %d --skip-favorites --dry-run\n",
 			st.PrunableKeep, humanBytes(st.PrunableBytes), st.PrunableKeep)
 	}
 }

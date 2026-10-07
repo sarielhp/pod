@@ -18,7 +18,7 @@ func TestGenRSSIsATopLevelCommand(t *testing.T) {
 		}
 		// Publishing the site should not also hide under `server`, or there
 		// are two names for one act.
-		if c.Name == "server" {
+		if c.Name == "library" {
 			for _, sub := range c.Subcommands {
 				if sub.Name == "gen_rss" || sub.Name == "feed" {
 					t.Errorf("server still carries a %q subcommand", sub.Name)
@@ -33,14 +33,14 @@ func TestGenRSSIsATopLevelCommand(t *testing.T) {
 
 func TestServerFeedPrefixReachesFeeds(t *testing.T) {
 	t.Parallel()
-	// With no `feed` subcommand of its own, `pod server feed` is an
+	// With no `feed` subcommand of its own, `pod library feed` is an
 	// unambiguous prefix of `feeds`, which is the intended behaviour: the two
 	// are no longer separate commands one letter apart.
 	var action string
 	var opts CLIOptions
 	app := buildCLIApp(&action, &opts)
 	for _, c := range app.Commands {
-		if c.Name != "server" {
+		if c.Name != "library" {
 			continue
 		}
 		var matches []string

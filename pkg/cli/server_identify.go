@@ -13,7 +13,7 @@ func buildServerIdentifySubcommand(opts *CLIOptions, action *string) clihelp.Com
 	return clihelp.Command{
 		Name:        "identify",
 		Description: "Record which feed episode each downloaded file is, so nothing depends on file names",
-		UsageLine:   "pod server identify [-p <podcast>] [--dry-run]",
+		UsageLine:   "pod library identify [-p <podcast>] [--dry-run]",
 		Args:        clihelp.MaximumNArgs(0),
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Limit to one podcast"),
@@ -21,7 +21,7 @@ func buildServerIdentifySubcommand(opts *CLIOptions, action *string) clihelp.Com
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress the per-podcast lines"),
 		},
 		Run: func(_ *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "identify"
 			return nil
 		},

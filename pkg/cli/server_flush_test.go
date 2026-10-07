@@ -110,10 +110,10 @@ func TestFlushCommandParsing(t *testing.T) {
 	t.Parallel()
 	var action string
 	var opts CLIOptions
-	if err := buildCLIApp(&action, &opts).Execute([]string{"server", "flush", "123", "--dry-run"}); err != nil {
+	if err := buildCLIApp(&action, &opts).Execute([]string{"library", "flush", "123", "--dry-run"}); err != nil {
 		t.Fatal(err)
 	}
-	if action != "server" || opts.ServerSubcmd != "flush" || !opts.DryRun || len(opts.Args) != 1 {
+	if action != "library" || opts.ServerSubcmd != "flush" || !opts.DryRun || len(opts.Args) != 1 {
 		t.Fatalf("unexpected options: %+v", opts)
 	}
 }

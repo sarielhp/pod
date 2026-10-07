@@ -12,13 +12,13 @@ func buildServerTimelineSubcommand(opts *CLIOptions, action *string) clihelp.Com
 	return clihelp.Command{
 		Name:        "timeline",
 		Description: "Display exact online availability timestamps table for recent podcast episodes",
-		UsageLine:   "pod server timeline [directory]",
+		UsageLine:   "pod library timeline [directory]",
 		Parameters: []clihelp.Param{
 			{Name: "[directory]", Description: "Optional path to podcasts directory"},
 		},
 		Args: clihelp.MaximumNArgs(1),
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "timeline"
 			opts.SyncSubcmd = "timeline"
 			opts.Args = ctx.Args

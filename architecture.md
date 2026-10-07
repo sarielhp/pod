@@ -6,7 +6,7 @@
 
 Historically, `pod` started as an ad-removal companion for external podcast servers. **Today, `pod` has been completely decoupled from external servers and operates as its own native backend.**
 
-PodFetch plays only an optional, legacy role (one-time subscription import via `pod server import`). During normal operations, external servers are deactivated and blocked by runtime policy guards.
+PodFetch plays only an optional, legacy role (one-time subscription import via `pod library import`). During normal operations, external servers are deactivated and blocked by runtime policy guards.
 
 ---
 
@@ -89,17 +89,17 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
   - `download_policy`: Retention and download strategy (`latest`, `all`, `none`, etc.)
   - `download_k`: Number of episodes to maintain
 - **CLI Commands**:
-  - `pod server add <feed-url> [title]`: Subscribe to a new podcast.
-  - `pod server remove <id-or-title>`: Remove a subscription.
-  - `pod server list`: List all active subscriptions with local episode counts.
-  - `pod server import [file.opml]`: Import feeds from OPML or PodFetch database.
+  - `pod library add <feed-url> [title]`: Subscribe to a new podcast.
+  - `pod library remove <id-or-title>`: Remove a subscription.
+  - `pod library list`: List all active subscriptions with local episode counts.
+  - `pod library import [file.opml]`: Import feeds from OPML or PodFetch database.
 
 ### 2. Native Feed Checker & Downloader (`pkg/podcast/`)
 - **Feed Checking (`pkg/podcast/feed_check.go`)**:
-  - `pod server feeds`: Fetches upstream RSS feeds directly and concurrently using conditional HTTP GET (`ETag` and `If-Modified-Since` headers stored in `feed_cache.json`).
+  - `pod library feeds`: Fetches upstream RSS feeds directly and concurrently using conditional HTTP GET (`ETag` and `If-Modified-Since` headers stored in `feed_cache.json`).
   - Reports newly published episodes without requiring external servers.
 - **Episode Downloader (`pkg/podcast/downloader.go`)**:
-  - `pod server download`: Evaluates download policies, detects missing episodes, and downloads audio directly via HTTP with resume support.
+  - `pod library download`: Evaluates download policies, detects missing episodes, and downloads audio directly via HTTP with resume support.
 
 ### 3. Static Webpage & RSS Generator (`pkg/podsite/`, `pkg/podcast/publish.go`)
 - **RSS Feeds (`feed.xml`)**:
@@ -128,6 +128,13 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
 - Headless background playback daemon with MPRIS D-Bus support.
 - Full-featured interactive terminal UI (`pod tui`) across 19 views.
 
+### 6. Podcast Search (`pkg/podcastsearch/`)
+- **Directories**: Queries Podcast Index when an API key and secret are configured, and falls back to Apple's keyless search otherwise, so discovery works without any setup.
+- **Commands**:
+  - `pod search <query>`: Lists matching shows with their directory ID and feed URL.
+  - `pod search add <id-or-feed-url>`: Resolves a result and subscribes to it, probing the feed for a title when the directory does not supply one.
+- **Credentials**: Read from `~/.config/auth/podcast_index_key.json` (or the path in `podcastindex_api_key_file`) and never stored in `config.json`.
+
 ---
 
 ## Optional Legacy Importer
@@ -135,4 +142,4 @@ PodFetch plays only an optional, legacy role (one-time subscription import via `
 - **PodFetch**:
   - `pod` contains a minimal read-only import adapter in `pkg/backend/podfetch*.go`.
   - It is not an operational backend (`backend_type: "standalone"` is the sole primary runtime backend).
-  - PodFetch integration exists solely for optional initial subscription migration via `pod server import`.
+  - PodFetch integration exists solely for optional initial subscription migration via `pod library import`.

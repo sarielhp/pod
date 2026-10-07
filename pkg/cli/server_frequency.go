@@ -18,7 +18,7 @@ func buildServerFrequencySubcommand(opts *CLIOptions, action *string) clihelp.Co
 	return clihelp.Command{
 		Name:        "frequency",
 		Description: "Analyze podcast release cadence and save frequency metadata",
-		UsageLine:   "pod server frequency [<podcast>] [options]",
+		UsageLine:   "pod library frequency [<podcast>] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[<podcast>]", Description: "Optional podcast by name, index, or ID to analyze"},
 		},
@@ -31,7 +31,7 @@ func buildServerFrequencySubcommand(opts *CLIOptions, action *string) clihelp.Co
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed metrics (span, days interval, hours interval)"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "frequency"
 			opts.SyncSubcmd = "frequency"
 			opts.Args = ctx.Args
@@ -47,7 +47,7 @@ func buildServerDisableHourlySubcommand(opts *CLIOptions, action *string) clihel
 	return clihelp.Command{
 		Name:        "disable-hourly",
 		Description: "Disable policy for hourly podcasts",
-		UsageLine:   "pod server disable-hourly [options]",
+		UsageLine:   "pod library disable-hourly [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[<podcast>]", Description: "Podcast name, index, or ID"},
 		},
@@ -59,7 +59,7 @@ func buildServerDisableHourlySubcommand(opts *CLIOptions, action *string) clihel
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed debug information"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "disable-hourly"
 			opts.SyncSubcmd = "disable-hourly"
 			opts.DisableHourly = true

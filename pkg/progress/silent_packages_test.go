@@ -21,6 +21,7 @@ var silentPackages = []string{
 	"../pipeline",
 	"../player",
 	"../podcast",
+	"../podcastsearch",
 	"../podsite",
 	"../port",
 	"../progress",

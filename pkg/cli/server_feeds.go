@@ -123,7 +123,7 @@ func buildServerFeedsSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	return clihelp.Command{
 		Name:        "feeds",
 		Description: "Check podcast feeds directly for newly published episodes",
-		UsageLine:   "pod server feeds [options] [podcast-id]",
+		UsageLine:   "pod library feeds [options] [podcast-id]",
 		Parameters: []clihelp.Param{
 			{Name: "[podcast-id]", Description: "Optional podcast identifier"},
 		},
@@ -137,24 +137,24 @@ func buildServerFeedsSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 		},
 		Examples: []clihelp.Example{
 			{
-				Line:        "pod server feeds",
+				Line:        "pod library feeds",
 				Description: "Check all feeds for new episodes, waking the server only for those that changed",
 			},
 			{
-				Line:        "pod server feeds -v",
+				Line:        "pod library feeds -v",
 				Description: "Scan all podcast feeds and report the verdict for each one",
 			},
 			{
-				Line:        "pod server feeds -p 'Huberman Lab'",
+				Line:        "pod library feeds -p 'Huberman Lab'",
 				Description: "Check the feed for a specific podcast",
 			},
 			{
-				Line:        "pod server feeds --force -j 24",
+				Line:        "pod library feeds --force -j 24",
 				Description: "Re-read every feed, ignoring cached validators, 24 at a time",
 			},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "feeds"
 			opts.SyncSubcmd = "feeds"
 			opts.Args = ctx.Args

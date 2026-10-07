@@ -219,7 +219,7 @@ Always use `util.WorkDirFor(path)` to compute the `.work/` path, then call
 - No comments in code (keep it self-documenting), except doc comments on exported
   library API — a package boundary has to say what it is for
 - **Library packages must not write to the terminal.** `pkg/podcast`, `pkg/backend`,
-  `pkg/podsite`, `pkg/pipeline`, `pkg/episode`, `pkg/config`, `pkg/player`,
+  `pkg/podsite`, `pkg/podcastsearch`, `pkg/pipeline`, `pkg/episode`, `pkg/config`, `pkg/player`,
   `pkg/kitty`, `pkg/port`, `pkg/types` and `pkg/progress` take a
   `progress.Reporter` (or a caller-supplied `io.Writer`) and let the caller decide
   where output goes; a nil Reporter is silent. `fmt.Print*` and
@@ -265,6 +265,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 | `pkg/podsite` | Pure static-site renderer: RSS feed and HTML player bytes. Imports no podcast code — callers pass in resolved data |
 | `pkg/podcast` (cont.) | `podcast.Library` (`Open`) is the entry point for anything needing library-wide state; it owns the feed cache and download queue. `podcast.Config` is three fields and must stay that way (`TestConfigStaysThreeFields`) |
 | `pkg/podcast` (cont. 2) | `EpisodeFile` is the shared core of an episode on disk; representations embed it rather than restating the six fields. Cache wire format is pinned by `TestCacheWireFormat` |
+| `pkg/podcastsearch` | Podcast discovery: `Searcher` over Podcast Index (signed, keyed) and Apple's keyless search; resolves a result to a feed URL. Writes nothing to the terminal |
 | `pkg/progress` | `progress.Reporter`: how library packages report progress without choosing where it goes. A nil Reporter is silent |
 | `pkg/kitty` | Kitty graphics protocol image rendering and cover art caching |
 | `pkg/tui` | Full-featured interactive terminal UI (Bubbletea/Lipgloss) spanning 19 screens and modes |
@@ -274,7 +275,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 
 - All packages contain focused, isolated unit and integration tests in `*_test.go` files
 - Tests use `t.TempDir()` for strict isolation and never write to real filesystem paths
-- Run `go test -timeout 180s ./...` to execute the full test suite across all 22 packages (`go list ./...`; 20 directories under `pkg/`)
+- Run `go test -timeout 180s ./...` to execute the full test suite across all 23 packages (`go list ./...`; 21 directories under `pkg/`)
 
 ## External Dependencies
 
@@ -291,7 +292,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
  - Audio cutting: ffmpeg filter_complex with concat
  - Backend Architecture (`architecture.md`):
    - **Standalone (Native)**: `pod` is its own native podcast backend (`backend_type: "standalone"`). It manages subscriptions in `~/.config/pod/podcasts.json`, directly fetches upstream feeds, downloads episodes, and generates local `feed.xml` RSS and `index.html` static web players.
-   - **Legacy Importers**: External podcast servers (e.g., PodFetch) have a minimal presence strictly as optional read-only migration sources for one-time subscription import via `pod server import`. All operational features (downloads, feeds, pipeline) run natively in standalone mode.
+   - **Legacy Importers**: External podcast servers (e.g., PodFetch) have a minimal presence strictly as optional read-only migration sources for one-time subscription import via `pod library import`. All operational features (downloads, feeds, pipeline) run natively in standalone mode.
  - Playback Architecture: Headless background playback daemon spawned via `pod player <play|stop|pause|status> [id]`, controlled through IPC socket `/tmp/pod_player.sock` with MPRIS D-Bus integration (supports mpv and cvlc fallback).
  - Terminology: Standardized on "AdR" (Ad Removal) and "NeedAdR" across CLI, tables, status badges, and TUI.
  - Config: `~/.config/pod/config.json`

@@ -289,6 +289,7 @@ type CLIOptions struct {
 	PlayerSubcmd   string
 	SyncSubcmd     string
 	StatusSubcmd   string
+	SearchSubcmd   string
 	Latest         bool
 	ShowExamples   bool
 
@@ -307,7 +308,7 @@ type CLIOptions struct {
 	RepeatsCatalog     bool
 	RepeatsCurve       bool
 
-	// SkipFavorites belongs to `pod server prune`, StatusTop to `pod server status`.
+	// SkipFavorites belongs to `pod library prune`, StatusTop to `pod library status`.
 	SkipFavorites bool
 	StatusTop     int
 
@@ -320,7 +321,7 @@ type CLIOptions struct {
 	AnalyzeMinEpisodes int
 	ShowBoilerplate    bool
 
-	// RenameBackup and RenameUndo belong to `pod server rename-episodes`.
+	// RenameBackup and RenameUndo belong to `pod library rename-episodes`.
 	RenameBackup string
 	RenameUndo   string
 
@@ -415,6 +416,14 @@ type SpeculativeConfig struct {
 	CompetingServices        []string `json:"competing_services,omitempty"`
 }
 
+// PodcastIndexConfig points at the Podcast Index credentials rather than
+// holding them. The file it names contains the API key and secret; config.json
+// only records where they are, so copying or syncing the configuration never
+// copies the secret with it.
+type PodcastIndexConfig struct {
+	PodcastIndexAPIKeyFile string `json:"podcastindex_api_key_file,omitempty"`
+}
+
 type Config struct {
 	Instructions      string          `json:"_instructions"`
 	PodcastsDir       string          `json:"podcasts_dir"`
@@ -433,6 +442,7 @@ type Config struct {
 	PolicyConfig
 	GeminiConfig
 	SpeculativeConfig
+	PodcastIndexConfig
 }
 
 func (c *Config) IsGeminiAPIKeyEnabled() bool {

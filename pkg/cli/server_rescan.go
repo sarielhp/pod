@@ -11,7 +11,7 @@ func buildServerRescanSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "rescan",
 		Description: "Scan MP3 file lengths on disk against DB duration and update DB if shorter",
-		UsageLine:   "pod server rescan [options]",
+		UsageLine:   "pod library rescan [options]",
 		Args:        clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Specify podcast by index or title"),
@@ -21,7 +21,7 @@ func buildServerRescanSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 			clihelp.String(&opts.SqliteDBPath, "--db-path <path>", "", "Path to absdatabase.sqlite"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "rescan"
 			opts.SyncSubcmd = "rescan"
 			opts.Args = ctx.Args

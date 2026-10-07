@@ -15,12 +15,12 @@ func buildServerPruneSubcommand(opts *CLIOptions, action *string, keepVal *int) 
 	return clihelp.Command{
 		Name:        "prune",
 		Description: "Delete older audio by keep policy, or keep only the newest N episodes of each podcast (transcripts are preserved)",
-		UsageLine:   "pod server prune [number] [options]",
+		UsageLine:   "pod library prune [number] [options]",
 		Parameters:  []clihelp.Param{{Name: "[number]", Description: "Number of latest episodes to keep per podcast"}},
 		Args:        clihelp.RangeArgs(0, 1),
 		Examples: []clihelp.Example{
-			{Line: "pod server prune 5 --skip-favorites --dry-run", Description: "Preview keeping the newest 5 episodes of every non-favorite podcast"},
-			{Line: "pod server prune 3 -p 'Fresh Air'", Description: "Keep the newest 3 episodes of one podcast"},
+			{Line: "pod library prune 5 --skip-favorites --dry-run", Description: "Preview keeping the newest 5 episodes of every non-favorite podcast"},
+			{Line: "pod library prune 3 -p 'Fresh Air'", Description: "Keep the newest 3 episodes of one podcast"},
 		},
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Specify podcast"),
@@ -32,7 +32,7 @@ func buildServerPruneSubcommand(opts *CLIOptions, action *string, keepVal *int) 
 			clihelp.Bool(&opts.ForceDelete, "-f, --force", false, "With a count, delete without asking for confirmation"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "keep"
 			opts.SyncSubcmd = "prune"
 			opts.Args = ctx.Args

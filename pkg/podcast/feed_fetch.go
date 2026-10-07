@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"pod/pkg/backend"
@@ -246,4 +247,19 @@ func fetchFeedDoc(feedURL string) (*FeedDocument, error) {
 		return nil, err
 	}
 	return res.Doc, nil
+}
+
+// ProbeFeed fetches a feed and returns its channel title and artwork URL. It is
+// how a subscription added from a bare feed URL learns what the show is called:
+// a search directory that returns only the URL, or a user who pastes one, still
+// gets a titled, illustrated podcast rather than a folder named after the URL.
+func ProbeFeed(feedURL string) (title, imageURL string, err error) {
+	doc, err := fetchFeedDoc(feedURL)
+	if err != nil {
+		return "", "", err
+	}
+	if doc == nil {
+		return "", "", fmt.Errorf("feed %s returned no document", feedURL)
+	}
+	return strings.TrimSpace(doc.Title), strings.TrimSpace(doc.ImageURL), nil
 }

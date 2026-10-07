@@ -52,6 +52,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 	keepVal := -1
 	countVal := -1
 	fetchCountVal := 1
+	searchLimitVal := defaultSearchLimit
 
 	return &clihelp.App{
 		Name:                "pod",
@@ -75,12 +76,12 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 				Description: "Process ad removal on queued episodes",
 			},
 			{
-				Line:        "pod server feeds",
+				Line:        "pod library feeds",
 				Description: "Check podcast feeds directly for newly published episodes",
 			},
 			{
-				Line:        "pod server download",
-				Description: "Download new episodes from server",
+				Line:        "pod library download",
+				Description: "Download new episodes from the library",
 			},
 			{
 				Line:        "pod queue latest 10",
@@ -94,6 +95,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 		Commands: []clihelp.Command{
 			buildFetchCommand(opts, action, &fetchCountVal),
 			buildQueueCommand(opts, action),
+			buildSearchCommand(opts, action, &searchLimitVal),
 			buildServerCommand(opts, action, &countVal, &keepVal),
 			buildPlayerCommand(opts, action),
 			buildInfoCommand(opts, action),

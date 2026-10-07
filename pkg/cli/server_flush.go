@@ -21,7 +21,7 @@ func buildServerFlushSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	return clihelp.Command{
 		Name:        "flush",
 		Description: "Remove a podcast's audio and precut copies, keep transcripts, and disable automatic downloads",
-		UsageLine:   "pod server flush <podcast-id> [--dry-run] [--force]",
+		UsageLine:   "pod library flush <podcast-id> [--dry-run] [--force]",
 		Parameters:  []clihelp.Param{{Name: "<podcast-id>", Description: "Exact podcast ID, local short ID, or title"}},
 		Args:        clihelp.ExactArgs(1),
 		Options: []clihelp.Option{
@@ -30,7 +30,7 @@ func buildServerFlushSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress output"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "flush"
 			opts.Args = ctx.Args
 			return nil

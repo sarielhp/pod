@@ -13,7 +13,7 @@ func buildServerCleanOrphansSubcommand(opts *CLIOptions, action *string) clihelp
 	return clihelp.Command{
 		Name:        "clean-orphans",
 		Description: "Delete orphaned ABS podcast entries",
-		UsageLine:   "pod server clean-orphans [options]",
+		UsageLine:   "pod library clean-orphans [options]",
 		Args:        clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.DryRun, "--dry-run", false, "Preview items without deleting"),
@@ -22,7 +22,7 @@ func buildServerCleanOrphansSubcommand(opts *CLIOptions, action *string) clihelp
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output during pruning"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "clean-orphans"
 			opts.SyncSubcmd = "clean-orphans"
 			opts.Args = ctx.Args

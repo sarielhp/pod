@@ -21,7 +21,7 @@ func buildServerDownloadSubcommand(opts *CLIOptions, action *string, countVal, k
 	return clihelp.Command{
 		Name:        "download",
 		Description: "Download undownloaded episodes for podcasts",
-		UsageLine:   "pod server download [podcast-id] [options]",
+		UsageLine:   "pod library download [podcast-id] [options]",
 		Parameters:  []clihelp.Param{{Name: "[podcast-id]", Description: "Specify podcast by name, index, or ID"}},
 		Args:        clihelp.MaximumNArgs(1),
 		Options: []clihelp.Option{
@@ -39,7 +39,7 @@ func buildServerDownloadSubcommand(opts *CLIOptions, action *string, countVal, k
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed info"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "download"
 			opts.SyncSubcmd = "download"
 			opts.Args = ctx.Args
@@ -173,7 +173,7 @@ func reportDownloadPlans(plans []podcast.DownloadPlan, elapsed time.Duration, cl
 		}
 	}
 	if unknown > 0 {
-		fmt.Fprintf(outFor(cli), "%d episode(s) cannot be requested until the server indexes them; run 'pod server feeds'.\n", unknown)
+		fmt.Fprintf(outFor(cli), "%d episode(s) cannot be requested until the server indexes them; run 'pod library feeds'.\n", unknown)
 	}
 }
 

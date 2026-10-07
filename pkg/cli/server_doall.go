@@ -11,7 +11,7 @@ import (
 	"pod/pkg/util"
 )
 
-// doAllStep is one stage of `pod server do-all`.
+// doAllStep is one stage of `pod library do-all`.
 type doAllStep struct {
 	name string
 	run  func(Config, CLIOptions) error
@@ -21,7 +21,7 @@ func buildServerDoAllSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 	return clihelp.Command{
 		Name:        "do-all",
 		Description: "Fetch, transcribe, analyze, remove ads and republish the feeds, in one run",
-		UsageLine:   "pod server do-all [podcast] [options]",
+		UsageLine:   "pod library do-all [podcast] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[podcast]", Description: "Limit every stage to one podcast, by name, index or ID"},
 		},
@@ -36,12 +36,12 @@ func buildServerDoAllSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 			clihelp.String(&opts.UseLLM, "--profile <id/name>", "", "Select LLM profile ID or name"),
 		},
 		Examples: []clihelp.Example{
-			{Line: "pod server do-all", Description: "Bring the whole library up to date"},
-			{Line: "pod server do-all 'Fresh Air'", Description: "The same for one podcast"},
-			{Line: "pod server do-all --dry-run", Description: "See what each stage would do"},
+			{Line: "pod library do-all", Description: "Bring the whole library up to date"},
+			{Line: "pod library do-all 'Fresh Air'", Description: "The same for one podcast"},
+			{Line: "pod library do-all --dry-run", Description: "See what each stage would do"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "do-all"
 			opts.Args = ctx.Args
 			if len(ctx.Args) > 0 && opts.Podcast == "" {

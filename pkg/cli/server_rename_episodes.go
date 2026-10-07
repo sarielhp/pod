@@ -18,7 +18,7 @@ func buildServerRenameEpisodesSubcommand(opts *CLIOptions, action *string) clihe
 	return clihelp.Command{
 		Name:        "rename-episodes",
 		Description: "Rename episode files to short codes, after backing up every transcript and status file",
-		UsageLine:   "pod server rename-episodes [-p <podcast>] [--dry-run] [--backup <dir>] [-f] | --undo <backup>",
+		UsageLine:   "pod library rename-episodes [-p <podcast>] [--dry-run] [--backup <dir>] [-f] | --undo <backup>",
 		Args:        clihelp.MaximumNArgs(0),
 		Options: []clihelp.Option{
 			clihelp.String(&opts.Podcast, "-p, --podcast <podcast>", "", "Limit to one podcast"),
@@ -29,11 +29,11 @@ func buildServerRenameEpisodesSubcommand(opts *CLIOptions, action *string) clihe
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress the per-podcast lines"),
 		},
 		Examples: []clihelp.Example{
-			{Line: "pod server identify && pod server rename-episodes --dry-run", Description: "Preview the renames once every episode has an identity"},
-			{Line: "pod server rename-episodes --undo /media/podcasts/pod-backup-20260929-101500", Description: "Put every file and status back as it was"},
+			{Line: "pod library identify && pod library rename-episodes --dry-run", Description: "Preview the renames once every episode has an identity"},
+			{Line: "pod library rename-episodes --undo /media/podcasts/pod-backup-20260929-101500", Description: "Put every file and status back as it was"},
 		},
 		Run: func(_ *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "rename-episodes"
 			return nil
 		},
@@ -112,7 +112,7 @@ func finishRename(cli CLIOptions, res podcast.RenameResult, backup string) error
 	if res.Busy > 0 {
 		fmt.Fprintf(w, " %d busy episode(s) were left for a later run.", res.Busy)
 	}
-	fmt.Fprintf(w, "\nTo reverse this: pod server rename-episodes --undo %s\n", backup)
+	fmt.Fprintf(w, "\nTo reverse this: pod library rename-episodes --undo %s\n", backup)
 	for _, f := range res.Failures {
 		fmt.Fprintf(errFor(cli), "%v\n", f)
 	}
@@ -139,7 +139,7 @@ func reportRenamePlans(cli CLIOptions, plans []podcast.RenamePlan) bool {
 	fmt.Fprintf(out, "%d episode(s) to rename. %d already have short names, %d have no identity yet, %d stray file(s) belong to no episode and are left alone, %d skipped.\n",
 		rename, already, unidentified, orphans, skipped)
 	if unidentified > 0 {
-		fmt.Fprintln(out, "Run 'pod server identify' first to include the episodes without an identity.")
+		fmt.Fprintln(out, "Run 'pod library identify' first to include the episodes without an identity.")
 	}
 	return rename > 0
 }

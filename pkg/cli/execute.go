@@ -62,6 +62,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 	switch action {
 	case "fetch":
 		return runFetchCommand(*config, cli)
+	case "search":
+		return runSearchCommand(*config, cli)
 	case "config":
 		return runConfigCommand(config, cli)
 	case "info":
@@ -75,7 +77,7 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runQueueCommand(*config, cli)
 	case "rm_ads":
 		return runRmAdsCommand(*config, cli)
-	case "server":
+	case "library":
 		return handleServerCommand(*config, cli)
 	case "transcribe":
 		return runTranscribeCommand(*config, cli)

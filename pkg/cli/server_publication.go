@@ -14,7 +14,7 @@ func buildServerPublicationSubcommand(opts *CLIOptions, action *string) clihelp.
 		Args:        clihelp.MaximumNArgs(0),
 		Options:     []clihelp.Option{clihelp.Bool(&opts.DryRun, "--dry-run", false, "Report changes without writing metadata")},
 		Run: func(_ *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "publication-sync"
 			return nil
 		},

@@ -216,7 +216,7 @@ func (m *tuiModel) handlePodcastConfigToggle() {
 }
 
 // handleFavoriteToggle flips the favorite flag of the podcast being viewed,
-// with the same effects as `pod server favorite`: a favorite downloads all new
+// with the same effects as `pod library favorite`: a favorite downloads all new
 // episodes and has ads removed.
 func (m *tuiModel) handleFavoriteToggle() {
 	switch m.screen {

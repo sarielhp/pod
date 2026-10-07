@@ -28,7 +28,7 @@ func buildServerFavoriteSubcommand(opts *CLIOptions, action *string) clihelp.Com
 	return clihelp.Command{
 		Name:        "favorite",
 		Description: "Set or list favorite podcasts and episodes (auto-downloads all new episodes and removes ads)",
-		UsageLine:   "pod server favorite [<identifier>] [options]",
+		UsageLine:   "pod library favorite [<identifier>] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[<identifier>]", Description: "Target podcast or episode identifier to mark/unmark as favorite (leave empty to list)"},
 		},
@@ -40,24 +40,24 @@ func buildServerFavoriteSubcommand(opts *CLIOptions, action *string) clihelp.Com
 		},
 		Examples: []clihelp.Example{
 			{
-				Line:        "pod server favorite 'Huberman Lab'",
+				Line:        "pod library favorite 'Huberman Lab'",
 				Description: "Mark podcast as favorite (auto-downloads new episodes with ad removal)",
 			},
 			{
-				Line:        "pod server favorite e12345",
+				Line:        "pod library favorite e12345",
 				Description: "Mark single episode as favorite",
 			},
 			{
-				Line:        "pod server favorite 42 --off",
+				Line:        "pod library favorite 42 --off",
 				Description: "Remove podcast from favorites",
 			},
 			{
-				Line:        "pod server favorite",
+				Line:        "pod library favorite",
 				Description: "List all currently favorited podcasts",
 			},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "favorite"
 			opts.SyncSubcmd = "favorite"
 			opts.Args = ctx.Args
@@ -125,7 +125,7 @@ func listFavoritePodcasts(podcastsDir string, cli CLIOptions) error {
 	}
 
 	if len(favorites) == 0 {
-		fmt.Fprintln(outFor(cli), "No favorite podcasts set. Use 'pod server favorite <podcast>' to favorite one.")
+		fmt.Fprintln(outFor(cli), "No favorite podcasts set. Use 'pod library favorite <podcast>' to favorite one.")
 		return nil
 	}
 

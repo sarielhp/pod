@@ -14,15 +14,15 @@ import (
 func buildServerListSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "list",
-		Description: "List all available podcasts in server with episode counts",
-		UsageLine:   "pod server list [options]",
+		Description: "List all available podcasts in the library with episode counts",
+		UsageLine:   "pod library list [options]",
 		Args:        clihelp.NoArgs,
 		Options: []clihelp.Option{
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output (Feed URLs and IDs)"),
 			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "list"
 			opts.SyncSubcmd = "list"
 			opts.Args = ctx.Args
@@ -35,7 +35,7 @@ func buildServerGetInfoSubcommand(opts *CLIOptions, action *string) clihelp.Comm
 	return clihelp.Command{
 		Name:        "get-info",
 		Description: "Cache metadata for latest K episodes",
-		UsageLine:   "pod server get-info [<k>] [options]",
+		UsageLine:   "pod library get-info [<k>] [options]",
 		Parameters:  []clihelp.Param{{Name: "[<k>]", Description: "Episodes count per podcast (default 100)"}},
 		Args:        clihelp.MaximumNArgs(1),
 		Options: []clihelp.Option{
@@ -45,7 +45,7 @@ func buildServerGetInfoSubcommand(opts *CLIOptions, action *string) clihelp.Comm
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed per-episode metadata"),
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "get-info"
 			opts.SyncSubcmd = "get-info"
 			opts.Count = 100

@@ -68,7 +68,7 @@ func handleGenRSSLatest(cfg Config, cli CLIOptions, target string, count int) er
 	})
 	targets := sel.Paths()
 	if len(targets) == 0 {
-		fmt.Fprintln(out, "No recently published episodes found. Run `pod server feeds` first.")
+		fmt.Fprintln(out, "No recently published episodes found. Run `pod library feeds` first.")
 		return nil
 	}
 	scope := "across the library"

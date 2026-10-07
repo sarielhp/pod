@@ -434,7 +434,7 @@ func buildServerPolicySubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "policy",
 		Description: "View or update podcast download and AdR policy",
-		UsageLine:   "pod server policy [<podcast-id>|all|default|non-favorites] [<number>] [options]",
+		UsageLine:   "pod library policy [<podcast-id>|all|default|non-favorites] [<number>] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[<podcast-id>|all|default|non-favorites]", Description: "Target podcast identifier, 'all' for all podcasts, 'non-favorites' for non-favorites, or 'default' for global config"},
 			{Name: "[<number>]", Description: "Shorthand: auto-download latest K episodes with ad-removal all"},
@@ -457,28 +457,28 @@ func buildServerPolicySubcommand(opts *CLIOptions, action *string) clihelp.Comma
 		},
 		Examples: []clihelp.Example{
 			{
-				Line:        "pod server policy 42 1",
+				Line:        "pod library policy 42 1",
 				Description: "Shorthand: auto-download latest 1 episode and remove all ads",
 			},
 			{
-				Line:        "pod server policy non-favorites --download-policy none",
+				Line:        "pod library policy non-favorites --download-policy none",
 				Description: "Disable auto-download for all podcasts that are not marked as favorite",
 			},
 			{
-				Line:        "pod server policy all --auto-download false",
+				Line:        "pod library policy all --auto-download false",
 				Description: "Mark all podcasts as not auto-download",
 			},
 			{
-				Line:        "pod server policy all --auto-download false --set-default",
+				Line:        "pod library policy all --auto-download false --set-default",
 				Description: "Disable auto-download for all podcasts and set global default",
 			},
 			{
-				Line:        "pod server policy default --download-policy none",
+				Line:        "pod library policy default --download-policy none",
 				Description: "Set default download policy for new podcasts to none",
 			},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "policy"
 			opts.SyncSubcmd = "policy"
 			opts.Args = ctx.Args

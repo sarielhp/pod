@@ -110,8 +110,8 @@ func TestFetchCommandReorganization(t *testing.T) {
 		}
 	}
 
-	// 7 visible commands: fetch, queue, server, player, info, config, tui
-	wantVisible := []string{"fetch", "queue", "server", "player", "info", "config", "tui"}
+	// 8 visible commands: fetch, queue, library, player, info, config, tui, search
+	wantVisible := []string{"fetch", "queue", "library", "player", "info", "config", "tui", "search"}
 	if len(visible) != len(wantVisible) {
 		t.Fatalf("expected %d visible commands, got %d: %v", len(wantVisible), len(visible), visible)
 	}
@@ -152,7 +152,8 @@ func TestSingleLetterAbbreviationsForVisibleCommands(t *testing.T) {
 	}{
 		{"f", "fetch"},
 		{"q", "queue"},
-		{"s", "server"},
+		{"s", "search"},
+		{"l", "library"},
 		{"p", "player"},
 		{"i", "info"},
 		{"c", "config"},

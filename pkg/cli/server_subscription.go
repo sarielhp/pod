@@ -19,14 +19,14 @@ func buildServerAddSubcommand(opts *CLIOptions, action *string) clihelp.Command 
 	return clihelp.Command{
 		Name:        "add",
 		Description: "Add a podcast subscription by RSS feed URL",
-		UsageLine:   "pod server add <feed-url> [title]",
+		UsageLine:   "pod library add <feed-url> [title]",
 		Parameters: []clihelp.Param{
 			{Name: "<feed-url>", Description: "Upstream podcast RSS feed URL"},
 			{Name: "[title]", Description: "Optional title for podcast"},
 		},
 		Args: clihelp.RangeArgs(1, 2),
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "add"
 			opts.SyncSubcmd = "add"
 			opts.Args = ctx.Args
@@ -39,13 +39,13 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "remove",
 		Description: "Remove a podcast subscription by ID or title",
-		UsageLine:   "pod server remove <id-or-title>",
+		UsageLine:   "pod library remove <id-or-title>",
 		Parameters: []clihelp.Param{
 			{Name: "<id-or-title>", Description: "Podcast ID, folder, or title"},
 		},
 		Args: clihelp.ExactArgs(1),
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "remove"
 			opts.SyncSubcmd = "remove"
 			opts.Args = ctx.Args
@@ -56,7 +56,7 @@ func buildServerRemoveSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 
 // buildGenRSSCommand generates the static site.
 //
-// It is a top-level command rather than a subcommand of `server`, because
+// It is a top-level command rather than a subcommand of `library`, because
 // publishing the local site is a different kind of act from talking to
 // upstream feeds — and a `feed` sitting beside `feeds` invited running one
 // while meaning the other.
@@ -94,13 +94,13 @@ func buildServerImportSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "import",
 		Description: "Import subscriptions from OPML file or backend into local store",
-		UsageLine:   "pod server import [file]",
+		UsageLine:   "pod library import [file]",
 		Parameters: []clihelp.Param{
 			{Name: "[file]", Description: "Optional OPML file to import (defaults to importing from backend)"},
 		},
 		Args: clihelp.RangeArgs(0, 1),
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "import"
 			opts.SyncSubcmd = "import"
 			opts.Args = ctx.Args

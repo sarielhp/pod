@@ -53,7 +53,7 @@ func TestFlushAsksBeforeDeletingUnlessForced(t *testing.T) {
 func TestFlushCommandAcceptsForce(t *testing.T) {
 	var action string
 	var opts CLIOptions
-	if err := buildCLIApp(&action, &opts).Execute([]string{"server", "flush", "123", "--force"}); err != nil {
+	if err := buildCLIApp(&action, &opts).Execute([]string{"library", "flush", "123", "--force"}); err != nil {
 		t.Fatal(err)
 	}
 	if !opts.ForceDelete {

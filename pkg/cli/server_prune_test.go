@@ -130,7 +130,7 @@ func TestServerStatusReportsUsageAndJSON(t *testing.T) {
 	if err := handleServerStatus(lib, cli); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Podcasts     2 (1 favorite)", "10 on disk", "Disk use", "Largest podcasts", "pod server prune 5 --skip-favorites --dry-run"} {
+	for _, want := range []string{"Podcasts     2 (1 favorite)", "10 on disk", "Disk use", "Largest podcasts", "pod library prune 5 --skip-favorites --dry-run"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("status output missing %q:\n%s", want, out.String())
 		}

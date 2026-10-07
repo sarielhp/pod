@@ -206,7 +206,7 @@ func TestRegressionIssue7_ServerKebabCaseAndAliases(t *testing.T) {
 	var opts CLIOptions
 	app := buildCLIApp(&action, &opts)
 
-	if err := app.Execute([]string{"server", "get-info"}); err != nil {
+	if err := app.Execute([]string{"library", "get-info"}); err != nil {
 		t.Errorf("expected 'server get-info' to succeed: %v", err)
 	}
 	if opts.ServerSubcmd != "get-info" {
@@ -214,7 +214,7 @@ func TestRegressionIssue7_ServerKebabCaseAndAliases(t *testing.T) {
 	}
 
 	opts = CLIOptions{}
-	if err := app.Execute([]string{"server", "disable-hourly"}); err != nil {
+	if err := app.Execute([]string{"library", "disable-hourly"}); err != nil {
 		t.Errorf("expected 'server disable-hourly' to succeed: %v", err)
 	}
 	if opts.ServerSubcmd != "disable-hourly" {

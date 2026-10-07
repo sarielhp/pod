@@ -15,16 +15,16 @@ func TestServerDownloadArguments(t *testing.T) {
 	t.Parallel()
 	for _, target := range []string{"My Show", "123"} {
 		for _, args := range [][]string{
-			{"server", "download", target, "-k", "3"},
-			{"server", "download", "-k", "3", target},
-			{"server", "download", "-p", target, "-k", "3"},
+			{"library", "download", target, "-k", "3"},
+			{"library", "download", "-k", "3", target},
+			{"library", "download", "-p", target, "-k", "3"},
 		} {
 			var action string
 			var opts CLIOptions
 			if err := buildCLIApp(&action, &opts).Execute(args); err != nil {
 				t.Fatal(err)
 			}
-			if action != "server" || opts.ServerSubcmd != "download" || opts.Podcast != target || !opts.CountGiven || opts.Count != 3 {
+			if action != "library" || opts.ServerSubcmd != "download" || opts.Podcast != target || !opts.CountGiven || opts.Count != 3 {
 				t.Fatalf("incorrect parsing for %v: action=%s opts=%+v", args, action, opts)
 			}
 		}
@@ -32,7 +32,7 @@ func TestServerDownloadArguments(t *testing.T) {
 	for _, count := range []string{"0", "-2"} {
 		var action string
 		var opts CLIOptions
-		if err := buildCLIApp(&action, &opts).Execute([]string{"server", "download", "--count=" + count}); err == nil {
+		if err := buildCLIApp(&action, &opts).Execute([]string{"library", "download", "--count=" + count}); err == nil {
 			t.Fatalf("accepted invalid count %s", count)
 		}
 	}
@@ -96,7 +96,7 @@ func TestServerDownloadDryRunAndNoWait(t *testing.T) {
 		cfg := Config{PostProcessors: []string{"touch " + marker}}
 		var action string
 		var opts CLIOptions
-		if err := buildCLIApp(&action, &opts).Execute([]string{"server", "download", "123", "-k", "1", "--no-wait", "--quiet"}); err != nil {
+		if err := buildCLIApp(&action, &opts).Execute([]string{"library", "download", "123", "-k", "1", "--no-wait", "--quiet"}); err != nil {
 			t.Fatal(err)
 		}
 		opts.DryRun = dryRun
@@ -132,7 +132,7 @@ func TestServerDownloadFailureStopsPostprocessing(t *testing.T) {
 		cfg := Config{PostProcessors: []string{"touch " + marker}}
 		var action string
 		var opts CLIOptions
-		if err := buildCLIApp(&action, &opts).Execute([]string{"server", "download", "-k", "1", "--quiet"}); err != nil {
+		if err := buildCLIApp(&action, &opts).Execute([]string{"library", "download", "-k", "1", "--quiet"}); err != nil {
 			t.Fatal(err)
 		}
 		if err := runServerDownloads(b, cfg, opts); !errors.Is(err, failure) {
@@ -154,7 +154,7 @@ func TestServerDownloadCountSelectsNewestOrOldest(t *testing.T) {
 		b.item.Media.Episodes = []backend.Episode{{Title: "Old", GUID: "Old", AudioFile: &backend.PodcastAudioFile{Duration: 1}}}
 		var action string
 		var opts CLIOptions
-		args := []string{"server", "download", "123", "-k", "1", "--no-wait", "--quiet"}
+		args := []string{"library", "download", "123", "-k", "1", "--no-wait", "--quiet"}
 		if oldest {
 			args = append(args, "--oldest")
 		}

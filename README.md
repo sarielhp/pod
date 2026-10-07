@@ -15,6 +15,7 @@ Automatically detects and removes advertisement, sponsor, and promotional segmen
 - **Auto-fallback**: Detects whisper decode failures and automatically retries with chunked transcription
 - **Interactive TUI**: Browse podcasts, queue episodes, and track processing status
 - **Feed & Web Generation**: Generate RSS feeds and static HTML5 web players natively
+- **Podcast Search**: Find shows by name and subscribe in one step (`pod search`)
 
 ## Workflow
 
@@ -89,16 +90,41 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 
 `pod` is a self-contained, native podcast management system:
 - **Subscriptions**: Stored locally in `~/.config/pod/podcasts.json` (or `~/.config/abs/podcasts.json`).
-- **Feed Checking**: `pod server feeds` checks upstream feeds directly with conditional HTTP GET (`ETag` / `If-Modified-Since`).
-- **Downloads**: `pod server download` downloads episodes directly over HTTP with resume support.
+- **Feed Checking**: `pod library feeds` checks upstream feeds directly with conditional HTTP GET (`ETag` / `If-Modified-Since`).
+- **Downloads**: `pod library download` downloads episodes directly over HTTP with resume support.
 - **Feeds & Web Players**: `pod gen_rss` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
 - **Mobile Sync**: Works with standard podcast clients (e.g. AntennaPod) over Tailscale/Caddy without proprietary server apps.
 
 ### Legacy Server Import (Optional)
 
 External servers are deactivated from normal operations and only serve as optional migration sources for one-time subscription import:
-- Import from OPML: `pod server import subscriptions.opml`
-- Import from PodFetch: `pod server import` (reads configured `podfetch_db_path` or API)
+- Import from OPML: `pod library import subscriptions.opml`
+- Import from PodFetch: `pod library import` (reads configured `podfetch_db_path` or API)
+
+### Search & Subscribe
+
+`pod search <query>` lists matching shows and `pod search add <id-or-feed-url>` subscribes to one:
+
+```bash
+pod search huberman             # find a show by name
+pod search add 75075            # subscribe to the result with that ID
+pod search add https://example.com/feed.xml   # subscribe straight to a feed URL
+```
+
+Search uses **Podcast Index** when credentials are configured and otherwise falls back to Apple's
+keyless search, so it works without any setup. To use Podcast Index, put your key and secret in
+`~/.config/auth/podcast_index_key.json`:
+
+```json
+{ "api_key": "YOUR_KEY", "api_secret": "YOUR_SECRET" }
+```
+
+The path can be changed with `pod config set podcastindex-api-key-file <path>`; the credentials
+themselves are never written to `config.json`. A single run can be pointed at another account with
+`PODCASTINDEX_API_KEY` and `PODCASTINDEX_API_SECRET`.
+
+Subcommands resolve by prefix, so a query that is itself a prefix of `add` — `a` or `ad` — is taken
+as the subcommand. Spell the word out, or quote a longer phrase, when that happens.
 
 ## Ad Removal Terminology (AdR)
 
@@ -142,19 +168,19 @@ pod info e12345 --export srt # Export transcript to SRT
 pod info status             # Show library summary and worker status
 pod info check              # Test external services (Whisper, Gemini, Kitty)
 
-# Feed sync & server operations (all under `server`)
-pod server feeds            # Check upstream RSS feeds for new episodes (reads remote)
+# Feed sync & library operations (all under `library`)
+pod library feeds            # Check upstream RSS feeds for new episodes (reads remote)
 pod gen_rss          # Generate local feed.xml + index.html (writes local)
 pod gen_rss 10       # Fetch, ad-strip and publish the 10 newest episodes
-pod server download         # Download pending episodes according to podcast policy
-pod server download p0001 -k 3 # Download up to 3 missing episodes for a podcast
-pod server flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts
-pod server flush p0001       # Remove MP3/precut audio and disable automatic downloads
-pod server publication-sync --dry-run # Preview correcting local publication metadata from the source catalog
-pod server publication-sync # Correct cached/status dates; unknown source dates stay unknown
-pod server prune            # Prune old episodes per retention policy
-pod server policy p0001     # View or update download/AdR policy
-pod server timeline         # Display online availability timestamps table
+pod library download         # Download pending episodes according to podcast policy
+pod library download p0001 -k 3 # Download up to 3 missing episodes for a podcast
+pod library flush p0001 --dry-run # Preview removing this podcast's audio, keeping transcripts
+pod library flush p0001       # Remove MP3/precut audio and disable automatic downloads
+pod library publication-sync --dry-run # Preview correcting local publication metadata from the source catalog
+pod library publication-sync # Correct cached/status dates; unknown source dates stay unknown
+pod library prune            # Prune old episodes per retention policy
+pod library policy p0001     # View or update download/AdR policy
+pod library timeline         # Display online availability timestamps table
 
 # Manage AdR queue
 pod queue list
@@ -191,16 +217,17 @@ pod tui
 
 ### Commands Overview
 
-Commands resolve by unique prefix, and every command has exactly one name (no aliases). The seven visible commands each start with a different letter, so each abbreviates to that letter (`c`, `f`, `i`, `p`, `q`, `s`, `t`).
+Commands resolve by unique prefix, and every command has exactly one name (no aliases). The eight visible commands each start with a different letter, so each abbreviates to that letter (`c`, `f`, `i`, `l`, `p`, `q`, `s`, `t`).
 
 | Command | Prefix | Usage | Description |
 |---------|--------|-------|-------------|
 | `config` | `c` | `pod config [command]` | View and manage application configuration |
 | `fetch` | `f` | `pod fetch [podcast-id] [options]` | Fetch latest podcast episodes and remove ad segments |
 | `info` | `i` | `pod info [options] [id\|latest [N]\|status\|check]` | Library query, inspection, cuts and transcripts |
+| `library` | `l` | `pod library [command] [options] [podcast-id]` | Manage the podcast library: feeds, downloads, and policies |
 | `player` | `p` | `pod player [command]` | Control background audio playback (`play`, `stop`, `pause`, `status`) |
 | `queue` | `q` | `pod queue [command]` | Manage the ad removal (AdR) processing queue |
-| `server` | `s` | `pod server [command] [options] [podcast-id]` | Manage podcast server feeds, downloads, and policies |
+| `search` | `s` | `pod search <query> [options]` | Search podcast directories and subscribe to a result |
 | `tui` | `t` | `pod tui [options] [directory]` | Interactive TUI browser for podcasts and episodes |
 
 The processing commands below are hidden: they do not appear in `pod --help` and are excluded from prefix matching, so they must be spelled out in full (`pod d` and `pod r` do not resolve).

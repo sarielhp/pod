@@ -16,7 +16,7 @@ func buildServerRewindSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 	return clihelp.Command{
 		Name:        "rewind",
 		Description: "Delete episodes downloaded within a time window, with their transcripts and cuts, and reset their feeds so 'pod fetch' finds them new again",
-		UsageLine:   "pod server rewind <window> [podcast] [--dry-run] [--force]",
+		UsageLine:   "pod library rewind <window> [podcast] [--dry-run] [--force]",
 		Parameters: []clihelp.Param{
 			{Name: "<window>", Description: "How far back to reach: 90m, 24h, 7d"},
 			{Name: "[podcast]", Description: "Limit the rewind to one podcast by name, index, or ID"},
@@ -30,11 +30,11 @@ func buildServerRewindSubcommand(opts *CLIOptions, action *string) clihelp.Comma
 			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "List every file"),
 		},
 		Examples: []clihelp.Example{
-			{Line: "pod server rewind 24h --dry-run", Description: "Preview everything downloaded in the last day"},
-			{Line: "pod server rewind 2d 'Huberman Lab'", Description: "Rewind one podcast by two days, then run pod fetch again"},
+			{Line: "pod library rewind 24h --dry-run", Description: "Preview everything downloaded in the last day"},
+			{Line: "pod library rewind 2d 'Huberman Lab'", Description: "Rewind one podcast by two days, then run pod fetch again"},
 		},
 		Run: func(ctx *clihelp.Context) error {
-			*action = "server"
+			*action = "library"
 			opts.ServerSubcmd = "rewind"
 			opts.Args = ctx.Args
 			return nil

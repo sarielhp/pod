@@ -115,7 +115,7 @@ func collectCatalogEpisodes(lib *podcast.Library, onDisk []lsEpisodeItem, includ
 // A rolling news bulletin puts out over a hundred episodes a week — one here
 // runs at 169 — so a listing of the most recent episodes across the library is
 // simply a list of that one show. They are excluded by default and restored by
-// --hourly, which is the same judgement `pod server disable-hourly` already
+// --hourly, which is the same judgement `pod library disable-hourly` already
 // makes about downloading them.
 func isHourlyPodcast(podDir string) bool {
 	cfg := config.LoadPodcastConfig(podDir, config.PodcastConfig{})
@@ -198,7 +198,7 @@ func listCatalogEpisodes(podcastsDir string, onDisk []lsEpisodeItem, limit int, 
 	lib := library(Config{PodcastsDir: podcastsDir}, cli, nil)
 	episodes := collectCatalogEpisodes(lib, onDisk, cli.IncludeHourly)
 	if len(episodes) == 0 {
-		fmt.Fprintln(progressFor(cli), "No episodes known. Run `pod server feeds` to read the feeds.")
+		fmt.Fprintln(progressFor(cli), "No episodes known. Run `pod library feeds` to read the feeds.")
 		return nil
 	}
 	if limit > len(episodes) {

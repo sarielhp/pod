@@ -34,6 +34,9 @@ func handleConfigSetAPIKey(cfg *Config, key, val string) (bool, error) {
 	case "gemini-model":
 		cfg.GeminiModel = val
 		return true, nil
+	case "podcastindex-api-key-file", "podcastindex-key-file":
+		cfg.PodcastIndexAPIKeyFile = val
+		return true, nil
 	case "speculative-transcription", "speculative-competition":
 		b, err := strconv.ParseBool(val)
 		if err != nil {
@@ -189,6 +192,8 @@ func handleConfigGet(w io.Writer, cfg Config, key string) error {
 		fmt.Fprintln(w, cfg.GeminiAPIKeyFile)
 	case "gemini-model":
 		fmt.Fprintln(w, cfg.GetGeminiModel())
+	case "podcastindex-api-key-file", "podcastindex-key-file":
+		fmt.Fprintln(w, cfg.PodcastIndexAPIKeyFile)
 	case "speculative-transcription", "speculative-competition":
 		fmt.Fprintln(w, cfg.IsSpeculativeTranscriptionEnabled())
 	case "competing-services", "speculative-services":

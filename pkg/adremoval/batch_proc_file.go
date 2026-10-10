@@ -100,27 +100,22 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	artifacts, stages := planForEpisode(mainMP3File, opts)
 
 	totalDuration := audio.GetAudioDuration(sourceAudioFile)
+	if err := verifyMusicSource(mainMP3File, precutFile, totalDuration, config.YamnetURL); err != nil {
+		return Report{Processed: true}, err
+	}
 	markTranscriptionStarted(mainMP3File, sourceAudioFile, totalDuration, opts.Verbose)
 	totalDuration = applyPreviewLimit(&sourceAudioFile, totalDuration, opts)
+	job := episodeJob{
+		sourceAudioFile: sourceAudioFile, jsonFile: jsonFile, mainMP3File: mainMP3File,
+		precutFile: precutFile, outputFile: outputFile, totalDuration: totalDuration,
+		cfg: config, opts: opts, selectedProfile: selectedProfile, fileStartTime: fileStartTime, rep: rep,
+	}
 	if opts.Recut && artifacts.HasCuts {
-		err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, selectedProfile, config, opts, fileStartTime, rep)
+		err := recutReviewedEpisode(job)
 		return Report{Processed: true}, err
 	}
 
-	if hasStage(stages, pipeline.StageTranscribe) {
-		job := episodeJob{
-			sourceAudioFile: sourceAudioFile,
-			jsonFile:        jsonFile,
-			mainMP3File:     mainMP3File,
-			precutFile:      precutFile,
-			outputFile:      outputFile,
-			totalDuration:   totalDuration,
-			cfg:             config,
-			opts:            opts,
-			selectedProfile: selectedProfile,
-			fileStartTime:   fileStartTime,
-			rep:             rep,
-		}
+	if config.YamnetURL == "" && hasStage(stages, pipeline.StageTranscribe) {
 		var success, handled bool
 		switch {
 		case canRunSpeculativeRace(config, opts):
@@ -206,7 +201,7 @@ func handleSpeculativeStep(job episodeJob) (bool, bool) {
 	}
 
 	if geminiWon {
-		return finalizeGeminiRaceWinner(job.sourceAudioFile, job.jsonFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, td, ads, job.selectedProfile, job.cfg, job.opts, job.fileStartTime, t0Step1)
+		return finalizeGeminiEpisode(job, td, ads, t0Step1), true
 	}
 
 	detectAndSanitizeTranscriptLanguage(td, job.cfg.WhisperLanguage, true, job.opts.Quiet)
@@ -218,28 +213,32 @@ func handleSpeculativeStep(job episodeJob) (bool, bool) {
 	return cutSuccess, true
 }
 
-func finalizeGeminiRaceWinner(sourceAudioFile, jsonFile, mainMP3File, precutFile, outputFile string, totalDuration float64, td *types.TranscriptionData, ads []types.AdSegment, selectedProfile types.LLMProfile, cfg types.Config, opts types.ProcOptions, fileStartTime, t0Step1 time.Time) (bool, bool) {
+func finalizeGeminiEpisode(job episodeJob, td *types.TranscriptionData, ads []types.AdSegment, t0Step1 time.Time) bool {
+	boilerplate := pipeline.BoilerplateCuts(filepath.Dir(job.mainMP3File), td)
+	if len(boilerplate) > 0 && !job.opts.Quiet {
+		fmt.Printf("Boilerplate: %d recurring passage(s) added to Gemini cuts.\n", len(boilerplate))
+	}
+	ads = append(ads, boilerplate...)
 	if len(ads) > 0 {
 		ads = format.MergeIntervals(ads)
 	}
 	t0Step2 := time.Now()
-	if err := updateTranscriptAdDetectionStatus(jsonFile, true, "completed", "gemini-flash", "", len(ads)); err != nil && opts.Verbose {
+	if err := updateTranscriptAdDetectionStatus(job.jsonFile, true, "completed", "gemini-flash", "", len(ads)); err != nil && job.opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update transcript ad status: %v\n", err)
 	}
-	if err := updateStatusAdDetection(mainMP3File, true, "completed", "gemini-flash", ""); err != nil && opts.Verbose {
+	if err := updateStatusAdDetection(job.mainMP3File, true, "completed", "gemini-flash", ""); err != nil && job.opts.Verbose {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
 	}
 	if len(ads) == 0 {
-		handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile, totalDuration, selectedProfile, opts, fileStartTime, t0Step1, t0Step2)
-		return true, true
+		handleNoAdsDetected(job.mainMP3File, job.sourceAudioFile, job.outputFile, job.totalDuration, job.selectedProfile, job.opts, job.fileStartTime, t0Step1, t0Step2)
+		return true
 	}
-	cutsResult := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, ads, &selectedProfile, opts.Quiet, opts.ForceLLM)
+	cutsResult := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet, job.opts.ForceLLM)
 	if cutsResult.Err != nil {
-		return false, true
+		return false
 	}
 	t0Step3 := time.Now()
-	cutSuccess := executeLocalAudioCutting(sourceAudioFile, mainMP3File, precutFile, outputFile, cutsResult.KeepSegments, ads, totalDuration, cfg, opts, selectedProfile, fileStartTime, t0Step1, t0Step2, t0Step3)
-	return cutSuccess, true
+	return executeLocalAudioCutting(job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, cutsResult.KeepSegments, ads, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1, t0Step2, t0Step3)
 }
 
 func handleGeminiStepWithFallback(job episodeJob) (bool, bool) {
@@ -262,6 +261,17 @@ func handleGeminiStepWithFallback(job episodeJob) (bool, bool) {
 }
 
 func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, totalDuration float64, cfg types.Config, opts types.ProcOptions, selectedProfile types.LLMProfile, fileStartTime time.Time, rep progress.Reporter) (*types.TranscriptionData, time.Time, bool, bool) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var musicReview *pipeline.MusicReview
+	if cfg.YamnetURL != "" {
+		cfg, opts = whisperFirstSettings(cfg, opts)
+		musicReview = pipeline.StartMusicReview(ctx, pipeline.MusicReviewRequest{AudioPath: sourceAudioFile, CachePath: pipeline.MusicCachePath(mainMP3File), Duration: totalDuration, Config: cfg, Options: opts, Reporter: rep})
+		wp := config.GetActiveWhisperProfile(&cfg)
+		if wp.Engine != types.WhisperEngineLocal {
+			transcribe.WakeServer(cfg.WhisperURL, cfg.WhisperWakeCommand, opts.Quiet)
+		}
+	}
 	speedFactor := cfg.WhisperSpeedFactor
 	if speedFactor <= 0 {
 		speedFactor = 7.0
@@ -274,6 +284,18 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 	if err != nil {
 		util.Errorf("Error: %v", err)
 		return nil, t0Step1, false, true
+	}
+	if musicReview != nil {
+		reviewErr := musicReview.Review(ctx, transcriptionData)
+		if err := saveReviewedTranscript(jsonFile, transcriptionData, id3Tags); err != nil {
+			util.Errorf("Save reviewed transcript: %v", err)
+			return nil, t0Step1, false, true
+		}
+		if reviewErr != nil {
+			recordGapReviewFailure(mainMP3File, reviewErr)
+			util.Errorf("Gap review: %v", reviewErr)
+			return nil, t0Step1, false, true
+		}
 	}
 
 	detectAndSanitizeTranscriptLanguage(transcriptionData, cfg.WhisperLanguage, isNewlyTranscribed, opts.Quiet)
@@ -333,6 +355,7 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 		fmt.Fprintf(os.Stderr, "Warning: failed to update episode status: %v\n", err)
 	}
 	adSegments = append(adSegments, boilerplate...)
+	adSegments = append(adSegments, reviewedMusicCuts(cfg, transcriptionData)...)
 	if len(adSegments) > 0 {
 		adSegments = format.MergeIntervals(adSegments)
 	}

@@ -35,6 +35,11 @@ func validateTranscriptSanity(data *types.TranscriptionData, totalDuration float
 	}
 	wordCount := len(strings.Fields(fullText))
 	minExpectedWords := int(totalDuration / 60.0 * 15.0)
+	if data.GapReview != nil && data.GapReview.Complete && data.GapReview.Version == 1 {
+		for _, cut := range data.GapReview.MusicCuts {
+			minExpectedWords -= int((cut.End - cut.Start) / 60 * 15)
+		}
+	}
 	if minExpectedWords < 20 {
 		minExpectedWords = 20
 	}
@@ -45,6 +50,9 @@ func validateTranscriptSanity(data *types.TranscriptionData, totalDuration float
 		}
 	}
 	minRequiredCoverage := totalDuration * 0.85
+	if data.GapReview != nil && data.GapReview.Complete && data.GapReview.Version == 1 && data.GapReview.Duration >= totalDuration-1 {
+		lastSegmentEnd = totalDuration
+	}
 	var failedReasons []string
 	if wordCount < minExpectedWords {
 		failedReasons = append(failedReasons, fmt.Sprintf("Word count too low (%d words found, expected at least %d words for %s audio)", wordCount, minExpectedWords, format.FormatClock(totalDuration)))
@@ -221,26 +229,5 @@ func runGeminiPipelineStep(job episodeJob) bool {
 		return true
 	}
 
-	if len(ads) > 0 {
-		ads = format.MergeIntervals(ads)
-	}
-
-	t0Step2 := time.Now()
-	if err := updateTranscriptAdDetectionStatus(job.jsonFile, true, "completed", "gemini-flash", "", len(ads)); err != nil && job.opts.Verbose {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update transcript ad status: %v\n", err)
-	}
-	if err := updateStatusAdDetection(job.mainMP3File, true, "completed", "gemini-flash", ""); err != nil && job.opts.Verbose {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update status ad detection: %v\n", err)
-	}
-	if len(ads) == 0 {
-		handleNoAdsDetected(job.mainMP3File, job.sourceAudioFile, job.outputFile, job.totalDuration, job.selectedProfile, job.opts, job.fileStartTime, t0Step1, t0Step2)
-		return true
-	}
-
-	cutsResult := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, ads, &job.selectedProfile, job.opts.Quiet, job.opts.ForceLLM)
-	if cutsResult.Err != nil {
-		return false
-	}
-	t0Step3 := time.Now()
-	return executeLocalAudioCutting(job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, cutsResult.KeepSegments, ads, job.totalDuration, job.cfg, job.opts, job.selectedProfile, job.fileStartTime, t0Step1, t0Step2, t0Step3)
+	return finalizeGeminiEpisode(job, td, ads, t0Step1)
 }

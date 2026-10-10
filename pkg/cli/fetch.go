@@ -12,9 +12,10 @@ import (
 
 func buildFetchCommand(opts *CLIOptions, action *string, countVal *int) clihelp.Command {
 	return clihelp.Command{
-		Name:        "fetch",
-		Description: "Fetch latest podcast episodes and remove ad segments",
-		UsageLine:   "pod fetch [podcast-id] [options]",
+		Name:            "fetch",
+		Description:     "Fetch latest podcast episodes and remove ad segments",
+		LongDescription: "Cleaning also removes recorded boilerplate. Run 'pod analyze' to learn recurring passages from existing transcripts, or 'pod library do-all' to fetch, transcribe, learn boilerplate, clean, and republish feeds. Fetch cleans only when new episodes are downloaded; use 'pod queue recut' to apply recorded boilerplate to finished episodes.",
+		UsageLine:       "pod fetch [podcast-id] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[podcast-id]", Description: "Specify target podcast by name, index, or ID"},
 		},

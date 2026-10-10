@@ -95,6 +95,8 @@ func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 		return saveConfigAndReport(w, cfg, key, val)
 	}
 	switch normKey {
+	case "yamnet-url":
+		cfg.YamnetURL = val
 	case "whisper-url", "whisper.url":
 		cfg.WhisperURL = val
 	case "whisper-language", "whisper.language", "language", "lang":
@@ -152,6 +154,8 @@ func saveConfig(cfg *Config) error {
 
 func handleConfigGet(w io.Writer, cfg Config, key string) error {
 	switch strings.ToLower(strings.ReplaceAll(key, "_", "-")) {
+	case "yamnet-url":
+		fmt.Fprintln(w, cfg.YamnetURL)
 	case "podcasts-dir", "podcasts.dir", "dir":
 		fmt.Fprintln(w, cfg.PodcastsDir)
 	case "backend-type", "backend.type", "backend":
@@ -233,6 +237,7 @@ func printConfig(w io.Writer, cfg Config) {
 		fmt.Fprintf(w, "  default_ad_policy:        %s\n", cfg.DefaultAdRemoval)
 	}
 	fmt.Fprintf(w, "  whisper_url:              %s\n", cfg.WhisperURL)
+	fmt.Fprintf(w, "  yamnet_url:               %s\n", cfg.YamnetURL)
 	fmt.Fprintf(w, "  whisper_speed_factor:     %.1f\n", cfg.WhisperSpeedFactor)
 	if cfg.WhisperDockerContainer != "" {
 		fmt.Fprintf(w, "  whisper_docker_container: %s\n", cfg.WhisperDockerContainer)

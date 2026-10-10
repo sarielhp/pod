@@ -160,6 +160,9 @@ func applyBackendEnv(cfg *types.Config) {
 }
 
 func applyWhisperEnv(cfg *types.Config) {
+	if v := os.Getenv("YAMNET_URL"); v != "" {
+		cfg.YamnetURL = v
+	}
 	if v := os.Getenv("WHISPER_LANGUAGE"); v != "" {
 		cfg.WhisperLanguage = v
 	}

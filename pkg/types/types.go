@@ -45,9 +45,22 @@ type TranscriptionData struct {
 	SpeakerNames map[string]string `json:"speaker_names,omitempty"`
 	// Backend and Model record which engine produced this transcript, so a
 	// saved transcript can be traced back to the backend that made it.
-	Backend string      `json:"whisper_backend,omitempty"`
-	Model   string      `json:"whisper_model,omitempty"`
-	Cuts    []AdSegment `json:"cuts,omitempty"`
+	Backend   string      `json:"whisper_backend,omitempty"`
+	Model     string      `json:"whisper_model,omitempty"`
+	Cuts      []AdSegment `json:"cuts,omitempty"`
+	GapReview *GapReview  `json:"gap_review,omitempty"`
+}
+
+// GapReview records source-bound transcript recovery and confirmed music cuts.
+type GapReview struct {
+	Version           int           `json:"version"`
+	SourceKey         string        `json:"source_key"`
+	TranscriptKey     string        `json:"transcript_key"`
+	Duration          float64       `json:"duration"`
+	Complete          bool          `json:"complete"`
+	RecoveredSegments int           `json:"recovered_segments"`
+	MusicCuts         []AdSegment   `json:"music_cuts,omitempty"`
+	Unresolved        []KeepSegment `json:"unresolved,omitempty"`
 }
 
 type CutEntry struct {
@@ -365,6 +378,7 @@ type CLIOptions struct {
 }
 
 type WhisperConfig struct {
+	YamnetURL              string           `json:"yamnet_url"`
 	WhisperURL             string           `json:"whisper_url"`
 	WhisperSpeedFactor     float64          `json:"whisper_speed_factor"`
 	WhisperDockerContainer string           `json:"whisper_docker_container"`

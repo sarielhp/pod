@@ -169,3 +169,35 @@ func TestUsageHelpNoRepeatedText(t *testing.T) {
 		}
 	}
 }
+
+func TestExtendedHelpShortcut(t *testing.T) {
+	t.Parallel()
+	for _, path := range [][]string{nil, {"fetch"}, {"library", "download"}} {
+		var outputs []string
+		for _, flag := range []string{"-H", "--help"} {
+			var action string
+			var opts CLIOptions
+			var buf bytes.Buffer
+			app := buildCLIApp(&action, &opts)
+			app.Stdout = &buf
+			app.NoColor = true
+			args := append(append([]string{}, path...), flag)
+			if err := app.Execute(args); err != nil {
+				t.Fatalf("%v: %v", args, err)
+			}
+			if action != "" || !strings.Contains(buf.String(), "Usage:") {
+				t.Fatalf("%v should show help without dispatching: action=%q output=%s", args, action, buf.String())
+			}
+			outputs = append(outputs, buf.String())
+		}
+		if outputs[0] != outputs[1] {
+			t.Errorf("%v: -H and --help differ", path)
+		}
+		if len(path) == 0 && (!strings.Contains(outputs[0], "command-specific options") || !strings.Contains(outputs[0], "pod gen_rss")) {
+			t.Errorf("root extended help should include help guidance and RSS regeneration: %s", outputs[0])
+		}
+		if len(path) > 0 && path[0] == "fetch" && !strings.Contains(outputs[0], "recorded boilerplate") {
+			t.Errorf("fetch help should explain boilerplate: %s", outputs[0])
+		}
+	}
+}

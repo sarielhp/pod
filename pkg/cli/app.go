@@ -61,7 +61,7 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 		Version:             getVersion(),
 		GlobalNote:          "Run 'pod <command> --help' or 'pod help <command>' for command-specific options.",
 		AbbrevCommands:      true,
-		Pager:               true,
+		ExtendedHelpFlag:    true,
 		InteractiveFallback: true,
 		PersistentOptions: []clihelp.Option{
 			clihelp.Bool(&opts.ShowExamples, "-E, --examples", false, "Show command examples"),
@@ -82,6 +82,10 @@ func buildCLIApp(action *string, opts *CLIOptions) *clihelp.App {
 			{
 				Line:        "pod library download",
 				Description: "Download new episodes from the library",
+			},
+			{
+				Line:        "pod gen_rss",
+				Description: "Regenerate local RSS feeds, web players, and the catalog",
 			},
 			{
 				Line:        "pod queue latest 10",

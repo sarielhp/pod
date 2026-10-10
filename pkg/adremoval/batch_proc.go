@@ -59,7 +59,7 @@ func executeLocalBatchProcessing(expandedArgs []string, opts types.ProcOptions, 
 	if opts.WhisperEngine != "" {
 		wp.Engine = types.WhisperEngine(opts.WhisperEngine)
 	}
-	if wp.Engine != types.WhisperEngineLocal && wp.Engine != types.WhisperEngineGemini {
+	if cfg.YamnetURL == "" && wp.Engine != types.WhisperEngineLocal && wp.Engine != types.WhisperEngineGemini {
 		transcribe.WakeServer(cfg.WhisperURL, cfg.WhisperWakeCommand, opts.Quiet)
 	}
 

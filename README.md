@@ -13,6 +13,7 @@ Automatically detects and removes advertisement, sponsor, and promotional segmen
 - **Chunked Transcription**: Split long audio into overlapping chunks for reliability (`--use-chunks`)
 - **Docker Progress Monitoring**: Auto-detects local whisper Docker container and shows real progress/ETA
 - **Auto-fallback**: Detects whisper decode failures and automatically retries with chunked transcription
+- **Optional music removal**: Runs YAMNet alongside Whisper, recovers missing speech in transcript gaps, and cuts confidently music-only sections
 - **Interactive TUI**: Browse podcasts, queue episodes, and track processing status
 - **Feed & Web Generation**: Generate RSS feeds and static HTML5 web players natively
 - **Podcast Search**: Find shows by name and subscribe in one step (`pod search`)
@@ -76,6 +77,7 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `whisper_url` | Auto-detected | Whisper server HTTP endpoint |
+| `yamnet_url` | "" (disabled) | YAMNet service base URL; enables parallel classification, transcript gap recovery, and music-only cuts during ad removal |
 | `whisper_speed_factor` | 7.0 | Estimated transcription speed multiplier (for ETA display) |
 | `whisper_docker_container` | Auto-detected | Docker container name for progress polling |
 | `chunk_duration_sec` | 0 (disabled) | Split audio into chunks of this duration (seconds) |
@@ -85,6 +87,41 @@ The program creates a config file at `~/.config/pod/config.json` (with fallback 
 | `gemini_api_key_file` | "" | Path to file containing Gemini API key |
 | `gemini_chunk_sec` | 900 | Audio per Gemini request; above ~1200 Gemini returns an empty response |
 | `backend_type` | "standalone" | Backend provider: `"standalone"` (native, default) |
+
+### Music detection and transcript gap recovery
+
+Enable the local classifier with `pod config set yamnet-url http://tqed:8090`,
+or use `YAMNET_URL=http://tqed:8090 ./pod fetch` for one run. An empty
+`yamnet_url` disables the feature. The service must provide JSON `/health`
+and a multipart `/inference` endpoint with `include_frames=true` support.
+
+During ad removal, pod starts full-original-audio YAMNet classification alongside
+Whisper and wakes both services together, including through Sablier. This mode uses
+Whisper first rather than Gemini's direct audio cuts or speculative racing. YAMNet
+results are cached in `<episode>.yamnet.json`, keyed by endpoint, source size, and
+modification time. A completed transcript review is also reused when its source and
+transcript still match.
+
+Pod examines transcript gaps of at least two seconds, using word timestamps when
+available. Non-silent gaps get short Whisper retries, including gaps labeled as
+music. Recovered speech is merged into the original timestamps before boilerplate
+and ad detection. Retries use 30-second clips with context and are capped at 15
+minutes of gap audio and 96 requests per episode; hitting a limit stops cutting and
+saves the recovery progress for inspection.
+
+Remaining music is cut throughout the episode when every overlapping YAMNet
+window has music confidence at least 0.8 and speech confidence at most 0.05,
+the gap was retried successfully, and the cut stays 0.75 seconds away from
+transcribed speech. Silence and ambiguous audio are kept. Residual speech-like gaps
+stop cutting. YAMNet and an empty Whisper result cannot guarantee that speech is
+absent under loud music; these conservative checks reduce that risk without an
+independent speech detector.
+
+Finished episodes remain skipped by normal fetching. To apply music review to one,
+enable the endpoint and use the existing recut mode. It preserves existing ad cuts
+and adds music cuts from the original `.precut` audio. Recut does not run ad detection
+again; use forced LLM detection when newly recovered speech also needs ad analysis.
+One-off `pod transcribe` remains a transcript-only command.
 
 ## Standalone Backend Architecture
 

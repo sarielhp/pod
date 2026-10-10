@@ -5,6 +5,24 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.29] - 2026-10-10
+
+### Added
+- Optional **parallel YAMNet/Whisper processing**, enabled by `yamnet_url` or
+  `YAMNET_URL`. Cached classification supports Sablier wake-up, missing speech is
+  retried before ad detection, and confidently music-only gaps are cut throughout
+  the episode. Recuts preserve existing ad cuts; unresolved speech gaps stop cutting.
+
+### Fixed
+- **`pod -H` and command-specific `-H` now show the same extended help as `--help`.**
+- **Gemini ad removal also cuts recorded boilerplate**, including when Gemini reports no ads
+  and when Gemini wins a speculative transcription race. Overlapping cuts are merged.
+
+### Changed
+- Upgraded `clihelp` from v0.3.36 to v0.3.59.
+- Default examples include **`pod gen_rss`** to regenerate local RSS feeds, web players, and
+  the catalog. Fetch help explains how to learn boilerplate and refresh finished episodes.
+
 ## [0.5.28] - 2026-10-06
 
 ### Added

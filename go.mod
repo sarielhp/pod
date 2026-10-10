@@ -11,7 +11,7 @@ require (
 	github.com/eliukblau/pixterm v1.3.3
 	github.com/fatih/color v1.19.0
 	github.com/mattn/go-sqlite3 v1.14.50
-	github.com/sarielhp/clihelp v0.3.36
+	github.com/sarielhp/clihelp v0.3.59
 	github.com/tcolgate/mp3 v0.0.0-20170426193717-e79c5a46d300
 	golang.org/x/image v0.45.0
 	golang.org/x/term v0.45.0

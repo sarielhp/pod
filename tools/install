@@ -1,38 +1,23 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/.."
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-BINARY="pod"
-INSTALL_DIR="${HOME}/bin"
+require 'fileutils'
+require 'digest'
 
-if ! git diff --quiet HEAD; then
-  git add -A
-  git commit -m "chore: auto-commit before install" > /dev/null
-fi
+def install_verified_binary(source, install_dir)
+  target_binary = File.join(install_dir, 'pod')
+  expected_digest = Digest::SHA256.file(source).hexdigest
+  abort 'Cannot create installation directory.' unless system('install', '-d', install_dir)
+  abort 'Cannot install pod.' unless system('install', '-m', '755', source, target_binary)
+  installed_digest = Digest::SHA256.file(target_binary).hexdigest
+  abort 'Installation verification failed: installed binary differs from the build.' unless installed_digest == expected_digest
+  FileUtils.rm_f(File.join(install_dir, 'abs'))
+  puts "Installed and verified #{target_binary}"
+end
 
-remote="$(git rev-parse "@{upstream}" 2>/dev/null || true)"
-if [ -n "$remote" ]; then
-  local_sha=$(git rev-parse HEAD)
-  remote_sha=$(git rev-parse "@{upstream}" 2>/dev/null || echo "")
-
-  if [ "$local_sha" != "$remote_sha" ]; then
-    behind=$(git rev-list --count HEAD.."@{upstream}" 2>/dev/null || echo 0)
-    ahead=$(git rev-list --count "@{upstream}"..HEAD 2>/dev/null || echo 0)
-    if [ "$ahead" -gt 0 ]; then
-      git push origin HEAD 2>/dev/null
-    fi
-    if [ "$behind" -gt 0 ]; then
-      git pull --ff-only origin HEAD 2>/dev/null
-    fi
-  fi
-fi
-
-./tools/build_local > /dev/null
-
-mkdir -p "$INSTALL_DIR"
-cp "$BINARY" "$INSTALL_DIR/$BINARY"
-rm -f "$INSTALL_DIR/abs"
-
-"$INSTALL_DIR/$BINARY" config completion install bash >/dev/null 2>&1 || true
-
-echo "Success: installed to $INSTALL_DIR/$BINARY"
+if __FILE__ == $PROGRAM_NAME
+  root_dir = File.expand_path('..', __dir__)
+  Dir.chdir(root_dir)
+  abort 'Build failed; installation stopped.' unless system('./tools/build')
+  install_verified_binary('pod', File.expand_path('~/bin'))
+end

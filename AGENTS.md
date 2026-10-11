@@ -3,7 +3,7 @@
 ## Build & Quality
 
 - **Go 1.26+** — a lean `main.go` over modular packages under `pkg/` (see **File Organization**)
-- Build: `./tools/build_local` (or `make build`)
+- Build: `./tools/build` (or `make build`)
 - Test: `go test -timeout 180s ./...` (the gate's timeout; all tests use `t.TempDir()` for isolation)
 - Lint: `go vet ./...` then `staticcheck ./...`
 - Format: `gofmt -s -w .` before committing
@@ -12,7 +12,9 @@
 
 | Script | Purpose |
 |--------|---------|
-| `tools/build_local` | Build local `./pod` binary strictly within repo directory |
+| `tools/build` | Build local `./pod` binary strictly within repo directory |
+| `tools/install` | Build and install `~/bin/pod`; remove legacy `~/bin/abs` |
+| `tools/release [--install] <msg>` | Gated commit, verified bump/push, optional verified installation |
 | `tools/check` | Full quality gate: format → config template → vet → staticcheck → go-audit → test → build (`--full` adds the race detector and govulncheck) |
 | `tools/format.sh` | Run `gofmt -s -w .` only |
 | `tools/lint` | Static analysis: `go vet` + `staticcheck` (respecting baseline) + `go-audit` |
@@ -77,6 +79,15 @@ A `Makefile` at the project root delegates to all scripts:
 ### Workflow
 
 #### Standard Development & Release Loop
+
+When a release is requested, `rtk proxy tools/release "fix: description"`
+coordinates the existing commit and bump workflows. Add `--install` only when
+installation is also requested. It stops at the first failure. `tools/bump`
+pushes to the current branch's configured upstream and verifies its remote SHA;
+`tools/install` verifies the installed binary before removing the legacy binary.
+`rtk proxy tools/release` has a saved allow rule; use this exact form when a
+release is requested.
+
 ```
 make commit ARGS="feat: add new feature"   # quality gate + commits + records .verified_head (silent)
 make bump                                   # deduplicates gate via .verified_head, bumps version, commits, pushes (silent)
@@ -308,6 +319,35 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
    - `WHISPER_DOCKER_CONTAINER`
  - Security & Wake Command: `whisper_wake_command` executes via `/bin/sh -c` under the executing user's privileges. Ensure `~/.config/pod/config.json` permissions remain restricted to the local user.
 
+## Routine Command Authorization
+
+Follow the global Auto-Approved Command Forms guidance. Use these commands by
+default for this repository; Make targets elsewhere describe equivalent workflows:
+
+| Command | Use |
+|---------|-----|
+| `rtk proxy tools/check` | Required quality gate; `--full` for full CI |
+| `rtk proxy tools/build` | Build `./pod` inside the repository |
+| `rtk proxy tools/lint` | Vet, staticcheck, and complexity audit |
+| `rtk proxy tools/format.sh` | Format and regenerate the config template |
+| `rtk proxy tools/generate_config_template` | Regenerate the config template |
+| `rtk proxy tools/snapshot` | Save a local checkpoint without pushing |
+| `rtk proxy tools/commit <message>` | Commit when requested, including the gate |
+| `rtk proxy tools/bump` | Bump, commit, and push when requested |
+| `rtk proxy tools/install` | Build and install when requested |
+| `rtk proxy tools/release [--install] <message>` | Commit, bump, push, and optionally install when requested |
+
+- Run repository build, test, lint, format, and audit commands as needed for
+  requested work without asking for confirmation.
+- When the user requests a commit, run `rtk proxy tools/commit <message>` without
+  reconfirmation, including its required quality gate.
+- When the user requests a version bump or push, run `rtk proxy tools/bump`
+  without reconfirmation. This workflow bumps the patch version, commits, and pushes.
+- When installation is requested, run `rtk proxy tools/install` without reconfirmation.
+  This is a narrow exception to subdirectory isolation: the existing target may
+  install `~/bin/pod` and remove the legacy `~/bin/abs`. It does not authorize
+  other writes to `~/bin` or adding `~/bin` as a sandbox writable root.
+
 ## Agent Development Rules
 
 1. **Verification**: After modifying any Go file, run `make check` to verify.
@@ -342,7 +382,7 @@ The codebase is organized into modular Go packages under `pkg/` with a lean entr
 10. **Dependency Updates**: Use standard Go tooling to check for updates (`go list -m -u all`
     or `go list -m -u <pkg>`) and upgrade with `go get <pkg>@latest`.
 11. **No CLI Aliases**: Avoid defining command or subcommand aliases in CLI apps (`clihelp`). Each command and subcommand must have a single canonical name to maintain clarity, prevent command-space collisions, and keep documentation consistent.
-12. **Local Build Isolation**: All local Go builds must be executed using `./tools/build_local` (or `make build`). The build script must generate a local binary (`./pod`) within this repository directory and must NEVER write into or modify directories outside this repository.
+12. **Local Build Isolation**: All local Go builds must be executed using `./tools/build` (or `make build`). The build script must generate a local binary (`./pod`) within this repository directory and must NEVER write into or modify directories outside this repository.
 
 ## Test Suite
 

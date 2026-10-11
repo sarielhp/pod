@@ -11,8 +11,7 @@ target_binary = File.join(root_dir, "pod")
 legacy_binary = File.join(root_dir, "abs")
 
 # Build exclusively into the local repository root
-cmd = "go build -o #{target_binary} ."
-stdout, stderr, status = Open3.capture3(cmd)
+stdout, stderr, status = Open3.capture3('go', 'build', '-o', target_binary, '.')
 
 unless status.success?
   warn "\e[31m✗ Local build failed!\e[0m"

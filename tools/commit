@@ -18,25 +18,27 @@ msg = ARGV.join(' ')
 FileUtils.rm_f('.verified_head')
 
 # Run quality gate silently
-_, _, status = Open3.capture3("./tools/check")
+_, _, status = Open3.capture3('./tools/check')
 unless status.success?
   puts "✗ Quality Gate failed! Run 'make check' to see details."
   exit 1
 end
 
 # Commit
-Open3.capture3("git", "add", "-A")
-_, stderr, commit_status = Open3.capture3("git", "commit", "-m", msg)
+_, stderr, add_status = Open3.capture3('git', 'add', '-A')
+unless add_status.success?
+  warn stderr unless stderr.empty?
+  abort 'Git staging failed; commit stopped.'
+end
+_, stderr, commit_status = Open3.capture3('git', 'commit', '-m', msg)
 unless commit_status.success?
-  puts "✗ Git commit failed!"
+  puts '✗ Git commit failed!'
   warn stderr unless stderr.empty?
   exit 1
 end
 
 # Record the committed HEAD SHA into .verified_head
-head_sha, _, sha_status = Open3.capture3("git", "rev-parse", "HEAD")
-if sha_status.success?
-  File.write('.verified_head', "#{head_sha.strip}\n")
-end
+head_sha, _, sha_status = Open3.capture3('git', 'rev-parse', 'HEAD')
+File.write('.verified_head', "#{head_sha.strip}\n") if sha_status.success?
 
 puts "Success #{msg}"

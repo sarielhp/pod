@@ -5,6 +5,7 @@ require 'open3'
 
 root_dir = File.expand_path('..', __dir__)
 Dir.chdir(root_dir)
+ENV['PATH'] = [File.expand_path('~/.go/bin'), ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR)
 
 def run_cmd(name, cmd)
   stdout, stderr, status = Open3.capture3(cmd)
@@ -24,6 +25,7 @@ full_mode = ARGV.include?('--full') || ARGV.include?('--ci')
 # 1. Format
 run_cmd("Formatting", "gofmt -s -w .")
 run_cmd("Config template generation", "./tools/generate_config_template")
+run_cmd('Release workflow tests', 'ruby ./tools/release_test.rb')
 
 # 2. Vet
 run_cmd("Go vet", "go vet ./...")
@@ -177,6 +179,6 @@ else
 end
 
 # 6. Build
-run_cmd("Go build", "./tools/build_local")
+run_cmd("Go build", "./tools/build")
 
 puts full_mode ? "Success: Full CI Quality Gate Passed" : "Success: Quality Gate Passed"

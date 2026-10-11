@@ -5,6 +5,7 @@ require 'open3'
 
 root_dir = File.expand_path('..', __dir__)
 Dir.chdir(root_dir)
+ENV['PATH'] = [File.expand_path('~/.go/bin'), ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR)
 
 def run_cmd(name, cmd)
   stdout, stderr, status = Open3.capture3(cmd)

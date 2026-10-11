@@ -1,4 +1,4 @@
-.PHONY: all check lint test race vuln build install format tidy vet staticcheck map version bump commit push ci checkpoint clean audit symbols template suggest-split visual review-loop snapshot snap
+.PHONY: all check lint test race vuln build install release format tidy vet staticcheck map version bump commit push ci checkpoint clean audit symbols template suggest-split visual review-loop snapshot snap
 
 all: check
 
@@ -36,7 +36,7 @@ vuln:
 	@$$HOME/.go/bin/govulncheck ./...
 
 build:
-	@./tools/build_local
+	@./tools/build
 
 format:
 	@./tools/format.sh
@@ -64,11 +64,11 @@ commit:
 
 push: bump
 
-install: build
-	@install -d "$$HOME/bin"
-	@install -m 755 pod "$$HOME/bin/pod"
-	@rm -f "$$HOME/bin/abs"
-	@echo "Installed to $$HOME/bin/pod"
+install:
+	@./tools/install
+
+release:
+	@./tools/release $(ARGS)
 
 snapshot:
 	@./tools/snapshot $(ARGS)

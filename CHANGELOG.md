@@ -5,6 +5,23 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.31] - 2026-10-11
+
+### Changed
+- Rename `tools/build_local` to `tools/build`.
+- `tools/install` now only builds and installs pod, matching `make install`;
+  installation no longer commits, synchronizes Git, or installs shell completion.
+- `tools/bump` checks Git failures, pushes to the configured upstream branch,
+  and verifies the remote commit before reporting success.
+- Installation verifies that the installed binary matches the local build before
+  removing the legacy binary.
+- Quality checks and linting find Go tools in `~/.go/bin` without requiring a
+  shell wrapper to modify `PATH`.
+
+### Added
+- `tools/release [--install] <commit-message>` runs the gated commit, verified
+  version bump and push, and optional installation, stopping on the first failure.
+
 ## [0.5.30] - 2026-10-11
 
 ### Fixed

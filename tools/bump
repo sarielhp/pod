@@ -4,6 +4,15 @@
 require 'open3'
 require 'fileutils'
 
+def checked_command(*command)
+  stdout, stderr, status = Open3.capture3(*command)
+  unless status.success?
+    warn stderr unless stderr.empty?
+    abort "Failed: #{command.join(' ')} (exit #{status.exitstatus}). Local changes are retained."
+  end
+  stdout.strip
+end
+
 root_dir = File.expand_path('..', __dir__)
 Dir.chdir(root_dir)
 
@@ -28,18 +37,24 @@ unless dirty_files.empty?
   exit 1
 end
 
+branch = checked_command('git', 'symbolic-ref', '--quiet', '--short', 'HEAD')
+remote = checked_command('git', 'config', '--get', "branch.#{branch}.remote")
+remote_ref = checked_command('git', 'config', '--get', "branch.#{branch}.merge")
+abort 'Upstream must be a remote branch.' if remote == '.' || !remote_ref.start_with?('refs/heads/')
+
+current = File.read('VERSION').strip
+abort "Invalid VERSION: #{current.inspect}" unless current.match?(/\A\d+\.\d+\.\d+\z/)
+
 verified = false
 if File.exist?('.verified_head')
   verified_sha = File.read('.verified_head').strip
   current_sha, _, s = Open3.capture3('git', 'rev-parse', 'HEAD')
-  if s.success? && !verified_sha.empty? && verified_sha == current_sha.strip
-    verified = true
-  end
+  verified = true if s.success? && !verified_sha.empty? && verified_sha == current_sha.strip
 end
 
 unless verified
   # Run full quality gate (including race detector and vulnerability scan)
-  _, _, status = Open3.capture3("./tools/check --full")
+  _, _, status = Open3.capture3('./tools/check', '--full')
   unless status.success?
     puts "✗ Full Quality Gate failed! Run 'make ci' or 'make check' to see details."
     exit 1
@@ -47,16 +62,19 @@ unless verified
 end
 
 # Read current version
-current = File.read("VERSION").strip
 major, minor, patch = current.split('.').map(&:to_i)
 patch += 1
 new_ver = "#{major}.#{minor}.#{patch}"
-File.write("VERSION", "#{new_ver}\n")
+File.write('VERSION', "#{new_ver}\n")
 
 # Git add, commit, push
-Open3.capture3("git", "add", "VERSION")
-Open3.capture3("git", "commit", "-m", "chore: bump version to #{new_ver}")
-Open3.capture3("git", "push")
+checked_command('git', 'add', 'VERSION')
+checked_command('git', 'commit', '-m', "chore: bump version to #{new_ver}")
+head_sha = checked_command('git', 'rev-parse', 'HEAD')
+checked_command('git', 'push', remote, "HEAD:#{remote_ref}")
+remote_output = checked_command('git', 'ls-remote', '--exit-code', remote, remote_ref)
+remote_sha = remote_output.lines.find { |line| line.split[1] == remote_ref }&.split&.first
+abort "Push verification failed for #{remote}/#{remote_ref}: expected #{head_sha}, got #{remote_sha.inspect}." unless remote_sha == head_sha
 
 FileUtils.rm_f('.verified_head')
 

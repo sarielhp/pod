@@ -130,6 +130,9 @@ func runSearchAdd(cfg Config, cli CLIOptions) error {
 	if feedURL == "" {
 		return fmt.Errorf("no RSS feed URL found for %q", arg)
 	}
+	if validationErr := podcast.ValidateFeedURL(feedURL); validationErr != nil {
+		return fmt.Errorf("resolve podcast %q: %w", arg, validationErr)
+	}
 
 	title, imageURL := strings.TrimSpace(res.Title), strings.TrimSpace(res.ImageURL)
 	if title == "" {

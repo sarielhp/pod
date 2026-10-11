@@ -5,7 +5,7 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [0.5.29] - 2026-10-10
+## [0.5.29] - 2026-10-11
 
 ### Added
 - Optional **parallel YAMNet/Whisper processing**, enabled by `yamnet_url` or
@@ -14,11 +14,14 @@ were written; they are not in version order.
   the episode. Recuts preserve existing ad cuts; unresolved speech gaps stop cutting.
 
 ### Fixed
+- Subscription additions reject malformed feed URLs before saving them, preventing
+  numeric search IDs from being stored as RSS URLs and breaking `pod fetch` feed checks.
 - **`pod -H` and command-specific `-H` now show the same extended help as `--help`.**
 - **Gemini ad removal also cuts recorded boilerplate**, including when Gemini reports no ads
   and when Gemini wins a speculative transcription race. Overlapping cuts are merged.
 
 ### Changed
+- Updated networking and telemetry dependencies to patched versions.
 - Upgraded `clihelp` from v0.3.36 to v0.3.59.
 - Default examples include **`pod gen_rss`** to regenerate local RSS feeds, web players, and
   the catalog. Fetch help explains how to learn boilerplate and refresh finished episodes.

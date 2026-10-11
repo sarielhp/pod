@@ -6,8 +6,26 @@ import (
 	"path/filepath"
 	"pod/pkg/config"
 	"pod/pkg/podcast"
+	"strings"
 	"testing"
 )
+
+func TestServerAddRejectsSearchIDWithoutSaving(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{{"8056024"}, {"8056024", "Show"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := Config{PodcastsDir: dir, SubscriptionsFile: filepath.Join(dir, "podcasts.json")}
+			err := handleServerAdd(cfg, CLIOptions{Args: args, Out: io.Discard})
+			if err == nil || !strings.Contains(err.Error(), "pod search add <id>") {
+				t.Fatalf("expected search ID guidance, got %v", err)
+			}
+			if _, err := os.Stat(cfg.SubscriptionsFile); !os.IsNotExist(err) {
+				t.Fatalf("invalid feed created a subscriptions file: %v", err)
+			}
+		})
+	}
+}
 
 func TestServerSubscriptionCommands(t *testing.T) {
 	t.Parallel()

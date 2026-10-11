@@ -3,8 +3,44 @@ package podcast
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestSubscriptionStoreRejectsInvalidFeedURLs(t *testing.T) {
+	t.Parallel()
+	store, err := NewSubscriptionStore(filepath.Join(t.TempDir(), "podcasts.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := Subscription{ID: "show", Title: "Show", FeedURL: "https://example.com/feed.xml"}
+	if err := store.Add(original); err != nil {
+		t.Fatal(err)
+	}
+	for _, feedURL := range []string{"8056024", "example.com/feed.xml", "/feed.xml", "//example.com/feed.xml", "ftp://example.com/feed.xml", "https:///feed.xml", "https://:8080/feed.xml", "http://example.com:bad/feed.xml", "https://%xx/feed.xml", ""} {
+		t.Run(feedURL, func(t *testing.T) {
+			sub := original
+			sub.FeedURL = feedURL
+			if err := store.Add(sub); err == nil || !strings.Contains(err.Error(), "feed URL") {
+				t.Fatalf("Add(%q) error = %v", feedURL, err)
+			}
+			items := store.List()
+			if len(items) != 1 || items[0].FeedURL != original.FeedURL {
+				t.Fatalf("invalid feed changed subscriptions: %+v", items)
+			}
+		})
+	}
+	for _, feedURL := range []string{"http://localhost:8080/feed.xml", " https://example.com/rss?format=xml "} {
+		sub := original
+		sub.FeedURL = feedURL
+		if err := store.Add(sub); err != nil {
+			t.Fatalf("Add(%q): %v", feedURL, err)
+		}
+		if got := store.List()[0].FeedURL; got != strings.TrimSpace(feedURL) {
+			t.Fatalf("saved URL = %q", got)
+		}
+	}
+}
 
 func TestSubscriptionStoreCRUD(t *testing.T) {
 	t.Parallel()

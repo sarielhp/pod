@@ -145,11 +145,24 @@ func (s *SubscriptionStore) Get(query string) *Subscription {
 	return nil
 }
 
+// ValidateFeedURL checks that a subscription names an absolute HTTP or HTTPS feed URL.
+func ValidateFeedURL(feedURL string) error {
+	feedURL = strings.TrimSpace(feedURL)
+	if feedURL == "" {
+		return errors.New("subscription feed URL cannot be empty")
+	}
+	u, err := url.Parse(feedURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return fmt.Errorf("subscription feed URL %q must be an absolute HTTP(S) URL", feedURL)
+	}
+	return nil
+}
+
 func (s *SubscriptionStore) Add(sub Subscription) error {
 	sub.Title = strings.TrimSpace(sub.Title)
 	sub.FeedURL = strings.TrimSpace(sub.FeedURL)
-	if sub.FeedURL == "" {
-		return errors.New("subscription feed URL cannot be empty")
+	if err := ValidateFeedURL(sub.FeedURL); err != nil {
+		return err
 	}
 	if sub.Title == "" {
 		sub.Title = "Untitled Podcast"

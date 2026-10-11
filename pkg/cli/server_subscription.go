@@ -114,6 +114,9 @@ func handleServerAdd(cfg Config, cli CLIOptions) error {
 		return fmt.Errorf("feed URL is required")
 	}
 	feedURL := strings.TrimSpace(cli.Args[0])
+	if err := podcast.ValidateFeedURL(feedURL); err != nil {
+		return fmt.Errorf("%w; use 'pod search add <id>' for search result IDs", err)
+	}
 	title := ""
 	if len(cli.Args) > 1 {
 		title = strings.TrimSpace(cli.Args[1])

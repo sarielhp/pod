@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -124,7 +125,7 @@ func TestRunSearchAddSubscribes(t *testing.T) {
 
 	dir := t.TempDir()
 	cfg := Config{PodcastsDir: dir, SubscriptionsFile: filepath.Join(dir, "podcasts.json")}
-	cli := CLIOptions{Args: []string{"75075"}, Out: io.Discard}
+	cli := CLIOptions{Args: []string{"8056024"}, Out: io.Discard}
 
 	if err := runSearchAdd(cfg, cli); err != nil {
 		t.Fatalf("runSearchAdd: %v", err)
@@ -141,16 +142,54 @@ func TestRunSearchAddSubscribes(t *testing.T) {
 		t.Fatalf("unexpected subscription: %+v", subs[0])
 	}
 
-	var buf bytes.Buffer
-	cli.Out = &buf
-	if err := runSearchAdd(cfg, cli); err != nil {
-		t.Fatalf("second runSearchAdd: %v", err)
+	saved, err := os.ReadFile(cfg.SubscriptionsFile)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "Already subscribed") {
-		t.Fatalf("re-subscribing should say so, got %q", buf.String())
+	for _, arg := range []string{"8056024", "8056024", "http://feed.example/daily"} {
+		var buf bytes.Buffer
+		cli.Out, cli.Args = &buf, []string{arg}
+		if addErr := runSearchAdd(cfg, cli); addErr != nil {
+			t.Fatalf("repeated runSearchAdd(%q): %v", arg, addErr)
+		}
+		if !strings.Contains(buf.String(), "Already subscribed") {
+			t.Fatalf("re-subscribing should say so, got %q", buf.String())
+		}
+		store, err = podcast.NewSubscriptionStore(cfg.SubscriptionsFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if subs := store.List(); len(subs) != 1 || subs[0].FeedURL != "http://feed.example/daily" {
+			t.Fatalf("re-subscribing changed subscriptions: %+v", subs)
+		}
+		current, err := os.ReadFile(cfg.SubscriptionsFile)
+		if err != nil || !bytes.Equal(current, saved) {
+			t.Fatalf("re-subscribing rewrote subscription metadata: %v", err)
+		}
 	}
-	if subs := store.List(); len(subs) != 1 {
-		t.Fatalf("re-subscribing created a duplicate: %d", len(subs))
+}
+
+func TestRunSearchAddRejectsInvalidResolvedFeed(t *testing.T) {
+	restore := searchResolver
+	t.Cleanup(func() { searchResolver = restore })
+	searchResolver = func(_ Config, id string) (podcastsearch.Result, error) {
+		if id != "8056024" {
+			t.Fatalf("resolver got ID %q", id)
+		}
+		return podcastsearch.Result{FeedURL: id}, nil
+	}
+	dir := t.TempDir()
+	cfg := Config{PodcastsDir: dir, SubscriptionsFile: filepath.Join(dir, "podcasts.json")}
+	err := runSearchAdd(cfg, CLIOptions{Args: []string{"8056024"}, Out: io.Discard})
+	if err == nil || !strings.Contains(err.Error(), "absolute HTTP(S) URL") {
+		t.Fatalf("expected invalid feed error, got %v", err)
+	}
+	store, err := podcast.NewSubscriptionStore(cfg.SubscriptionsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subs := store.List(); len(subs) != 0 {
+		t.Fatalf("invalid feed created subscriptions: %+v", subs)
 	}
 }
 

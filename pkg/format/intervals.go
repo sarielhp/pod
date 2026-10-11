@@ -96,6 +96,36 @@ func sortAds(ads []types.AdSegment) {
 	})
 }
 
+// PreserveGaps removes protected audio ranges from cuts, retaining each cut's reason.
+func PreserveGaps(cuts []types.AdSegment, gaps []types.KeepSegment) []types.AdSegment {
+	for _, gap := range gaps {
+		if gap.End <= gap.Start {
+			continue
+		}
+		start := math.Floor(gap.Start*100) / 100
+		end := math.Ceil(gap.End*100) / 100
+		var kept []types.AdSegment
+		for _, cut := range cuts {
+			if cut.End <= start || cut.Start >= end {
+				kept = append(kept, cut)
+				continue
+			}
+			if cut.Start < start {
+				left := cut
+				left.End = start
+				kept = append(kept, left)
+			}
+			if cut.End > end {
+				right := cut
+				right.Start = end
+				kept = append(kept, right)
+			}
+		}
+		cuts = kept
+	}
+	return cuts
+}
+
 // CalculateKeepSegments returns the non-ad segments to retain over totalDuration.
 func CalculateKeepSegments(totalDuration float64, ads []types.AdSegment) [][2]float64 {
 	ads = sanitizeAdSegments(ads, totalDuration)

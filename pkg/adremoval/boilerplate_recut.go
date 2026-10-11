@@ -22,8 +22,9 @@ const minBoilerplateGainSec = 2.0
 
 // boilerplateRecutPlan is what refreshing one episode with boilerplate would do.
 type boilerplateRecutPlan struct {
-	cuts    []types.AdSegment
-	preview format.CutsPreview
+	cuts      []types.AdSegment
+	preview   format.CutsPreview
+	preserved []types.KeepSegment
 }
 
 // applyBoilerplateRecut adds the planned boilerplate cuts to the episode's cuts
@@ -33,7 +34,7 @@ type boilerplateRecutPlan struct {
 func applyBoilerplateRecut(mainMP3File, precutFile, sourceAudioFile, outputFile, baseName string, totalDuration float64, plan boilerplateRecutPlan, cfg types.Config, opts types.ProcOptions, start time.Time, rep progress.Reporter) error {
 	cutsFile := baseName + ".cuts.json"
 	previous, _ := os.ReadFile(cutsFile)
-	if res := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, plan.cuts, nil, true, false); res.Err != nil {
+	if res := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, plan.cuts, nil, true, false, plan.preserved...); res.Err != nil {
 		return res.Err
 	}
 	if err := pipeline.HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName, totalDuration, types.LLMProfile{}, cfg, opts, start, rep); err != nil {
@@ -74,10 +75,12 @@ func planBoilerplateRecut(mainMP3File, precutFile, baseName string, totalDuratio
 		return plan, "its transcript does not match the original audio"
 	}
 	plan.cuts = pipeline.BoilerplateCuts(filepath.Dir(mainMP3File), td)
+	plan.preserved = preservedTranscriptGaps(td)
+	plan.cuts = format.PreserveGaps(plan.cuts, plan.preserved)
 	if len(plan.cuts) == 0 {
 		return plan, "no recorded boilerplate matches it"
 	}
-	plan.preview = format.PreviewCuts(mainMP3File, totalDuration, plan.cuts)
+	plan.preview = format.PreviewCuts(mainMP3File, totalDuration, plan.cuts, plan.preserved...)
 	if !plan.preview.Changed || plan.preview.AddedSec < minBoilerplateGainSec {
 		return plan, "its cuts already cover the boilerplate"
 	}

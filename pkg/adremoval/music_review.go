@@ -75,7 +75,7 @@ func reviewMusicForRecut(job episodeJob) error {
 	if !ok {
 		return fmt.Errorf("recut requires a reviewed transcript")
 	}
-	result := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, reviewedMusicCuts(job.cfg, td), nil, job.opts.Quiet, false)
+	result := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, reviewedMusicCuts(job.cfg, td), nil, job.opts.Quiet, false, preservedTranscriptGaps(td)...)
 	return result.Err
 }
 
@@ -118,8 +118,18 @@ func recutReviewedEpisode(job episodeJob) error {
 }
 
 func reviewedMusicCuts(cfg types.Config, td *types.TranscriptionData) []types.AdSegment {
-	if cfg.YamnetURL == "" || td == nil || td.GapReview == nil || !td.GapReview.Complete {
+	if cfg.YamnetURL == "" || td == nil || td.GapReview == nil {
 		return nil
 	}
-	return td.GapReview.MusicCuts
+	if !td.GapReview.Complete && td.GapReview.TranscriptKey == "" {
+		return nil
+	}
+	return format.PreserveGaps(td.GapReview.MusicCuts, td.GapReview.Unresolved)
+}
+
+func preservedTranscriptGaps(td *types.TranscriptionData) []types.KeepSegment {
+	if td == nil || td.GapReview == nil {
+		return nil
+	}
+	return td.GapReview.Unresolved
 }

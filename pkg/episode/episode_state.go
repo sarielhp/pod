@@ -13,26 +13,34 @@ import (
 
 // IsEpisodeClean reports whether an episode has finished ad removal.
 func IsEpisodeClean(mp3Path string) bool {
-	if !hasNonEmptyTranscript(mp3Path) {
+	if !hasUsableTranscript(mp3Path) {
 		return false
 	}
 	return IsEpisodeCompleted(mp3Path)
 }
 
-func hasNonEmptyTranscript(mp3Path string) bool {
+func hasUsableTranscript(mp3Path string) bool {
 	path := util.StripExt(mp3Path) + ".transcript.json"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}
 	var transcript struct {
-		Text                  string `json:"text"`
-		AdDetectionSuccessful *bool  `json:"ad_detection_successful"`
+		Text                  string           `json:"text"`
+		AdDetectionSuccessful *bool            `json:"ad_detection_successful"`
+		GapReview             *types.GapReview `json:"gap_review"`
 	}
 	if json.Unmarshal(data, &transcript) != nil {
 		return false
 	}
-	return (transcript.AdDetectionSuccessful == nil || *transcript.AdDetectionSuccessful) && utf8.RuneCountInString(strings.TrimSpace(transcript.Text)) >= 50
+	if transcript.AdDetectionSuccessful != nil && !*transcript.AdDetectionSuccessful {
+		return false
+	}
+	if utf8.RuneCountInString(strings.TrimSpace(transcript.Text)) >= 50 {
+		return true
+	}
+	review := transcript.GapReview
+	return review != nil && review.Version == 1 && review.SourceKey != "" && review.TranscriptKey != "" && len(review.Unresolved) > 0
 }
 
 // EpisodeDurations reports an episode's original and post-cut durations,

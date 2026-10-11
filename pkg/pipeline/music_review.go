@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"pod/pkg/format"
 	"pod/pkg/music"
 	"pod/pkg/progress"
 	"pod/pkg/transcribe"
@@ -60,6 +61,9 @@ func (r *MusicReview) Review(ctx context.Context, td *types.TranscriptionData) e
 	if td == nil {
 		return fmt.Errorf("gap review requires a transcript")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var classified classification
 	select {
 	case classified = <-r.result:
@@ -94,22 +98,27 @@ func (r *MusicReview) Review(ctx context.Context, td *types.TranscriptionData) e
 		for start := gap.Start; start < gap.End; start += 30 {
 			part := types.KeepSegment{Start: start, End: math.Min(start+30, gap.End)}
 			if seconds+part.End-part.Start > 900 || attempts >= 96 {
-				return r.finishReview(td, classified.result, retried, fmt.Errorf("transcript gap retry limit reached"))
+				progress.Or(r.req.Reporter).Infof("Transcript gap retry limit reached; preserving remaining gaps.")
+				return r.finishReview(td, classified.result, retried, nil)
 			}
 			if err := ctx.Err(); err != nil {
 				return r.finishReview(td, classified.result, retried, err)
 			}
-			recovered, err := r.retry(ctx, part)
-			if err != nil {
-				return r.finishReview(td, classified.result, retried, fmt.Errorf("retry transcript gap %.2f–%.2f: %w", part.Start, part.End, err))
-			}
-			if err := validateRecovered(recovered); err != nil {
+			seconds += part.End - part.Start
+			attempts++
+			recovered, retryErr := r.retry(ctx, part)
+			if err := ctx.Err(); err != nil {
 				return r.finishReview(td, classified.result, retried, err)
+			}
+			if retryErr == nil {
+				retryErr = validateRecovered(recovered)
+			}
+			if retryErr != nil {
+				progress.Or(r.req.Reporter).Infof("Could not recover transcript gap %.2f–%.2f; preserving its audio: %v", part.Start, part.End, retryErr)
+				continue
 			}
 			review.RecoveredSegments += mergeRecovered(td, recovered, part)
 			retried = append(retried, part)
-			seconds += part.End - part.Start
-			attempts++
 		}
 	}
 	return r.finishReview(td, classified.result, retried, nil)
@@ -131,31 +140,33 @@ func transcriptKey(td *types.TranscriptionData) string {
 
 func (r *MusicReview) finishReview(td *types.TranscriptionData, result *music.Result, retried []types.KeepSegment, failure error) error {
 	review := td.GapReview
-	for _, gap := range transcriptGaps(td, r.req.Duration, 0.75) {
+	for _, gap := range transcriptGaps(td, r.req.Duration, 0) {
 		if gap.End-gap.Start < 2 || silentGap(result, gap) {
 			continue
 		}
-		if !coveredBy(gap, retried) {
+		if !coveredBy(gap, retried) || hasSpeech(result, gap) {
 			review.Unresolved = append(review.Unresolved, gap)
 			continue
 		}
-		cuts := confirmedMusic(result, gap)
-		review.MusicCuts = append(review.MusicCuts, cuts...)
-		if hasSpeech(result, gap) {
-			review.Unresolved = append(review.Unresolved, gap)
+		padded := gap
+		if gap.Start > 0 {
+			padded.Start += 0.75
 		}
+		if gap.End < r.req.Duration {
+			padded.End -= 0.75
+		}
+		cuts := confirmedMusic(result, padded)
+		if len(cuts) == 0 {
+			review.Unresolved = append(review.Unresolved, gap)
+			continue
+		}
+		review.MusicCuts = append(review.MusicCuts, cuts...)
 	}
 	review.Complete = failure == nil && len(review.Unresolved) == 0
 	review.TranscriptKey = transcriptKey(td)
-	td.Cuts = replaceMusicCuts(td.Cuts, review.MusicCuts)
-	progress.Or(r.req.Reporter).Infof("Gap review: recovered %d transcript segments; confirmed %d music-only cuts; %d unresolved gaps.", review.RecoveredSegments, len(review.MusicCuts), len(review.Unresolved))
-	if failure != nil {
-		return failure
-	}
-	if !review.Complete {
-		return fmt.Errorf("transcript still has %d unresolved speech gaps; audio cutting stopped", len(review.Unresolved))
-	}
-	return nil
+	td.Cuts = format.PreserveGaps(replaceMusicCuts(td.Cuts, review.MusicCuts), review.Unresolved)
+	progress.Or(r.req.Reporter).Infof("Gap review: recovered %d transcript segments; confirmed %d music-only cuts; %d unresolved gaps preserved.", review.RecoveredSegments, len(review.MusicCuts), len(review.Unresolved))
+	return failure
 }
 
 func replaceMusicCuts(cuts, musicCuts []types.AdSegment) []types.AdSegment {

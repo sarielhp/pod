@@ -182,6 +182,95 @@ func TestMusicReviewFailurePreservesAudioAndRecordsStatus(t *testing.T) {
 	}
 }
 
+func TestUnfilledSpeechGapAllowsProcessingAndRecutPreservesItsAudio(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	path := filepath.Join(t.TempDir(), "episode.mp3")
+	silentWav(t, path, 30)
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		io.WriteString(w, `{"text":"","segments":[]}`)
+	}))
+	defer whisper.Close()
+	classifier := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			io.WriteString(w, `{"status":"healthy"}`)
+			return
+		}
+		io.Copy(io.Discard, r.Body)
+		result := music.Result{Duration: 30}
+		for sec := 0.0; sec < 30; sec += 0.48 {
+			result.Frames = append(result.Frames, music.Frame{Time: sec, Music: 0.99, Speech: 0.9})
+		}
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer classifier.Close()
+	profile := types.WhisperProfile{ID: 1, Engine: types.WhisperEngineRemote, URL: whisper.URL, Languages: []string{"*"}}
+	cfg := types.Config{WhisperConfig: types.WhisperConfig{YamnetURL: classifier.URL, WhisperURL: whisper.URL, ActiveWhisperID: 1, WhisperProfiles: []types.WhisperProfile{profile}}}
+	td := &types.TranscriptionData{Text: "intro end", Segments: []types.TranscriptionSegment{{Start: 0, End: 2, Text: "intro"}, {Start: 28, End: 30, Text: "end"}}}
+	transcript := util.StripExt(path) + ".transcript.json"
+	if err := pipeline.SaveJSONTranscript(path, td, transcript, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if result := format.SaveCutsJSON(path, 30, []types.AdSegment{{Start: 0, End: 30, Reason: "old ad spanning gap"}}, nil, true); result.Err != nil {
+		t.Fatal(result.Err)
+	}
+	opts := types.ProcOptions{Quiet: true}
+	reviewed, _, ok, failed := runLocalTranscriptionStep(path, transcript, path, 30, cfg, opts, types.LLMProfile{}, time.Now(), nil)
+	if failed || !ok || reviewed.GapReview.Complete || len(reviewed.GapReview.Unresolved) != 1 {
+		t.Fatalf("unfilled gap stopped processing: ok=%v failed=%v transcript=%+v", ok, failed, reviewed)
+	}
+	job := episodeJob{sourceAudioFile: path, mainMP3File: path, jsonFile: transcript, totalDuration: 30, cfg: cfg, opts: opts, precutFile: path + ".precut", outputFile: path, fileStartTime: time.Now()}
+	if err := recutReviewedEpisode(job); err != nil {
+		t.Fatal(err)
+	}
+	var cuts types.CutsData
+	data, err := os.ReadFile(util.StripExt(path) + ".cuts.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &cuts); err != nil {
+		t.Fatal(err)
+	}
+	if len(cuts.KeepIntervals) != 1 || cuts.KeepIntervals[0].Start != 2 || cuts.KeepIntervals[0].End != 28 {
+		t.Fatalf("recut lost protected gap: %+v", cuts)
+	}
+	if duration := audio.GetAudioDuration(path); math.Abs(duration-26) > 0.5 {
+		t.Fatalf("gap audio was removed: duration=%.2f", duration)
+	}
+	backup, err := os.ReadFile(job.precutFile)
+	if err != nil || !bytes.Equal(backup, original) {
+		t.Fatal("recut did not preserve the original")
+	}
+	if !episode.IsEpisodeClean(path) {
+		t.Fatal("preserved speech gap prevented successful completion")
+	}
+}
+
+func TestTranscriptSanityAcceptsReviewedPreservedGaps(t *testing.T) {
+	t.Parallel()
+	td := &types.TranscriptionData{Text: strings.Repeat("spoken ", 30), Segments: []types.TranscriptionSegment{{Start: 0, End: 10, Text: strings.Repeat("spoken ", 30)}}}
+	if validateTranscriptSanity(td, 600, true) {
+		t.Fatal("unreviewed truncated transcript accepted")
+	}
+	td.GapReview = &types.GapReview{Version: 1, TranscriptKey: "reviewed", Duration: 600, Unresolved: []types.KeepSegment{{Start: 10, End: 600}}}
+	if !validateTranscriptSanity(td, 600, true) {
+		t.Fatal("preserved trailing gap blocked processing")
+	}
+	td.Text, td.Segments = "", nil
+	td.GapReview.Unresolved = []types.KeepSegment{{Start: 0, End: 600}}
+	if !validateTranscriptSanity(td, 600, true) {
+		t.Fatal("preserving all audio required fabricated transcript words")
+	}
+}
+
 func TestMusicReviewRequiresOriginalAndAllowsUnprocessedAudio(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "episode.mp3")
 	if err := verifyMusicSource(path, path+".precut", 30, "http://classifier"); err != nil {

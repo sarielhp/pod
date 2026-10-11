@@ -106,14 +106,15 @@ Pod examines transcript gaps of at least two seconds, using word timestamps when
 available. Non-silent gaps get short Whisper retries, including gaps labeled as
 music. Recovered speech is merged into the original timestamps before boilerplate
 and ad detection. Retries use 30-second clips with context and are capped at 15
-minutes of gap audio and 96 requests per episode; hitting a limit stops cutting and
-saves the recovery progress for inspection.
+minutes of gap audio and 96 requests per episode. Failed retries and limits leave
+the unfilled gaps in the audio while processing continues. Recovery progress and
+preserved gaps are recorded in the transcript.
 
 Remaining music is cut throughout the episode when every overlapping YAMNet
 window has music confidence at least 0.8 and speech confidence at most 0.05,
 the gap was retried successfully, and the cut stays 0.75 seconds away from
 transcribed speech. Silence and ambiguous audio are kept. Residual speech-like gaps
-stop cutting. YAMNet and an empty Whisper result cannot guarantee that speech is
+are preserved, including when old or new ad cuts span them. YAMNet and an empty Whisper result cannot guarantee that speech is
 absent under loud music; these conservative checks reduce that risk without an
 independent speech detector.
 

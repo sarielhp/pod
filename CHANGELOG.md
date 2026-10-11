@@ -5,6 +5,13 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.30] - 2026-10-11
+
+### Fixed
+- Unfilled transcript gaps are preserved instead of failing episode processing.
+  Failed Whisper retries and retry limits retain the missing audio, and existing
+  or newly detected cuts cannot remove unresolved gaps during cleaning or recuts.
+
 ## [0.5.29] - 2026-10-11
 
 ### Added

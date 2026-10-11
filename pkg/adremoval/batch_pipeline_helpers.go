@@ -34,13 +34,19 @@ func validateTranscriptSanity(data *types.TranscriptionData, totalDuration float
 		fullText = strings.TrimSpace(b.String())
 	}
 	wordCount := len(strings.Fields(fullText))
-	minExpectedWords := int(totalDuration / 60.0 * 15.0)
-	if data.GapReview != nil && data.GapReview.Complete && data.GapReview.Version == 1 {
-		for _, cut := range data.GapReview.MusicCuts {
-			minExpectedWords -= int((cut.End - cut.Start) / 60 * 15)
+	expectedDuration := totalDuration
+	review := data.GapReview
+	reviewed := review != nil && review.Version == 1 && review.TranscriptKey != "" && review.Duration >= totalDuration-1
+	if reviewed {
+		for _, cut := range review.MusicCuts {
+			expectedDuration -= cut.End - cut.Start
+		}
+		for _, gap := range review.Unresolved {
+			expectedDuration -= gap.End - gap.Start
 		}
 	}
-	if minExpectedWords < 20 {
+	minExpectedWords := max(0, int(expectedDuration/60*15))
+	if minExpectedWords < 20 && !reviewed {
 		minExpectedWords = 20
 	}
 	lastSegmentEnd := 0.0
@@ -50,7 +56,7 @@ func validateTranscriptSanity(data *types.TranscriptionData, totalDuration float
 		}
 	}
 	minRequiredCoverage := totalDuration * 0.85
-	if data.GapReview != nil && data.GapReview.Complete && data.GapReview.Version == 1 && data.GapReview.Duration >= totalDuration-1 {
+	if reviewed {
 		lastSegmentEnd = totalDuration
 	}
 	var failedReasons []string

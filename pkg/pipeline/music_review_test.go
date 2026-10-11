@@ -76,7 +76,7 @@ func TestMusicReviewVetoSilenceUnknownAndFailure(t *testing.T) {
 		fails, cuts            bool
 	}{
 		{"music", 0, 0, 0.99, false, true},
-		{"speech over music", 0.2, 0, 0.99, true, false},
+		{"speech over music", 0.2, 0, 0.99, false, false},
 		{"weak speech veto", 0.07, 0, 0.99, false, false},
 		{"silence", 0, 0.99, 0, false, false},
 		{"unknown", 0, 0, 0.2, false, false},
@@ -101,7 +101,7 @@ func TestMusicReviewVetoSilenceUnknownAndFailure(t *testing.T) {
 		return nil, errors.New("offline")
 	}
 	td := &types.TranscriptionData{}
-	if err := r.Review(context.Background(), td); err == nil || td.GapReview.Complete || len(td.Cuts) != 0 {
+	if err := r.Review(context.Background(), td); err != nil || td.GapReview.Complete || len(td.Cuts) != 0 || len(td.GapReview.Unresolved) != 1 {
 		t.Fatalf("failed review cut audio: %+v", td)
 	}
 }
@@ -119,8 +119,80 @@ func TestMusicReviewUsesWordGapsAndLimitsRetries(t *testing.T) {
 		return &types.TranscriptionData{}, nil
 	}
 	td = &types.TranscriptionData{}
-	if err := r.Review(context.Background(), td); err == nil || calls != 30 || td.GapReview.Complete {
+	if err := r.Review(context.Background(), td); err != nil || calls != 30 || td.GapReview.Complete || len(td.GapReview.Unresolved) != 1 {
 		t.Fatalf("retry bound failed: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestMusicReviewPreservesFailedGapAndRecoversLaterGap(t *testing.T) {
+	cases := []struct {
+		name string
+		td   *types.TranscriptionData
+		err  error
+	}{
+		{"offline", nil, errors.New("offline")},
+		{"timeout", nil, context.DeadlineExceeded},
+		{"missing transcript", nil, nil},
+		{"empty transcript", &types.TranscriptionData{}, nil},
+		{"untimed speech", &types.TranscriptionData{Text: "speech"}, nil},
+		{"invalid timestamps", &types.TranscriptionData{Segments: []types.TranscriptionSegment{{Start: 4, End: 3, Text: "speech"}}}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, result := reviewFixture(t, 22)
+			for i := range result.Frames {
+				if result.Frames[i].Time < 10 {
+					result.Frames[i].Speech = 0.9
+				}
+			}
+			td := &types.TranscriptionData{Segments: []types.TranscriptionSegment{{Start: 0, End: 2, Text: "intro"}, {Start: 10, End: 12, Text: "middle"}, {Start: 20, End: 22, Text: "end"}}, Cuts: []types.AdSegment{{Start: 0, End: 22, Reason: "old ad"}}}
+			calls := 0
+			r.retry = func(_ context.Context, gap types.KeepSegment) (*types.TranscriptionData, error) {
+				calls++
+				if calls == 1 {
+					return tc.td, tc.err
+				}
+				return &types.TranscriptionData{Segments: []types.TranscriptionSegment{{Start: gap.Start, End: gap.End, Text: "recovered speech"}}}, nil
+			}
+			if err := r.Review(context.Background(), td); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 2 || td.GapReview.RecoveredSegments != 1 || td.GapReview.Complete {
+				t.Fatalf("calls=%d review=%+v", calls, td.GapReview)
+			}
+			gaps := td.GapReview.Unresolved
+			if len(gaps) != 1 || gaps[0].Start != 2 || gaps[0].End != 10 {
+				t.Fatalf("unresolved gap changed: %+v", gaps)
+			}
+			for _, cut := range td.Cuts {
+				if cut.Start < 10 && cut.End > 2 {
+					t.Fatalf("cut removed preserved gap: %+v", cut)
+				}
+			}
+		})
+	}
+}
+
+func TestMusicReviewFailedRetriesRemainBoundedAndParentCancellationFails(t *testing.T) {
+	r, _ := reviewFixture(t, 1200)
+	calls := 0
+	r.retry = func(context.Context, types.KeepSegment) (*types.TranscriptionData, error) {
+		calls++
+		return nil, errors.New("offline")
+	}
+	td := &types.TranscriptionData{}
+	if err := r.Review(context.Background(), td); err != nil || calls != 30 || len(td.Cuts) != 0 || len(td.GapReview.Unresolved) != 1 {
+		t.Fatalf("calls=%d err=%v review=%+v", calls, err, td.GapReview)
+	}
+	r, _ = reviewFixture(t, 12)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	r.retry = func(context.Context, types.KeepSegment) (*types.TranscriptionData, error) {
+		cancel()
+		return nil, context.DeadlineExceeded
+	}
+	if err := r.Review(ctx, &types.TranscriptionData{}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("parent cancellation was ignored: %v", err)
 	}
 }
 
@@ -165,7 +237,7 @@ func TestMusicReviewRejectsSpeechWithoutTimestamps(t *testing.T) {
 		return &types.TranscriptionData{Text: "spoken advertisement"}, nil
 	}
 	td := &types.TranscriptionData{}
-	if err := r.Review(context.Background(), td); err == nil || td.GapReview.Complete || len(td.Cuts) > 0 {
+	if err := r.Review(context.Background(), td); err != nil || td.GapReview.Complete || len(td.Cuts) > 0 || len(td.GapReview.Unresolved) != 1 {
 		t.Fatalf("untimed speech was treated as empty music: %+v", td)
 	}
 	seg := types.TranscriptionSegment{Start: 0, End: 12, Text: "spoken content", Words: []types.TranscriptionWord{{Start: 0, End: 0, Word: "spoken"}}}

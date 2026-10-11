@@ -27,7 +27,7 @@ func buildCutEntries(combined []types.AdSegment) []types.CutEntry {
 	return formattedRaw
 }
 
-func buildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegment) ([]types.MergedCutInterval, [][2]float64, []types.KeepSegment) {
+func buildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegment, preserved ...types.KeepSegment) ([]types.MergedCutInterval, [][2]float64, []types.KeepSegment) {
 	combined = sanitizeAdSegments(combined, totalDuration)
 	allBounds := make([][2]float64, 0, len(combined))
 	for _, ad := range combined {
@@ -39,11 +39,14 @@ func buildMergedAndKeepIntervals(totalDuration float64, combined []types.AdSegme
 	formattedMerged := make([]types.MergedCutInterval, 0, len(newMerged))
 	var mergedAds []types.AdSegment
 	for _, b := range newMerged {
-		formattedMerged = append(formattedMerged, types.MergedCutInterval{
-			Start: util.RoundFloat(b[0], 2),
-			End:   util.RoundFloat(b[1], 2),
-		})
 		mergedAds = append(mergedAds, types.AdSegment{Start: b[0], End: b[1]})
+	}
+	mergedAds = PreserveGaps(mergedAds, preserved)
+	for _, ad := range mergedAds {
+		formattedMerged = append(formattedMerged, types.MergedCutInterval{
+			Start: util.RoundFloat(ad.Start, 2),
+			End:   util.RoundFloat(ad.End, 2),
+		})
 	}
 
 	keep := CalculateKeepSegments(totalDuration, mergedAds)
@@ -86,7 +89,8 @@ func SaveCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdS
 // they are merged into the cuts already there, so a later run only ever adds.
 // With replace, the previous cuts are discarded: a forced re-detection has to be
 // able to remove a bad cut, and merging would keep it forever.
-func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdSegment, profile *types.LLMProfile, quiet, replace bool) types.CutsResult {
+// Preserved ranges remain in the audio even when old or newly merged cuts span them.
+func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []types.AdSegment, profile *types.LLMProfile, quiet, replace bool, preserved ...types.KeepSegment) types.CutsResult {
 	base := util.StripExt(mainFile)
 	cutsFile := base + ".cuts.json"
 
@@ -98,9 +102,10 @@ func SaveDetectedCutsJSON(mainFile string, totalDuration float64, adSegments []t
 	}
 	combined := append(existingRaw, adSegments...)
 	combined = sanitizeAdSegments(combined, totalDuration)
+	combined = PreserveGaps(combined, preserved)
 
 	formattedRaw := buildCutEntries(combined)
-	formattedMerged, keep, keepIntervals := buildMergedAndKeepIntervals(totalDuration, combined)
+	formattedMerged, keep, keepIntervals := buildMergedAndKeepIntervals(totalDuration, combined, preserved...)
 
 	if existingCutsData != nil && equalMergedIntervals(existingMerged, formattedMerged) {
 		if !quiet {
@@ -173,10 +178,11 @@ type CutsPreview struct {
 // PreviewCuts reports, without writing anything, whether adding adSegments to the
 // episode's existing cuts would change the set of intervals cut, and by how many
 // seconds it would grow.
-func PreviewCuts(mainFile string, totalDuration float64, adSegments []types.AdSegment) CutsPreview {
+func PreviewCuts(mainFile string, totalDuration float64, adSegments []types.AdSegment, preserved ...types.KeepSegment) CutsPreview {
 	existingRaw, existingMerged, existing := loadExistingCuts(util.StripExt(mainFile) + ".cuts.json")
 	combined := sanitizeAdSegments(append(existingRaw, adSegments...), totalDuration)
-	merged, _, _ := buildMergedAndKeepIntervals(totalDuration, combined)
+	combined = PreserveGaps(combined, preserved)
+	merged, _, _ := buildMergedAndKeepIntervals(totalDuration, combined, preserved...)
 	return CutsPreview{
 		Changed:  existing == nil || !equalMergedIntervals(existingMerged, merged),
 		AddedSec: mergedSeconds(merged) - mergedSeconds(existingMerged),

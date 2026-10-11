@@ -359,12 +359,14 @@ func runLocalAdDetectionAndCutStep(transcriptionData *types.TranscriptionData, s
 	if len(adSegments) > 0 {
 		adSegments = format.MergeIntervals(adSegments)
 	}
+	preserved := preservedTranscriptGaps(transcriptionData)
+	adSegments = format.PreserveGaps(adSegments, preserved)
 	if len(adSegments) == 0 {
-		handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile, totalDuration, selectedProfile, opts, fileStartTime, t0Step1, t0Step2)
+		handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile, totalDuration, selectedProfile, opts, fileStartTime, t0Step1, t0Step2, preserved...)
 		return true
 	}
 
-	cutsResult := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, adSegments, &selectedProfile, opts.Quiet, opts.ForceLLM)
+	cutsResult := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, adSegments, &selectedProfile, opts.Quiet, opts.ForceLLM, preserved...)
 	if cutsResult.Err != nil {
 		return false
 	}
@@ -550,7 +552,7 @@ func installNoAdsOutput(source, output string) error {
 	return nil
 }
 
-func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalDuration float64, selectedProfile types.LLMProfile, opts types.ProcOptions, fileStartTime, t0Step1, t0Step2 time.Time) {
+func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalDuration float64, selectedProfile types.LLMProfile, opts types.ProcOptions, fileStartTime, t0Step1, t0Step2 time.Time, preserved ...types.KeepSegment) {
 	if sourceAudioFile != outputFile {
 		if err := installNoAdsOutput(sourceAudioFile, outputFile); err != nil {
 			if !opts.Quiet {
@@ -559,7 +561,7 @@ func handleNoAdsDetected(mainMP3File, sourceAudioFile, outputFile string, totalD
 			return
 		}
 	}
-	if res := format.SaveCutsJSON(mainMP3File, totalDuration, nil, &selectedProfile, opts.Quiet); res.Err != nil {
+	if res := format.SaveDetectedCutsJSON(mainMP3File, totalDuration, nil, &selectedProfile, opts.Quiet, false, preserved...); res.Err != nil {
 		return
 	}
 	if err := episode.UpdateEpisodeStatus(mainMP3File, func(st *types.EpisodeStatusFile) {

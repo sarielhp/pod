@@ -31,50 +31,28 @@
 | `tools/snapshot [msg]` | Fast WIP commit without gating (<0.1s, never pushes) |
 | `tools/checkpoint.sh` | Auto micro-commit of all changes (delegates to `tools/snapshot`) |
 
-### Unreferenced one-off scripts
+### Unreferenced one-off scripts (`tools/oneoff/`)
 
-The scripts below are one-off migration and refactoring aids from earlier
-restructurings (splitting the original single `main` package, renaming `abs` to
-`pod`, the fatal-helper rewrites). Nothing in `Makefile`, `tools/check`,
-`tools/lint` or this file invokes them, and most read files that no longer
-exist. They are kept only until their owner decides to delete them; do not
-build on them or extend them:
+`tools/oneoff/` holds dead one-off migration, refactoring and review aids from
+earlier restructurings. Nothing in `Makefile`, `tools/check`, `tools/lint` or
+this file invokes them, and most read files that no longer exist. They are kept
+only until their owner decides to delete them; **do not build on them or extend
+them, and there is no reason to read them**. The per-script index in
+`tools/oneoff/README.md` exists only for whoever decides what to delete, not as
+context for working in this repo.
 
-`tools/extract_tui_types`, `tools/extract_tui_types_more`,
-`tools/extract_tui_views`, `tools/fix_cli`, `tools/kitty_fix_hebrew`,
-`tools/refactor_os_exit`, `tools/revert_main`, `tools/revert_signatures`,
-`tools/review_cycle`, `tools/ruby_split`, `tools/safe_fatal`,
-`tools/split_player`, `tools/split_pm`, `tools/split_transcribe`,
-`tools/split_tui_keys`, `tools/split_tui_test`, `tools/strip_comments`,
-`tools/update_main`, `tools/use_fatal`, `tools/use_fatal2`, and everything
-under `tools/oneoff/`.
+Two superseded scripts remain at the top level: `tools/audit_lines` (replaced by
+`go-audit` inside `tools/check`) and `tools/checkpoint.sh` (whose `Makefile`
+target calls `tools/snapshot` directly).
 
 ## Makefile
 
-A `Makefile` at the project root delegates to all scripts:
-
-| Target | Action |
-|--------|--------|
-| `make check` | Quality gate for committing: format, vet, staticcheck, line audit, tests, build. No race detector — see `make ci` |
-| `make visual` | Run full live PTY visual audit across all 19 TUI screens (`tools/visual_audit`) |
-| `make lint` | Static analysis (vet + staticcheck + line audit) |
-| `make audit` | Audit complexity and sizing (`go-audit`) |
-| `make symbols` | Outline symbols (`tools/outline_symbols ARGS="..."`) |
-| `make suggest-split` | Suggest file splits (`tools/suggest_split ARGS="..."`) |
-| `make template` | Regenerate config template (`tools/generate_config_template`) |
-| `make test` | Run tests |
-| `make build` | Build binary |
-| `make format` | Format code |
-| `make map` | Show architecture overview |
-| `make version` | Show current version |
-| `make bump` | Bump patch version |
-| `make commit` | Quality gate + commit |
-| `make push` | Alias for `make bump` |
-| `make snapshot` | Fast WIP micro-commit (`tools/snapshot ARGS="..."`) |
-| `make snap` | Alias for `make snapshot` |
-| `make checkpoint` | Micro-commit all changes (delegates to `make snapshot`) |
-| `make ci` | Release gate: everything in `make check` plus the race detector and govulncheck |
-| `make clean` | Remove binary |
+A `Makefile` at the project root wraps most of the scripts above — `make check`,
+`make bump`, `make visual`, and so on — and is the source of truth. Only a few
+targets add anything the tools table does not already say: the pure-Go targets
+`test`, `race`, `vuln`, `vet`, `staticcheck`, `tidy`, `clean`; the aliases
+`push` = `bump` and `snap` = `snapshot`; and `make ci`, which is `make check`
+plus the race detector and govulncheck.
 
 ### Workflow
 

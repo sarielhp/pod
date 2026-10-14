@@ -37,7 +37,8 @@ class String
   end unless method_defined?(:gray)
 end
 
-REPO_ROOT = File.expand_path('..', __dir__)
+TOOLS_DIR = File.expand_path('../..', __dir__)
+REPO_ROOT = File.expand_path('../../..', __dir__)
 STATE_FILE = File.join(REPO_ROOT, '.review_state.json')
 
 AUDIT_PROFILES = %w[systems security correctness resilience performance cli].freeze
@@ -441,13 +442,13 @@ class MultiProfileReviewCycle
     return options[:gate_cmd] if options[:gate_cmd] && !options[:gate_cmd].strip.empty?
     return ENV['GATE_CMD'] if ENV['GATE_CMD'] && !ENV['GATE_CMD'].strip.empty?
 
-    default_gate = File.expand_path('gate', __dir__)
+    default_gate = File.expand_path('gate', TOOLS_DIR)
     return default_gate if File.exist?(default_gate) && (File.executable?(default_gate) || !File.directory?(default_gate))
 
-    check_bin = File.expand_path('check', __dir__)
+    check_bin = File.expand_path('check', TOOLS_DIR)
     return check_bin if File.exist?(check_bin) && (File.executable?(check_bin) || !File.directory?(check_bin))
 
-    check_rb = File.expand_path('check.rb', __dir__)
+    check_rb = File.expand_path('check.rb', TOOLS_DIR)
     return "ruby #{check_rb}" if File.exist?(check_rb)
 
     makefile_path = File.join(REPO_ROOT, 'Makefile')
@@ -491,10 +492,10 @@ class MultiProfileReviewCycle
     return options[:build_cmd] if options[:build_cmd] && !options[:build_cmd].strip.empty?
     return ENV['BUILD_CMD'] if ENV['BUILD_CMD'] && !ENV['BUILD_CMD'].strip.empty?
 
-    build_local_bin = File.expand_path('build_local', __dir__)
+    build_local_bin = File.expand_path('build_local', TOOLS_DIR)
     return build_local_bin if File.exist?(build_local_bin) && (File.executable?(build_local_bin) || !File.directory?(build_local_bin))
 
-    build_local = File.expand_path('build_local.rb', __dir__)
+    build_local = File.expand_path('build_local.rb', TOOLS_DIR)
     return "ruby #{build_local}" if File.exist?(build_local)
 
     makefile_path = File.join(REPO_ROOT, 'Makefile')
@@ -502,7 +503,7 @@ class MultiProfileReviewCycle
       return 'make build'
     end
 
-    install_script = File.expand_path('install', __dir__)
+    install_script = File.expand_path('install', TOOLS_DIR)
     if File.exist?(install_script) && (File.executable?(install_script) || !File.directory?(install_script))
       content = File.read(install_script) rescue ''
       return install_script unless content.include?('git commit') || content.include?('git push')

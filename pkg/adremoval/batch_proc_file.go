@@ -139,6 +139,9 @@ func processSingleAudioFile(idx, totalFiles, processedCount int, inputFile strin
 	if !ok {
 		return Report{Processed: true}, nil
 	}
+	if transData != nil && transData.GapReview != nil && transData.GapReview.Duration > totalDuration {
+		totalDuration = transData.GapReview.Duration
+	}
 
 	cutSuccess := runLocalAdDetectionAndCutStep(transData, sourceAudioFile, mainMP3File, precutFile, outputFile, totalDuration, config, opts, selectedProfile, fileStartTime, t0Step1, rep)
 	if strings.HasSuffix(sourceAudioFile, ".truncated.wav") {
@@ -256,6 +259,9 @@ func handleGeminiStepWithFallback(job episodeJob) (bool, bool) {
 	if hasErr || !ok {
 		return false, true
 	}
+	if transData != nil && transData.GapReview != nil && transData.GapReview.Duration > job.totalDuration {
+		job.totalDuration = transData.GapReview.Duration
+	}
 	cutSuccess := runLocalAdDetectionAndCutStep(transData, job.sourceAudioFile, job.mainMP3File, job.precutFile, job.outputFile, job.totalDuration, fallbackCfg, fallbackOpts, job.selectedProfile, job.fileStartTime, t0Step1, job.rep)
 	return cutSuccess, true
 }
@@ -295,6 +301,12 @@ func runLocalTranscriptionStep(sourceAudioFile, jsonFile, mainMP3File string, to
 			recordGapReviewFailure(mainMP3File, reviewErr)
 			util.Errorf("Gap review: %v", reviewErr)
 			return nil, t0Step1, false, true
+		}
+		// If YAMNet's decoded PCM duration revealed that ffprobe's container
+		// bitrate estimate undercounted the audio length, use the decoded duration
+		// so audio cutting does not truncate the end of the episode.
+		if transcriptionData != nil && transcriptionData.GapReview != nil && transcriptionData.GapReview.Duration > totalDuration {
+			totalDuration = transcriptionData.GapReview.Duration
 		}
 	}
 

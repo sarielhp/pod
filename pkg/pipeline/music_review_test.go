@@ -245,3 +245,24 @@ func TestMusicReviewRejectsSpeechWithoutTimestamps(t *testing.T) {
 		t.Fatalf("invalid word timestamps discarded spoken segment: %+v", gaps)
 	}
 }
+
+func TestMusicReviewAcceptsSmallDurationDrift(t *testing.T) {
+	r, result := reviewFixture(t, 930)
+	result.Duration = 932.13
+	td := &types.TranscriptionData{Segments: []types.TranscriptionSegment{{Start: 0, End: 932.13, Text: "content"}}}
+	if err := r.Review(context.Background(), td); err != nil {
+		t.Fatalf("small duration drift rejected: %v", err)
+	}
+	if td.GapReview == nil || td.GapReview.Duration != 932.13 {
+		t.Fatalf("did not adopt classified duration: %+v", td.GapReview)
+	}
+}
+
+func TestMusicReviewRejectsGrossDurationMismatch(t *testing.T) {
+	r, result := reviewFixture(t, 900)
+	result.Duration = 600
+	td := &types.TranscriptionData{}
+	if err := r.Review(context.Background(), td); err == nil || !strings.Contains(err.Error(), "classifier duration does not match") {
+		t.Fatalf("gross duration mismatch accepted: %v", err)
+	}
+}

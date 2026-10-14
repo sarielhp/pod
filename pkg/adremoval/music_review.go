@@ -75,7 +75,11 @@ func reviewMusicForRecut(job episodeJob) error {
 	if !ok {
 		return fmt.Errorf("recut requires a reviewed transcript")
 	}
-	result := format.SaveDetectedCutsJSON(job.mainMP3File, job.totalDuration, reviewedMusicCuts(job.cfg, td), nil, job.opts.Quiet, false, preservedTranscriptGaps(td)...)
+	duration := job.totalDuration
+	if td != nil && td.GapReview != nil && td.GapReview.Duration > duration {
+		duration = td.GapReview.Duration
+	}
+	result := format.SaveDetectedCutsJSON(job.mainMP3File, duration, reviewedMusicCuts(job.cfg, td), nil, job.opts.Quiet, false, preservedTranscriptGaps(td)...)
 	return result.Err
 }
 

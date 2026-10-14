@@ -73,9 +73,14 @@ func (r *MusicReview) Review(ctx context.Context, td *types.TranscriptionData) e
 	if classified.err != nil {
 		return classified.err
 	}
-	if math.Abs(classified.result.Duration-r.req.Duration) > 1 {
+	// ffprobe estimates MP3 container duration from file size and nominal bitrate
+	// when Xing/VBRI headers are absent or unpadded, routinely drifting by 1-2%
+	// from the true decoded PCM audio duration. Allow up to 1% (or 15s) drift,
+	// and adopt YAMNet's exact decoded audio duration for gap review.
+	if math.Abs(classified.result.Duration-r.req.Duration) > math.Max(15, 0.01*r.req.Duration) {
 		return fmt.Errorf("classifier duration does not match original audio")
 	}
+	r.req.Duration = classified.result.Duration
 	key, err := r.sourceKey()
 	if err != nil {
 		return err

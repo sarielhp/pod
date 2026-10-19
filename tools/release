@@ -3,10 +3,9 @@
 
 require 'optparse'
 
-install = false
 parser = OptionParser.new do |options|
   options.banner = 'Usage: tools/release [--install] <commit-message>'
-  options.on('--install', 'Install after the verified push') { install = true }
+  options.on('--install', 'Install after the verified push (default)') {}
   options.on('-h', '--help', 'Show usage') do
     puts options
     exit
@@ -23,8 +22,7 @@ abort parser.to_s if message.empty?
 Dir.chdir(File.expand_path('..', __dir__))
 abort 'Release stopped at commit.' unless system('./tools/commit', message)
 abort 'Release stopped at bump/push. Inspect local state before retrying; do not repeat the bump.' unless system('./tools/bump')
-abort 'Release pushed, but installation failed.' if install && !system('./tools/install')
+abort 'Release pushed, but installation failed.' unless system('./tools/install')
 version = File.read('VERSION').strip
-result = "Released #{version}"
-result += ' and installed' if install
-puts result
+puts "Released #{version} and installed"
+

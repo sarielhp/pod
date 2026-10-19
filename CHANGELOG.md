@@ -22,6 +22,8 @@ were written; they are not in version order.
 ### Changed
 - **`pod library do-all` prunes older episodes of non-favorite podcasts** to keep only the 5
   latest before fetching new episodes. Transcripts and cuts are preserved.
+- **`tools/release` now installs to `~/bin/pod` as its last step** by default after a verified
+  commit and push.
 
 ## [0.5.31] - 2026-10-11
 

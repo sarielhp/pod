@@ -14,7 +14,7 @@
 |--------|---------|
 | `tools/build` | Build local `./pod` binary strictly within repo directory |
 | `tools/install` | Build and install `~/bin/pod`; remove legacy `~/bin/abs` |
-| `tools/release [--install] <msg>` | Gated commit, verified bump/push, optional verified installation |
+| `tools/release [--install] <msg>` | Gated commit, verified bump/push, verified installation |
 | `tools/check` | Full quality gate: format → config template → vet → staticcheck → go-audit → test → build (`--full` adds the race detector and govulncheck) |
 | `tools/format.sh` | Run `gofmt -s -w .` only |
 | `tools/lint` | Static analysis: `go vet` + `staticcheck` (respecting baseline) + `go-audit` |
@@ -59,12 +59,11 @@ plus the race detector and govulncheck.
 #### Standard Development & Release Loop
 
 When a release is requested, `rtk proxy tools/release "fix: description"`
-coordinates the existing commit and bump workflows. Add `--install` only when
-installation is also requested. It stops at the first failure. `tools/bump`
-pushes to the current branch's configured upstream and verifies its remote SHA;
-`tools/install` verifies the installed binary before removing the legacy binary.
-`rtk proxy tools/release` has a saved allow rule; use this exact form when a
-release is requested.
+coordinates the commit, bump, and install workflows. It stops at the first
+failure. `tools/bump` pushes to the current branch's configured upstream and
+verifies its remote SHA; `tools/install` verifies the installed binary before
+removing the legacy binary. `rtk proxy tools/release` has a saved allow rule;
+use this exact form when a release is requested.
 
 ```
 make commit ARGS="feat: add new feature"   # quality gate + commits + records .verified_head (silent)
@@ -313,7 +312,7 @@ default for this repository; Make targets elsewhere describe equivalent workflow
 | `rtk proxy tools/commit <message>` | Commit when requested, including the gate |
 | `rtk proxy tools/bump` | Bump, commit, and push when requested |
 | `rtk proxy tools/install` | Build and install when requested |
-| `rtk proxy tools/release [--install] <message>` | Commit, bump, push, and optionally install when requested |
+| `rtk proxy tools/release [--install] <message>` | Commit, bump, push, and install when requested |
 
 - Run repository build, test, lint, format, and audit commands as needed for
   requested work without asking for confirmation.

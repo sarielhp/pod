@@ -46,9 +46,9 @@ make build
 contents match the local build, and then removes the legacy `~/bin/abs` binary.
 
 For a release, use `rtk proxy tools/release "fix: description"` to run the
-quality gate, commit, bump the patch version, and push to the current branch's
-configured upstream. The command verifies the remote commit and stops on any
-failure. Add `--install` to install the released build afterward. If a push fails,
+quality gate, commit, bump the patch version, push to the current branch's
+configured upstream, and install the released build to `~/bin/pod`. The command
+verifies the remote commit and stops on any failure. If a push fails,
 the version commit remains local; resolve the failure before retrying the push
 so another version bump is not created accidentally.
 

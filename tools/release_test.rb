@@ -70,16 +70,15 @@ class ReleaseWorkflowTest < Minitest::Test
     git('push', '-qu', 'origin', 'main')
   end
 
-  def test_release_order_and_optional_install
+  def test_release_order_and_install
     [false, true].each do |install|
       copy_tool('release')
       %w[commit bump install].each { |stage| stub_stage(stage) }
       arguments = install ? ['--install', 'fix: release test'] : ['fix: release test']
       stdout, stderr, status = run_tool('release', *arguments)
       assert status.success?, stderr
-      assert_includes stdout, 'Released 0.1.0'
-      expected = install ? %w[commit bump install] : %w[commit bump]
-      assert_equal expected, File.readlines(@log, chomp: true)
+      assert_includes stdout, 'Released 0.1.0 and installed'
+      assert_equal %w[commit bump install], File.readlines(@log, chomp: true)
       FileUtils.rm_f(@log)
     end
   end
@@ -88,7 +87,7 @@ class ReleaseWorkflowTest < Minitest::Test
     %w[commit bump install].each_with_index do |failed_stage, index|
       copy_tool('release')
       %w[commit bump install].each { |stage| stub_stage(stage, stage == failed_stage ? 1 : 0) }
-      stdout, stderr, status = run_tool('release', '--install', 'fix: release test')
+      stdout, stderr, status = run_tool('release', 'fix: release test')
       refute status.success?
       refute_includes stdout, 'Released '
       refute_empty stderr
@@ -100,7 +99,7 @@ class ReleaseWorkflowTest < Minitest::Test
   def test_release_requires_message_before_mutating
     copy_tool('release')
     stub_stage('commit')
-    _, stderr, status = run_tool('release', '--install')
+    _, stderr, status = run_tool('release')
     refute status.success?
     assert_includes stderr, 'Usage:'
     refute File.exist?(@log)
@@ -112,7 +111,7 @@ class ReleaseWorkflowTest < Minitest::Test
     copy_tool('commit')
     stub_stage('install')
     File.write(File.join(@repo, 'change.txt'), 'release change')
-    stdout, stderr, status = run_tool('release', '--install', 'fix: release change')
+    stdout, stderr, status = run_tool('release', 'fix: release change')
     assert status.success?, stderr
     assert_includes stdout, 'Released 0.1.1 and installed'
     assert_equal %w[check install], File.readlines(@log, chomp: true)

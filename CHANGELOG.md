@@ -5,6 +5,12 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.32] - 2026-10-18
+
+### Changed
+- **`pod library do-all` prunes older episodes of non-favorite podcasts** to keep only the 5
+  latest before fetching new episodes. Transcripts and cuts are preserved.
+
 ## [0.5.31] - 2026-10-11
 
 ### Changed

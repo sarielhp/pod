@@ -20,7 +20,7 @@ type doAllStep struct {
 func buildServerDoAllSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "do-all",
-		Description: "Fetch, transcribe, analyze, remove ads and republish the feeds, in one run",
+		Description: "Prune older non-favorite episodes, fetch, transcribe, analyze, remove ads and republish the feeds, in one run",
 		UsageLine:   "pod library do-all [podcast] [options]",
 		Parameters: []clihelp.Param{
 			{Name: "[podcast]", Description: "Limit every stage to one podcast, by name, index or ID"},
@@ -53,7 +53,8 @@ func buildServerDoAllSubcommand(opts *CLIOptions, action *string) clihelp.Comman
 }
 
 // handleServerDoAll runs the whole maintenance cycle in the order each stage
-// needs the one before it: new episodes are downloaded and queued, the older
+// needs the one before it: older episodes of non-favorite podcasts are pruned
+// to keep only the 5 latest, new episodes are downloaded and queued, the older
 // downloads that never got a transcript are transcribed, the transcripts are
 // analysed for boilerplate, ad removal then runs on the queue and recuts the
 // finished episodes with any boilerplate learned since, and last the feeds are
@@ -86,6 +87,11 @@ func handleServerDoAll(cfg Config, cli CLIOptions) error {
 
 func doAllSteps() []doAllStep {
 	return []doAllStep{
+		{"prune older episodes of non-favorite podcasts", func(cfg Config, cli CLIOptions) error {
+			cli.SkipFavorites = true
+			cli.ForceDelete = true
+			return pruneLibraryByCount(cfg, cli, 5)
+		}},
 		{"fetch new episodes", func(cfg Config, cli CLIOptions) error {
 			cli.NoClean = true
 			return runFetchCommand(cfg, cli)

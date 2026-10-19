@@ -81,7 +81,10 @@ func ValidateWavFile(filePath string) bool {
 // source that the detector must have returned implausible timestamps, and nil
 // when the cut is plausible or the source duration is unknown.
 func CheckKeepFraction(inputFile string, keepSegments [][2]float64) error {
-	sourceDuration := GetAudioDuration(inputFile)
+	return checkKeepFraction(inputFile, GetAudioDuration(inputFile), keepSegments)
+}
+
+func checkKeepFraction(inputFile string, sourceDuration float64, keepSegments [][2]float64) error {
 	if sourceDuration <= 0 {
 		return nil
 	}
@@ -262,11 +265,20 @@ func CutAudioFFmpeg(inputFile string, keepSegments [][2]float64, outputFile stri
 	if len(keepSegments) == 0 {
 		return false
 	}
-	if !KeepFractionIsPlausible(inputFile, keepSegments) {
+	duration := GetAudioDuration(inputFile)
+	if err := checkKeepFraction(inputFile, duration, keepSegments); err != nil {
+		util.Errorf("%v. The file was left unchanged.", err)
 		return false
 	}
+	return cutAudio(inputFile, keepSegments, outputFile, duration)
+}
+
+func cutAudio(inputFile string, keepSegments [][2]float64, outputFile string, duration float64) bool {
 	absInput, _ := filepath.Abs(inputFile)
 	absOutput, _ := filepath.Abs(outputFile)
+	if cutLossless(absInput, keepSegments, absOutput, duration) {
+		return true
+	}
 	if !CutAudioFilterComplex(absInput, keepSegments, absOutput) {
 		return false
 	}

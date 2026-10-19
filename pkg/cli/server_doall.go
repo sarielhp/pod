@@ -71,9 +71,13 @@ func handleServerDoAll(cfg Config, cli CLIOptions) error {
 		if !cli.Quiet {
 			fmt.Fprintf(outFor(cli), "\n== %d/%d %s ==\n", i+1, len(steps), step.name)
 		}
+		stageStart := time.Now()
 		if err := step.run(cfg, doAllScope(cli)); err != nil {
 			util.FprintError(errFor(cli), "%s: %v\n", step.name, err)
 			failed = append(failed, step.name)
+		}
+		if !cli.Quiet {
+			fmt.Fprintf(outFor(cli), "-- %d/%d done in %s\n", i+1, len(steps), time.Since(stageStart).Round(time.Millisecond))
 		}
 	}
 	if !cli.Quiet {

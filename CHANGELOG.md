@@ -5,6 +5,18 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Fixed
+- **Ad removal cuts mp3s without re-encoding again.** The lossless cutting tiers (`mp3splt`,
+  then `ffmpeg -c copy` with a concat) were lost in the package split, so every cut was
+  re-encoded at 192k: slow (5-7s per episode) and larger than the source. Cuts now keep the
+  source bitrate and take about 0.2s, and fall back to re-encoding only if the lossless result's
+  length disagrees with the kept segments.
+
+### Changed
+- `pod library do-all` prints how long each stage took.
+
 ## [0.5.32] - 2026-10-18
 
 ### Changed

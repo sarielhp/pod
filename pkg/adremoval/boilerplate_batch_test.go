@@ -118,3 +118,66 @@ func TestBoilerplateBatchLimitStopsAfterThatManyRecuts(t *testing.T) {
 		t.Errorf("want the limit of 2 honoured, got %+v", rep)
 	}
 }
+
+func TestBoilerplateRecutRemembersEpisodesThatNeedNothing(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	dir := t.TempDir()
+	if err := config.SavePodcastConfig(dir, config.PodcastConfig{Boilerplate: []config.BoilerplatePhrase{{Text: bpRead, Episodes: 9}}}); err != nil {
+		t.Fatal(err)
+	}
+	covered := batchEpisode(t, dir, "covered", &types.AdSegment{Start: 39.5, End: 70.5, Reason: "ad"})
+	batchEpisode(t, dir, "unprocessed", nil)
+	targets := []string{covered, filepath.Join(dir, "unprocessed.mp3")}
+
+	dry := RecutBoilerplate(targets, types.ProcOptions{DryRun: true}, types.Config{}, nil)
+	if dry.Skipped[skipCovered] != 1 || dry.Skipped[skipNoCuts] != 1 {
+		t.Fatalf("unexpected dry-run report %+v", dry)
+	}
+	if util.FileExists(filepath.Join(dir, ".boilerplate_state.json")) {
+		t.Fatal("a dry run must not write what it learned")
+	}
+
+	first := RecutBoilerplate(targets, types.ProcOptions{}, types.Config{}, nil)
+	if first.Skipped[skipCovered] != 1 || first.Skipped[skipNoCuts] != 1 {
+		t.Fatalf("unexpected report %+v", first)
+	}
+
+	t.Setenv("PATH", t.TempDir())
+	again := RecutBoilerplate(targets, types.ProcOptions{}, types.Config{}, nil)
+	if again.Skipped[skipCovered] != 1 || again.Skipped[skipNoCuts] != 1 || len(again.Failures) != 0 {
+		t.Fatalf("with no ffprobe on the PATH only remembered verdicts can reproduce the report, got %+v", again)
+	}
+}
+
+func TestBoilerplateRecutLooksAgainWhenAnEpisodeChanges(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	dir := t.TempDir()
+	if err := config.SavePodcastConfig(dir, config.PodcastConfig{Boilerplate: []config.BoilerplatePhrase{{Text: bpRead, Episodes: 9}}}); err != nil {
+		t.Fatal(err)
+	}
+	covered := batchEpisode(t, dir, "covered", &types.AdSegment{Start: 39.5, End: 70.5, Reason: "ad"})
+	RecutBoilerplate([]string{covered}, types.ProcOptions{}, types.Config{}, nil)
+
+	if err := config.SavePodcastConfig(dir, config.PodcastConfig{Boilerplate: []config.BoilerplatePhrase{{Text: bpRead, Episodes: 9, Disabled: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	rep := RecutBoilerplate([]string{covered}, types.ProcOptions{}, types.Config{}, nil)
+	if rep.Skipped[skipNoMatch] != 1 {
+		t.Fatalf("changing the recorded boilerplate must invalidate remembered verdicts, got %+v", rep)
+	}
+
+	if err := config.SavePodcastConfig(dir, config.PodcastConfig{Boilerplate: []config.BoilerplatePhrase{{Text: bpRead, Episodes: 9}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "covered.cuts.json")); err != nil {
+		t.Fatal(err)
+	}
+	rep = RecutBoilerplate([]string{covered}, types.ProcOptions{}, types.Config{}, nil)
+	if rep.Skipped[skipNoCuts] != 1 {
+		t.Fatalf("an episode whose files changed must be examined afresh, got %+v", rep)
+	}
+}

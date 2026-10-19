@@ -35,6 +35,10 @@ type AnalyzeResult struct {
 	Phrases     []config.BoilerplatePhrase
 	Added       int
 	Dropped     int
+	// Unchanged is set when the transcripts and the recorded boilerplate are
+	// as the last analysis left them, so nothing was read and Phrases is what
+	// podcast.json already holds.
+	Unchanged bool
 	// Skipped explains why nothing was analysed, when that is so.
 	Skipped string
 }
@@ -56,6 +60,15 @@ func AnalyzePodcast(dir string, opts AnalyzeOptions) (AnalyzeResult, error) {
 		res.Skipped = fmt.Sprintf("only %d transcripts; at least %d are needed", len(paths), MinAnalyzeTranscripts)
 		return res, nil
 	}
+	cfg, err := config.LoadPodcastConfigErr(dir, config.PodcastConfig{})
+	if err != nil {
+		return res, err
+	}
+	state := loadBoilerplateState(dir)
+	if state.Analyze == analysisFingerprint(paths, opts, cfg.Boilerplate) {
+		res.Phrases, res.Unchanged = cfg.Boilerplate, true
+		return res, nil
+	}
 	repeatOpts := detect.RepeatOptions{Shingle: 8, Gap: 6, MinWords: opts.MinWords}
 	corpus, err := corpusOf(paths, repeatOpts)
 	if err != nil {
@@ -63,16 +76,15 @@ func AnalyzePodcast(dir string, opts AnalyzeOptions) (AnalyzeResult, error) {
 	}
 	found := corpus.BoilerplatePhrases(opts.MinEpisodes)
 
-	cfg, err := config.LoadPodcastConfigErr(dir, config.PodcastConfig{})
-	if err != nil {
-		return res, err
-	}
 	res.Phrases, res.Added, res.Dropped = mergePhrases(cfg.Boilerplate, found, repeatOpts)
 	if opts.DryRun {
 		return res, nil
 	}
 	cfg.Boilerplate = res.Phrases
-	return res, config.SavePodcastConfig(dir, cfg)
+	if err := config.SavePodcastConfig(dir, cfg); err != nil {
+		return res, err
+	}
+	return res, recordAnalysis(dir, paths, opts, state)
 }
 
 func corpusOf(paths []string, opts detect.RepeatOptions) (*detect.Corpus, error) {

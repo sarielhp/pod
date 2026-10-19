@@ -20,6 +20,28 @@ import (
 // second, and re-encoding an episode for that gains the listener nothing.
 const minBoilerplateGainSec = 2.0
 
+const (
+	skipRemote       = "it is being processed remotely"
+	skipNoCuts       = "it has no cuts file"
+	skipNoPrecut     = "its uncut original (.precut) is gone, so it cannot be recut safely"
+	skipNoTranscript = "it has no transcript to match boilerplate against"
+	skipMismatch     = "its transcript does not match the original audio"
+	skipNoMatch      = "no recorded boilerplate matches it"
+	skipCovered      = "its cuts already cover the boilerplate"
+)
+
+// A recut skips an episode for these reasons because of what its files hold,
+// so the same files will be skipped the same way next time. Being busy or
+// remote is a passing state and is not remembered.
+var settledSkips = map[string]bool{
+	skipNoCuts:       true,
+	skipNoPrecut:     true,
+	skipNoTranscript: true,
+	skipMismatch:     true,
+	skipNoMatch:      true,
+	skipCovered:      true,
+}
+
 // boilerplateRecutPlan is what refreshing one episode with boilerplate would do.
 type boilerplateRecutPlan struct {
 	cuts      []types.AdSegment
@@ -59,30 +81,30 @@ func restoreCuts(path string, previous []byte) {
 func planBoilerplateRecut(mainMP3File, precutFile, baseName string, totalDuration float64) (boilerplateRecutPlan, string) {
 	var plan boilerplateRecutPlan
 	if episode.IsEpisodeInRemoteFlight(mainMP3File) {
-		return plan, "it is being processed remotely"
+		return plan, skipRemote
 	}
 	if !util.FileExists(baseName + ".cuts.json") {
-		return plan, "it has no cuts file"
+		return plan, skipNoCuts
 	}
 	if !util.FileExists(precutFile) && episode.IsEpisodeClean(mainMP3File) && hasRecordedCuts(baseName) {
-		return plan, "its uncut original (.precut) is gone, so it cannot be recut safely"
+		return plan, skipNoPrecut
 	}
 	td, err := pipeline.LoadTranscriptFile(baseName + ".transcript.json")
 	if err != nil {
-		return plan, "it has no transcript to match boilerplate against"
+		return plan, skipNoTranscript
 	}
 	if !transcriptFitsAudio(td, totalDuration) {
-		return plan, "its transcript does not match the original audio"
+		return plan, skipMismatch
 	}
 	plan.cuts = pipeline.BoilerplateCuts(filepath.Dir(mainMP3File), td)
 	plan.preserved = preservedTranscriptGaps(td)
 	plan.cuts = format.PreserveGaps(plan.cuts, plan.preserved)
 	if len(plan.cuts) == 0 {
-		return plan, "no recorded boilerplate matches it"
+		return plan, skipNoMatch
 	}
 	plan.preview = format.PreviewCuts(mainMP3File, totalDuration, plan.cuts, plan.preserved...)
 	if !plan.preview.Changed || plan.preview.AddedSec < minBoilerplateGainSec {
-		return plan, "its cuts already cover the boilerplate"
+		return plan, skipCovered
 	}
 	return plan, ""
 }

@@ -7,6 +7,7 @@ import (
 	"pod/pkg/audio"
 	"pod/pkg/episode"
 	"pod/pkg/format"
+	"pod/pkg/pipeline"
 	"pod/pkg/progress"
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -32,51 +33,83 @@ type BoilerplateReport struct {
 // only the ones that change are reported one by one. With opts.DryRun nothing is
 // written, and opts.Count stops after that many episodes have been recut.
 func RecutBoilerplate(targets []string, opts types.ProcOptions, cfg types.Config, rep progress.Reporter) BoilerplateReport {
-	r := progress.Or(rep)
-	report := BoilerplateReport{Total: len(targets), Skipped: map[string]int{}}
-	start := time.Now()
+	run := &recutRun{
+		total:  len(targets),
+		opts:   opts,
+		cfg:    cfg,
+		r:      progress.Or(rep),
+		start:  time.Now(),
+		report: BoilerplateReport{Total: len(targets), Skipped: map[string]int{}},
+		memo:   pipeline.NewRecutMemo(),
+	}
 	for _, target := range targets {
-		if opts.Count > 0 && report.Recut >= opts.Count {
+		if opts.Count > 0 && run.report.Recut >= opts.Count {
 			break
 		}
-		recutOneWithBoilerplate(target, len(targets), opts, cfg, r, start, &report)
+		run.examine(target)
 	}
-	return report
+	if !opts.DryRun {
+		if err := run.memo.Save(); err != nil {
+			run.r.Infof("could not remember which episodes need no recut: %v", err)
+		}
+	}
+	return run.report
 }
 
-func recutOneWithBoilerplate(target string, total int, opts types.ProcOptions, cfg types.Config, r progress.Reporter, start time.Time, report *BoilerplateReport) {
+type recutRun struct {
+	total  int
+	opts   types.ProcOptions
+	cfg    types.Config
+	r      progress.Reporter
+	start  time.Time
+	report BoilerplateReport
+	memo   *pipeline.RecutMemo
+}
+
+func (run *recutRun) examine(target string) {
 	mainMP3, precut, source := episode.ResolveAudioFiles(target, false)
-	base := util.StripExt(mainMP3)
+	key := run.memo.Key(mainMP3, precut)
+	if reason, ok := run.memo.Settled(mainMP3, key); ok {
+		run.report.Skipped[reason]++
+		return
+	}
 	lock, err := util.AcquireFileLock(mainMP3)
 	if err != nil {
-		report.Failures = append(report.Failures, err)
+		run.report.Failures = append(run.report.Failures, err)
 		return
 	}
 	if lock == nil {
-		report.Busy++
+		run.report.Busy++
 		return
 	}
 	defer lock.Release()
 
 	duration := audio.GetAudioDuration(source)
-	plan, skip := planBoilerplateRecut(mainMP3, precut, base, duration)
+	plan, skip := planBoilerplateRecut(mainMP3, precut, util.StripExt(mainMP3), duration)
 	if skip != "" {
-		report.Skipped[skip]++
+		run.report.Skipped[skip]++
+		if settledSkips[skip] {
+			run.memo.Settle(mainMP3, key, skip)
+		}
 		return
 	}
+	run.recut(mainMP3, precut, source, duration, plan)
+}
+
+func (run *recutRun) recut(mainMP3, precut, source string, duration float64, plan boilerplateRecutPlan) {
 	name := episode.EpisodeTitleFromPath(mainMP3)
 	summary := fmt.Sprintf("%s of boilerplate (%d passage(s))", format.FormatClock(plan.preview.AddedSec), len(plan.cuts))
-	if opts.DryRun {
-		r.Infof("[dry-run] %s: would add %s", name, summary)
+	if run.opts.DryRun {
+		run.r.Infof("[dry-run] %s: would add %s", name, summary)
 	} else {
-		r.Infof("%s: adding %s", name, summary)
-		output := episode.ResolveOutputFile(mainMP3, opts.Output, total)
-		if err := applyBoilerplateRecut(mainMP3, precut, source, output, base, duration, plan, cfg, opts, start, r); err != nil {
-			report.Failures = append(report.Failures, fmt.Errorf("%s: %w", name, err))
+		run.r.Infof("%s: adding %s", name, summary)
+		output := episode.ResolveOutputFile(mainMP3, run.opts.Output, run.total)
+		if err := applyBoilerplateRecut(mainMP3, precut, source, output, util.StripExt(mainMP3), duration, plan, run.cfg, run.opts, run.start, run.r); err != nil {
+			run.report.Failures = append(run.report.Failures, fmt.Errorf("%s: %w", name, err))
 			return
 		}
 	}
-	report.Recut++
-	report.AddedSec += plan.preview.AddedSec
-	report.Changed = append(report.Changed, mainMP3)
+	run.report.Recut++
+	run.report.AddedSec += plan.preview.AddedSec
+	run.report.Changed = append(run.report.Changed, mainMP3)
 }

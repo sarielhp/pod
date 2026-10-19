@@ -7,6 +7,17 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Changed
+- **`pod library do-all` no longer rescans podcasts that have not changed.** The boilerplate
+  analysis (stage 4) and the boilerplate recut (stage 6) re-read every transcript and probed every
+  episode's audio on each run, only to find nothing to do: about 2 minutes on a library with
+  nothing new (18s and 105s respectively on a library of 1,100 episodes). Each podcast now
+  remembers, in `.boilerplate_state.json`, what the last run concluded and the files and recorded
+  boilerplate it depended on, and skips work until one of them changes. Results are identical;
+  delete the file to force a full rescan. `--dry-run` does not write it.
+
+## [0.5.33] - 2026-10-19
+
 ### Fixed
 - **Ad removal cuts mp3s without re-encoding again.** The lossless cutting tiers (`mp3splt`,
   then `ffmpeg -c copy` with a concat) were lost in the package split, so every cut was

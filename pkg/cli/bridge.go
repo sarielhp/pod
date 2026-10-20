@@ -119,11 +119,17 @@ func library(cfg Config, cli CLIOptions, b backend.Backend) *podcast.Library {
 	if cli.PodcastsDir != "" {
 		podcastsDir = cli.PodcastsDir
 	}
-	return podcast.Open(podcast.Config{
+	lib := podcast.Open(podcast.Config{
 		PodcastsDir:       podcastsDir,
 		SubscriptionsFile: config.SubscriptionsFilePath(&cfg),
 		ServerBaseURL:     cfg.ServerBaseURL,
 	}, b, reporter(cli))
+	lib.WithArchive(podcast.ArchiveOptions{
+		Enabled: cfg.ArchiveEnabled,
+		Dir:     cfg.ArchiveDir,
+		BaseURL: cfg.ArchiveBaseURL,
+	})
+	return lib
 }
 
 // outFor is where a command's results go: the caller's writer if it supplied

@@ -428,6 +428,11 @@ func RunTUI(cfg *types.Config, podcastsDir string) error {
 		SubscriptionsFile: cfg.SubscriptionsFile,
 		ServerBaseURL:     cfg.ServerBaseURL,
 	}, b, nil)
+	lib.WithArchive(podcast.ArchiveOptions{
+		Enabled: cfg.ArchiveEnabled,
+		Dir:     cfg.ArchiveDir,
+		BaseURL: cfg.ArchiveBaseURL,
+	})
 
 	bk := &TuiBackend{
 		LoadPodcasts: func(dir string) ([]tuiPodcast, error) {

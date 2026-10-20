@@ -58,3 +58,50 @@ func TestFindMP3FilesStillFollowsASymlinkToAnOutsideDirectory(t *testing.T) {
 		t.Fatalf("got %v, want [%s]", got, want)
 	}
 }
+
+func TestFindMP3FilesIgnoresArchiveSubdirectoriesAndSymlinks(t *testing.T) {
+	base := t.TempDir()
+	showDir := filepath.Join(base, "The_Show")
+	if err := os.MkdirAll(showDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	activeEP := filepath.Join(showDir, "active.mp3")
+	if err := os.WriteFile(activeEP, []byte("active"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Direct archive directory
+	archiveDir := filepath.Join(showDir, "archive")
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(archiveDir, "archived1.mp3"), []byte("cold"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Symlinked archive directory pointing outside
+	outsideHDD := filepath.Join(base, "cold_hdd")
+	if err := os.MkdirAll(outsideHDD, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outsideHDD, "archived2.mp3"), []byte("cold2"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	anotherShow := filepath.Join(base, "Another_Show")
+	if err := os.MkdirAll(anotherShow, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideHDD, filepath.Join(anotherShow, "archive")); err != nil {
+		t.Fatal(err)
+	}
+
+	got := FindMP3Files(showDir)
+	if len(got) != 1 || got[0] != activeEP {
+		t.Fatalf("expected only active episode %s, got %v", activeEP, got)
+	}
+
+	gotAnother := FindMP3Files(anotherShow)
+	if len(gotAnother) != 0 {
+		t.Fatalf("expected 0 episodes in Another_Show with only archive symlink, got %v", gotAnother)
+	}
+}

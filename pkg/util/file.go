@@ -50,7 +50,7 @@ func findMP3FilesHelper(dir string, visited map[string]bool) ([]string, error) {
 	var links []os.DirEntry
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(name, ".") || name == "archive" {
 			continue
 		}
 		if entry.Type()&os.ModeSymlink != 0 {

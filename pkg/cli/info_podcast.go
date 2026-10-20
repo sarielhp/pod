@@ -40,6 +40,7 @@ type podcastInfoJSON struct {
 	AutoCleanupDays    int                `json:"auto_cleanup_days"`
 	AdRemoval          string             `json:"ad_removal"`
 	TotalEpisodes      int                `json:"total_episodes"`
+	ArchivedEpisodes   int                `json:"archived_episodes,omitempty"`
 	CleanEpisodes      int                `json:"clean_episodes"`
 	TotalDurationSec   float64            `json:"total_duration_sec"`
 	TotalDiskSizeBytes int64              `json:"total_disk_size_bytes"`
@@ -152,6 +153,10 @@ func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) 
 
 	autoDl := pod.Config.IsAutoDownloadEnabled()
 	autoCl := pod.Config.IsAutoCleanupEnabled()
+	archivedCount := 0
+	if m, err := podcast.LoadArchiveManifest(pod.Dir); err == nil && m != nil {
+		archivedCount = len(m.Episodes)
+	}
 
 	return podcastInfoJSON{
 		ID:                 pod.ShortID,
@@ -171,6 +176,7 @@ func buildPodcastInfoDTO(pod *ResolvedPodcast, maxEpisodes int, baseURL string) 
 		AutoCleanupDays:    pod.Config.AutoCleanupDays,
 		AdRemoval:          pod.Config.AdRemoval,
 		TotalEpisodes:      len(mp3s),
+		ArchivedEpisodes:   archivedCount,
 		CleanEpisodes:      cleanCount,
 		TotalDurationSec:   totalDur,
 		TotalDiskSizeBytes: totalSize,
@@ -230,7 +236,11 @@ func formatPodcastInfo(info podcastInfoJSON) string {
 	if info.TotalEpisodes > 0 {
 		cleanPct = float64(info.CleanEpisodes) / float64(info.TotalEpisodes) * 100
 	}
-	sb.WriteString(fmt.Sprintf("    Episodes:       %d total (%d clean, %.1f%% clean)\n", info.TotalEpisodes, info.CleanEpisodes, cleanPct))
+	epCountStr := fmt.Sprintf("%d total", info.TotalEpisodes)
+	if info.ArchivedEpisodes > 0 {
+		epCountStr = fmt.Sprintf("%d active, %d archived", info.TotalEpisodes, info.ArchivedEpisodes)
+	}
+	sb.WriteString(fmt.Sprintf("    Episodes:       %s (%d clean, %.1f%% clean)\n", epCountStr, info.CleanEpisodes, cleanPct))
 	sb.WriteString(fmt.Sprintf("    Total Duration: %s\n", formatDurationHours(info.TotalDurationSec)))
 	sb.WriteString(fmt.Sprintf("    Disk Usage:     %s\n", formatDiskSize(info.TotalDiskSizeBytes)))
 

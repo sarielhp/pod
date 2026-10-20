@@ -20,16 +20,30 @@ type KeepPolicyPruneResult struct {
 	TotalEpisodes        int      `json:"total_episodes"`
 	ExpiredEpisodes      int      `json:"expired_episodes"`
 	DeletedEpisodes      int      `json:"deleted_episodes"`
+	ArchivedEpisodes     int      `json:"archived_episodes"`
 	PreservedTranscripts int      `json:"preserved_transcripts"`
 	DeletedFiles         []string `json:"deleted_files"`
+	ArchivedFiles        []string `json:"archived_files,omitempty"`
 	FreedBytes           int64    `json:"freed_bytes"`
 	Errors               []error  `json:"errors,omitempty"`
+}
+
+// ArchiveOptions specifies cold storage archive settings for retention pruning.
+type ArchiveOptions struct {
+	Enabled bool
+	Dir     string
+	BaseURL string
 }
 
 // ApplyPodcastKeepPolicy prunes expired MP3 audio files in podDir based on the
 // podcast's keep policy, while strictly preserving transcripts, ID3 tags, and
 // episode metadata.
 func ApplyPodcastKeepPolicy(podDir, title string, cfg config.PodcastConfig, now time.Time, dryRun bool) (KeepPolicyPruneResult, error) {
+	return ApplyPodcastKeepPolicyWithArchive(podDir, title, cfg, ArchiveOptions{}, now, dryRun)
+}
+
+// ApplyPodcastKeepPolicyWithArchive prunes or archives expired MP3 files according to archiveOpts.
+func ApplyPodcastKeepPolicyWithArchive(podDir, title string, cfg config.PodcastConfig, archiveOpts ArchiveOptions, now time.Time, dryRun bool) (KeepPolicyPruneResult, error) {
 	policy := cfg.EffectiveKeepPolicy()
 	days := cfg.EffectiveCleanupDays()
 	res := KeepPolicyPruneResult{
@@ -56,21 +70,44 @@ func ApplyPodcastKeepPolicy(podDir, title string, cfg config.PodcastConfig, now 
 			continue
 		}
 		res.ExpiredEpisodes++
-		freed, deleted, err := pruneExpiredEpisode(path, dryRun)
-		if err != nil {
-			res.Errors = append(res.Errors, err)
-			continue
-		}
-		if deleted {
-			res.FreedBytes += freed
-			res.DeletedEpisodes++
-			res.DeletedFiles = append(res.DeletedFiles, path)
-			if hasAssociatedTranscript(path) {
-				res.PreservedTranscripts++
-			}
-		}
+		handleExpiredEpisode(path, podDir, archiveOpts, dryRun, &res)
 	}
 	return res, nil
+}
+
+func handleExpiredEpisode(path, podDir string, archiveOpts ArchiveOptions, dryRun bool, res *KeepPolicyPruneResult) {
+	if archiveOpts.Enabled {
+		if archiveOpts.Dir == "" {
+			res.Errors = append(res.Errors, fmt.Errorf("archive enabled but archive_dir is empty: skipping %s", path))
+			return
+		}
+		_, freed, err := TransferEpisodeToArchive(path, podDir, archiveOpts.Dir, dryRun)
+		if err != nil {
+			res.Errors = append(res.Errors, err)
+			return
+		}
+		res.FreedBytes += freed
+		res.ArchivedEpisodes++
+		res.ArchivedFiles = append(res.ArchivedFiles, path)
+		if hasAssociatedTranscript(path) {
+			res.PreservedTranscripts++
+		}
+		return
+	}
+
+	freed, deleted, err := pruneExpiredEpisode(path, dryRun)
+	if err != nil {
+		res.Errors = append(res.Errors, err)
+		return
+	}
+	if deleted {
+		res.FreedBytes += freed
+		res.DeletedEpisodes++
+		res.DeletedFiles = append(res.DeletedFiles, path)
+		if hasAssociatedTranscript(path) {
+			res.PreservedTranscripts++
+		}
+	}
 }
 
 // isEpisodeExpired ages an episode from the later of its publication date and
@@ -134,7 +171,11 @@ func pruneExpiredEpisode(path string, dryRun bool) (int64, bool, error) {
 // PrunePodcastKeepPolicy executes keep policy pruning for a podcast directory.
 func (l *Library) PrunePodcastKeepPolicy(podDir, title string, dryRun bool) (KeepPolicyPruneResult, error) {
 	podCfg := config.LoadPodcastConfig(podDir, config.DefaultPodcastConfig(nil))
-	return ApplyPodcastKeepPolicy(podDir, title, podCfg, time.Now(), dryRun)
+	archiveOpts := ArchiveOptions{}
+	if l != nil {
+		archiveOpts = l.archive
+	}
+	return ApplyPodcastKeepPolicyWithArchive(podDir, title, podCfg, archiveOpts, time.Now(), dryRun)
 }
 
 // PruneLibraryKeepPolicies runs keep policy pruning across all podcasts in the library.

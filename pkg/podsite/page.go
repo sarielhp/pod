@@ -60,9 +60,13 @@ func renderShowHeader(b *strings.Builder, show Show, count int) {
 }
 
 func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
-	audioSrc := episodeAudioSrc(ep.Filename, baseURL, folder)
+	audioSrc := episodeAudioSrc(ep, baseURL, folder)
 	fmt.Fprintf(b, "<div class=\"episode-card\" data-src=\"%s\" data-title=\"%s\">\n", html.EscapeString(audioSrc), html.EscapeString(ep.Title))
-	fmt.Fprintf(b, "<div class=\"episode-title\">%s</div>\n", html.EscapeString(ep.Title))
+	titleHTML := html.EscapeString(ep.Title)
+	if ep.IsArchived {
+		titleHTML += " <span class=\"badge ep-archived\">Archived</span>"
+	}
+	fmt.Fprintf(b, "<div class=\"episode-title\">%s</div>\n", titleHTML)
 
 	var metaParts []string
 	if ep.PubDate != "" {
@@ -94,8 +98,11 @@ func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
 	b.WriteString("</div>\n")
 }
 
-func episodeAudioSrc(filename, baseURL, folder string) string {
-	escapedFile := url.PathEscape(filename)
+func episodeAudioSrc(ep Episode, baseURL, folder string) string {
+	if ep.RemoteURL != "" {
+		return ep.RemoteURL
+	}
+	escapedFile := url.PathEscape(ep.Filename)
 	if baseURL == "" {
 		return escapedFile
 	}

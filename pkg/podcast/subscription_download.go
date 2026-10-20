@@ -250,8 +250,14 @@ func (l *Library) autoCleanupPodcast(plan SubscriptionPlan, defaults config.Poli
 	if podCfg.EffectiveKeepPolicy() == config.KeepPolicyAlways {
 		return
 	}
-	pruneRes, _ := ApplyPodcastKeepPolicy(plan.PodDir, plan.Sub.Title, podCfg, time.Now(), false)
-	if pruneRes.DeletedEpisodes > 0 {
+	archiveOpts := ArchiveOptions{}
+	if l != nil {
+		archiveOpts = l.archive
+	}
+	pruneRes, _ := ApplyPodcastKeepPolicyWithArchive(plan.PodDir, plan.Sub.Title, podCfg, archiveOpts, time.Now(), false)
+	if pruneRes.ArchivedEpisodes > 0 {
+		l.progress.Infof("%s: auto-cleanup archived %d expired episode(s) to cold storage", plan.Sub.Title, pruneRes.ArchivedEpisodes)
+	} else if pruneRes.DeletedEpisodes > 0 {
 		l.progress.Infof("%s: auto-cleanup pruned %d expired episode(s) (transcripts kept)", plan.Sub.Title, pruneRes.DeletedEpisodes)
 	}
 }

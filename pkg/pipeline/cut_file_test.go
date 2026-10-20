@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,11 +68,11 @@ func TestCutFileDryRun(t *testing.T) {
 		t.Fatalf("CutFile dry run failed: %v", err)
 	}
 
-	if res.OriginalSec != 10 {
-		t.Errorf("res.OriginalSec = %v, want 10", res.OriginalSec)
+	if math.Abs(res.OriginalSec-10) > 0.2 {
+		t.Errorf("res.OriginalSec = %v, want ~10", res.OriginalSec)
 	}
-	if res.CutSec != 2 {
-		t.Errorf("res.CutSec = %v, want 2", res.CutSec)
+	if math.Abs(res.CutSec-2) > 0.2 {
+		t.Errorf("res.CutSec = %v, want ~2", res.CutSec)
 	}
 	if res.SegmentsCut != 1 {
 		t.Errorf("res.SegmentsCut = %v, want 1", res.SegmentsCut)

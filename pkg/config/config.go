@@ -157,6 +157,15 @@ func applyBackendEnv(cfg *types.Config) {
 	if v := os.Getenv("SUBSCRIPTIONS_FILE"); v != "" {
 		cfg.SubscriptionsFile = v
 	}
+	if v := os.Getenv("ARCHIVE_ENABLED"); v != "" {
+		cfg.ArchiveEnabled = v == "true" || v == "1" || v == "yes"
+	}
+	if v := os.Getenv("ARCHIVE_DIR"); v != "" {
+		cfg.ArchiveDir = v
+	}
+	if v := os.Getenv("ARCHIVE_BASE_URL"); v != "" {
+		cfg.ArchiveBaseURL = v
+	}
 }
 
 func applyWhisperEnv(cfg *types.Config) {

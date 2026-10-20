@@ -121,9 +121,14 @@ func pruneEpisodeFor(audio string) PruneEpisode {
 // stop the rest. Deleted episodes are dropped from the podcast's processing
 // queue, and the podcast's cached index is discarded so it is rebuilt.
 func ApplyPrune(plans []PrunePlan) PruneResult {
+	return ApplyPruneWithArchive(plans, ArchiveOptions{})
+}
+
+// ApplyPruneWithArchive removes or archives the audio files selected by plans.
+func ApplyPruneWithArchive(plans []PrunePlan, archiveOpts ArchiveOptions) PruneResult {
 	var res PruneResult
 	for _, plan := range plans {
-		removed := applyPodcastPrune(plan, &res)
+		removed := applyPodcastPrune(plan, archiveOpts, &res)
 		if len(removed) == 0 {
 			continue
 		}
@@ -139,9 +144,29 @@ func ApplyPrune(plans []PrunePlan) PruneResult {
 	return res
 }
 
-func applyPodcastPrune(plan PrunePlan, res *PruneResult) []string {
+// ApplyPrune executes pruning using the library's archive options.
+func (l *Library) ApplyPrune(plans []PrunePlan) PruneResult {
+	archiveOpts := ArchiveOptions{}
+	if l != nil {
+		archiveOpts = l.archive
+	}
+	return ApplyPruneWithArchive(plans, archiveOpts)
+}
+
+func applyPodcastPrune(plan PrunePlan, archiveOpts ArchiveOptions, res *PruneResult) []string {
 	var removed []string
 	for _, ep := range plan.Delete {
+		if archiveOpts.Enabled && archiveOpts.Dir != "" {
+			_, freed, err := TransferEpisodeToArchive(ep.Audio, plan.Dir, archiveOpts.Dir, false)
+			if err != nil {
+				res.Failures = append(res.Failures, fmt.Errorf("%s: %w", plan.Title, err))
+				continue
+			}
+			res.Bytes += freed
+			removed = append(removed, filepath.Base(ep.Audio))
+			continue
+		}
+
 		freed, deleted, err := pruneExpiredEpisode(ep.Audio, false)
 		if err != nil {
 			res.Failures = append(res.Failures, fmt.Errorf("%s: %w", plan.Title, err))

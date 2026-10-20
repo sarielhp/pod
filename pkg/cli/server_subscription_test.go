@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -86,5 +87,40 @@ func TestConfigSetGetServerBaseURL(t *testing.T) {
 	}
 	if cfg.ServerBaseURL != "http://test.server:8080/podcasts" {
 		t.Fatalf("expected trimmed server base url, got %q", cfg.ServerBaseURL)
+	}
+}
+
+func TestConfigSetGetArchive(t *testing.T) {
+	config.SetTestConfigPath(filepath.Join(t.TempDir(), "config.json"))
+	defer config.SetTestConfigPath("")
+
+	cfg := Config{}
+	if err := handleConfigSet(io.Discard, &cfg, "archive-enabled", "true"); err != nil {
+		t.Fatalf("handleConfigSet archive-enabled failed: %v", err)
+	}
+	if !cfg.ArchiveEnabled {
+		t.Fatal("expected ArchiveEnabled to be true")
+	}
+
+	if err := handleConfigSet(io.Discard, &cfg, "archive-dir", "/mnt/hdd/podcasts_archive"); err != nil {
+		t.Fatalf("handleConfigSet archive-dir failed: %v", err)
+	}
+	if cfg.ArchiveDir != "/mnt/hdd/podcasts_archive" {
+		t.Fatalf("expected archive dir %q, got %q", "/mnt/hdd/podcasts_archive", cfg.ArchiveDir)
+	}
+
+	if err := handleConfigSet(io.Discard, &cfg, "archive-base-url", "http://test.server:8080/podcasts/archive/"); err != nil {
+		t.Fatalf("handleConfigSet archive-base-url failed: %v", err)
+	}
+	if cfg.ArchiveBaseURL != "http://test.server:8080/podcasts/archive" {
+		t.Fatalf("expected trimmed archive base url, got %q", cfg.ArchiveBaseURL)
+	}
+
+	var buf bytes.Buffer
+	if err := handleConfigGet(&buf, cfg, "archive-enabled"); err != nil {
+		t.Fatalf("handleConfigGet archive-enabled failed: %v", err)
+	}
+	if strings.TrimSpace(buf.String()) != "true" {
+		t.Fatalf("expected true, got %q", buf.String())
 	}
 }

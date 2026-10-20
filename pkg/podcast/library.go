@@ -38,6 +38,7 @@ type Library struct {
 	feedCache *FeedCacheManager
 	queue     *DownloadQueue
 	progress  progress.Reporter
+	archive   ArchiveOptions
 }
 
 // Open returns a Library over cfg. A nil Reporter is silent.
@@ -61,6 +62,20 @@ func (l *Library) Backend() backend.Backend     { return l.backend }
 func (l *Library) FeedCache() *FeedCacheManager { return l.feedCache }
 func (l *Library) Queue() *DownloadQueue        { return l.queue }
 func (l *Library) Progress() progress.Reporter  { return l.progress }
+func (l *Library) ArchiveOptions() ArchiveOptions {
+	if l == nil {
+		return ArchiveOptions{}
+	}
+	return l.archive
+}
+
+func (l *Library) WithArchive(opts ArchiveOptions) *Library {
+	if l == nil {
+		return nil
+	}
+	l.archive = opts
+	return l
+}
 
 // Podcasts lists the podcast directories under the library root, assigning a
 // short ID to any that lacks one.
@@ -92,7 +107,11 @@ func (l *Library) PodcastDir(sub Subscription) string {
 
 // Publish regenerates one podcast's feed.xml and index.html.
 func (l *Library) Publish(sub Subscription, feedEpisodes []backend.FeedEpisode) error {
-	return PublishPodcast(l.PodcastDir(sub), sub, l.cfg.ServerBaseURL, feedEpisodes)
+	archiveBaseURL := ""
+	if l != nil {
+		archiveBaseURL = l.archive.BaseURL
+	}
+	return PublishPodcastWithArchive(l.PodcastDir(sub), sub, l.cfg.ServerBaseURL, archiveBaseURL, feedEpisodes)
 }
 
 // PublishCatalog regenerates the library index page across all podcasts.

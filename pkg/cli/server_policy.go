@@ -233,7 +233,7 @@ func updatePodcastGroupPolicy(cfg Config, group *podcast.ResolvedPodcastGroup, c
 		for _, e := range group.Entries {
 			pr, err := lib.PrunePodcastKeepPolicy(e.Dir, e.Title, cli.DryRun)
 			if err == nil {
-				totalPruned += pr.DeletedEpisodes
+				totalPruned += pr.DeletedEpisodes + pr.ArchivedEpisodes
 				totalFreed += pr.FreedBytes
 				totalTx += pr.PreservedTranscripts
 			}
@@ -420,12 +420,20 @@ func prunePodcastKeepPolicyOnCLI(lib *podcast.Library, dir, title string, cli CL
 	if pruneErr != nil {
 		return pruneErr
 	}
+	actionStr := "pruned"
+	wouldStr := "would prune"
+	count := pruneRes.DeletedEpisodes
+	if pruneRes.ArchivedEpisodes > 0 {
+		actionStr = "archived"
+		wouldStr = "would archive"
+		count = pruneRes.ArchivedEpisodes
+	}
 	if cli.DryRun {
-		fmt.Fprintf(outFor(cli), "[dry-run] %s: would prune %d expired audio file(s) (%s; transcripts preserved)\n",
-			title, pruneRes.DeletedEpisodes, formatDiskSize(pruneRes.FreedBytes))
+		fmt.Fprintf(outFor(cli), "[dry-run] %s: %s %d expired audio file(s) (%s; transcripts preserved)\n",
+			title, wouldStr, count, formatDiskSize(pruneRes.FreedBytes))
 	} else {
-		fmt.Fprintf(outFor(cli), "✓ %s: pruned %d expired audio file(s) (%s freed; %d transcript(s) preserved)\n",
-			title, pruneRes.DeletedEpisodes, formatDiskSize(pruneRes.FreedBytes), pruneRes.PreservedTranscripts)
+		fmt.Fprintf(outFor(cli), "✓ %s: %s %d expired audio file(s) (%s freed; %d transcript(s) preserved)\n",
+			title, actionStr, count, formatDiskSize(pruneRes.FreedBytes), pruneRes.PreservedTranscripts)
 	}
 	return nil
 }

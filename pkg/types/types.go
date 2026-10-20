@@ -438,6 +438,13 @@ type PodcastIndexConfig struct {
 	PodcastIndexAPIKeyFile string `json:"podcastindex_api_key_file,omitempty"`
 }
 
+// ArchiveConfig configures cold storage archiving for old episodes onto secondary storage (e.g. HDD).
+type ArchiveConfig struct {
+	ArchiveEnabled bool   `json:"archive_enabled"`
+	ArchiveDir     string `json:"archive_dir,omitempty"`
+	ArchiveBaseURL string `json:"archive_base_url,omitempty"`
+}
+
 type Config struct {
 	Instructions      string          `json:"_instructions"`
 	PodcastsDir       string          `json:"podcasts_dir"`
@@ -457,6 +464,7 @@ type Config struct {
 	GeminiConfig
 	SpeculativeConfig
 	PodcastIndexConfig
+	ArchiveConfig
 }
 
 func (c *Config) IsGeminiAPIKeyEnabled() bool {

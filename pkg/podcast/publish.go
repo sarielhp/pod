@@ -1,6 +1,7 @@
 package podcast
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -190,8 +191,55 @@ func catalogEntry(podcastsDir string, sub Subscription) podsite.CatalogEntry {
 		Title:        sub.Title,
 		Folder:       folder,
 		CoverSrc:     coverSrc,
-		EpisodeCount: len(util.FindMP3Files(podDir)),
+		EpisodeCount: countPodcastEpisodes(podDir),
 	}
+}
+
+func countPodcastEpisodes(podDir string) int {
+	count := len(util.FindMP3Files(podDir))
+	if m, err := LoadArchiveManifest(podDir); err == nil && m != nil {
+		count += len(m.Episodes)
+	}
+	return count
+}
+
+func loadArchivedSiteEpisodes(podDir, folder, baseURL, archiveBaseURL string) []podsite.Episode {
+	m, err := LoadArchiveManifest(podDir)
+	if err != nil || m == nil || len(m.Episodes) == 0 {
+		return nil
+	}
+	out := make([]podsite.Episode, 0, len(m.Episodes))
+	for _, ep := range m.Episodes {
+		remoteURL := formatArchivedAudioURL(baseURL, archiveBaseURL, folder, ep.Filename)
+		out = append(out, podsite.Episode{
+			Filename:    ep.Filename,
+			Title:       ep.Title,
+			GUID:        ep.GUID,
+			PubDate:     ep.PubDate,
+			PublishedAt: ep.PublishedAt,
+			Description: ep.Description,
+			DurationSec: ep.DurationSec,
+			SizeBytes:   ep.SizeBytes,
+			ReportHref:  ep.ReportHref,
+			RemoteURL:   remoteURL,
+			IsArchived:  true,
+		})
+	}
+	return out
+}
+
+func formatArchivedAudioURL(baseURL, archiveBaseURL, folder, filename string) string {
+	escapedFolder := url.PathEscape(folder)
+	escapedFile := url.PathEscape(filename)
+	if archiveBaseURL != "" {
+		base := strings.TrimRight(archiveBaseURL, "/")
+		return fmt.Sprintf("%s/%s/%s", base, escapedFolder, escapedFile)
+	}
+	if baseURL != "" {
+		base := strings.TrimRight(baseURL, "/")
+		return fmt.Sprintf("%s/archive/%s/%s", base, escapedFolder, escapedFile)
+	}
+	return fmt.Sprintf("../archive/%s/%s", escapedFolder, escapedFile)
 }
 
 // PublishPodcast regenerates the static site for one podcast: feed.xml and
@@ -199,6 +247,11 @@ func catalogEntry(podcastsDir string, sub Subscription) podsite.CatalogEntry {
 // previously WritePodcastFeedXML wrote the webpage as an undeclared side
 // effect, so callers that wanted both wrote index.html twice.
 func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisodes []backend.FeedEpisode) error {
+	return PublishPodcastWithArchive(podDir, sub, baseURL, "", feedEpisodes)
+}
+
+// PublishPodcastWithArchive regenerates the static site for one podcast including archived episodes.
+func PublishPodcastWithArchive(podDir string, sub Subscription, baseURL, archiveBaseURL string, feedEpisodes []backend.FeedEpisode) error {
 	if err := os.MkdirAll(podDir, 0755); err != nil {
 		return err
 	}
@@ -212,7 +265,10 @@ func PublishPodcast(podDir string, sub Subscription, baseURL string, feedEpisode
 
 	episodes := CollectLocalEpisodes(podDir, feedEpisodes)
 	show := siteShow(sub, podDir)
-	eps := appendRemoteEpisodes(siteEpisodes(podDir, episodes), episodes, feedEpisodes)
+	localEps := siteEpisodes(podDir, episodes)
+	archivedEps := loadArchivedSiteEpisodes(podDir, show.Folder, baseURL, archiveBaseURL)
+	allLocal := append(localEps, archivedEps...)
+	eps := appendRemoteEpisodes(allLocal, episodes, feedEpisodes)
 
 	feed, err := podsite.RenderFeed(show, eps, siteBaseURL(baseURL))
 	if err != nil {

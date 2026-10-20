@@ -58,6 +58,9 @@ type Episode struct {
 	// is not on disk is published pointing at its original enclosure. Empty
 	// means the audio is local and the URL is built from Filename.
 	RemoteURL string
+
+	// IsArchived reports whether the audio is stored in cold secondary storage.
+	IsArchived bool
 }
 
 // Local reports whether the audio is held here rather than upstream.

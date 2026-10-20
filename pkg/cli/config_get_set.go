@@ -83,6 +83,20 @@ func handleConfigSetBackend(cfg *Config, normKey, val string) bool {
 	return true
 }
 
+func handleConfigSetArchive(cfg *Config, normKey, val string) bool {
+	switch normKey {
+	case "archive-enabled", "archive.enabled", "hdd-archive-enabled":
+		cfg.ArchiveEnabled = val == "true" || val == "1" || val == "yes" || val == "on"
+	case "archive-dir", "archive.dir", "hdd-archive-dir":
+		cfg.ArchiveDir = val
+	case "archive-base-url", "archive.base-url", "archive-url":
+		cfg.ArchiveBaseURL = strings.TrimRight(val, "/")
+	default:
+		return false
+	}
+	return true
+}
+
 func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 	if handled, err := handleConfigSetAPIKey(cfg, key, val); handled {
 		if err != nil {
@@ -91,7 +105,7 @@ func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 		return saveConfigAndReport(w, cfg, key, val)
 	}
 	normKey := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
-	if handleConfigSetBackend(cfg, normKey, val) {
+	if handleConfigSetBackend(cfg, normKey, val) || handleConfigSetArchive(cfg, normKey, val) {
 		return saveConfigAndReport(w, cfg, key, val)
 	}
 	switch normKey {
@@ -202,6 +216,12 @@ func handleConfigGet(w io.Writer, cfg Config, key string) error {
 		fmt.Fprintln(w, cfg.IsSpeculativeTranscriptionEnabled())
 	case "competing-services", "speculative-services":
 		fmt.Fprintln(w, strings.Join(cfg.GetCompetingServices(), ", "))
+	case "archive-enabled", "archive.enabled", "hdd-archive-enabled":
+		fmt.Fprintln(w, cfg.ArchiveEnabled)
+	case "archive-dir", "archive.dir", "hdd-archive-dir":
+		fmt.Fprintln(w, cfg.ArchiveDir)
+	case "archive-base-url", "archive.base-url", "archive-url":
+		fmt.Fprintln(w, cfg.ArchiveBaseURL)
 	default:
 		return fmt.Errorf("unknown configuration key %q; 'pod config show' prints the current settings by name", key)
 	}
@@ -217,6 +237,19 @@ func setPodcastsDir(w io.Writer, cfg *Config, dir string) error {
 	return nil
 }
 
+func printArchiveConfig(w io.Writer, cfg Config) {
+	if !cfg.ArchiveEnabled {
+		return
+	}
+	fmt.Fprintf(w, "  archive_enabled:          %v\n", cfg.ArchiveEnabled)
+	if cfg.ArchiveDir != "" {
+		fmt.Fprintf(w, "  archive_dir:              %s\n", cfg.ArchiveDir)
+	}
+	if cfg.ArchiveBaseURL != "" {
+		fmt.Fprintf(w, "  archive_base_url:         %s\n", cfg.ArchiveBaseURL)
+	}
+}
+
 func printConfig(w io.Writer, cfg Config) {
 	fmt.Fprintf(w, "Configuration file: '%s'\n", config.ConfigPath())
 	podcastsDir := cfg.PodcastsDir
@@ -227,6 +260,7 @@ func printConfig(w io.Writer, cfg Config) {
 	if cfg.ServerBaseURL != "" {
 		fmt.Fprintf(w, "  server_base_url:          %s\n", cfg.ServerBaseURL)
 	}
+	printArchiveConfig(w, cfg)
 	if cfg.DefaultDownloadPolicy != "" {
 		fmt.Fprintf(w, "  default_download_policy:  %s\n", cfg.DefaultDownloadPolicy)
 	}

@@ -5,10 +5,14 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
-## [Unreleased]
+## [0.5.36] - 2026-10-20
 
 ### Added
 - **Cold-storage HDD archiving for old episodes.** Instead of deleting expired episodes under a keep policy, `pod` can move them to secondary cold storage (HDD) while retaining transcripts and metadata on fast SSD storage. Feeds and web players are generated with zero HDD access using a local `archive.json` cache on SSD, and episodes in cold storage are accessible in the web player with an `[Archived]` indicator. Configurable via `archive_enabled`, `archive_dir`, and `archive_base_url`.
+
+## [0.5.35] - 2026-10-20
+
+### Added
 - **The generated show page has a real player.** A fixed bottom bar replaces the bare audio
   element: play/pause, seek, -15s/+30s, playback speed, media-key and lock-screen controls, and
   per-episode resume. Each episode has a Download button and a Save offline button that keeps the

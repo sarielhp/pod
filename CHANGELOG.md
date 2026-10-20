@@ -7,6 +7,18 @@ were written; they are not in version order.
 
 ## [Unreleased]
 
+### Added
+- **The generated show page has a real player.** A fixed bottom bar replaces the bare audio
+  element: play/pause, seek, -15s/+30s, playback speed, media-key and lock-screen controls, and
+  per-episode resume. Each episode has a Download button and a Save offline button that keeps the
+  whole episode in the browser (IndexedDB) so it plays without a connection. Each show page also
+  has Subscribe in AntennaPod (an Android intent link) and Copy feed URL buttons. Pages pick this
+  up the next time a show is published.
+
+### Fixed
+- The episode metadata line on the show page showed a literal `&amp;bull;` between fields instead
+  of a bullet.
+
 ### Changed
 - **`pod library do-all` no longer rescans podcasts that have not changed.** The boilerplate
   analysis (stage 4) and the boilerplate recut (stage 6) re-read every transcript and probed every

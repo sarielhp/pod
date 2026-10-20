@@ -65,3 +65,21 @@ audio { width: 100%; margin-top: 8px; }
 .show-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .show-card .cover-img { width: 100px; height: 100px; margin-bottom: 12px; }
 .show-title { font-size: 1.05rem; font-weight: 600; margin: 0 0 4px 0; }
+.ep-actions { display: flex; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.ep-actions .btn { cursor: pointer; font-family: inherit; }
+.episode-card.playing { border-color: var(--accent); }
+body.has-player { padding-bottom: 120px; }
+#player {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--card-bg); border-top: 1px solid var(--border);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+}
+#player[hidden] { display: none; }
+.p-inner { max-width: 900px; margin: 0 auto; }
+.p-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.p-row .btn { margin: 0; min-width: 52px; text-align: center; cursor: pointer; font-family: inherit; }
+.p-seek { flex: 1; min-width: 0; accent-color: var(--accent); }
+.p-time { color: var(--text-muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 520px) { .p-time .p-dur-wrap { display: none; } }

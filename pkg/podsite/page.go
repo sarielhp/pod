@@ -24,9 +24,23 @@ func RenderShowPage(show Show, episodes []Episode, baseURL string) ([]byte, erro
 	for _, ep := range episodes {
 		renderEpisodeCard(&b, ep, baseURL, show.Folder)
 	}
-	b.WriteString("</main>\n</div>\n</body>\n</html>\n")
+	b.WriteString("</main>\n</div>\n")
+	b.WriteString(playerBar)
+	fmt.Fprintf(&b, "<script>%s</script>\n</body>\n</html>\n", playerJS)
 	return []byte(b.String()), nil
 }
+
+const playerBar = `<div id="player" hidden><div class="p-inner">
+<div class="p-title"></div>
+<div class="p-row">
+<button type="button" class="btn p-back">-15s</button>
+<button type="button" class="btn p-toggle">Play</button>
+<button type="button" class="btn p-fwd">+30s</button>
+<input type="range" class="p-seek" min="0" max="0" value="0" step="1">
+<span class="p-time"><span class="p-cur">0:00</span><span class="p-dur-wrap"> / <span class="p-dur">0:00</span></span></span>
+<button type="button" class="btn p-speed">1x</button>
+</div></div></div>
+`
 
 func renderShowHeader(b *strings.Builder, show Show, count int) {
 	b.WriteString("<header><div class=\"header-flex\">\n")
@@ -37,6 +51,8 @@ func renderShowHeader(b *strings.Builder, show Show, count int) {
 	fmt.Fprintf(b, "<h1>%s</h1>\n", html.EscapeString(show.Title))
 	fmt.Fprintf(b, "<p>%d downloaded episode(s)</p>\n", count)
 	b.WriteString("<a href=\"feed.xml\" class=\"btn\">RSS Feed</a>\n")
+	b.WriteString("<a href=\"feed.xml\" class=\"btn\" id=\"subscribe-app\">Subscribe in AntennaPod</a>\n")
+	b.WriteString("<button type=\"button\" class=\"btn\" id=\"copy-feed\">Copy feed URL</button>\n")
 	if show.FeedURL != "" {
 		fmt.Fprintf(b, "<a href=\"%s\" target=\"_blank\" rel=\"noopener\" class=\"btn\">Original Feed</a>\n", html.EscapeString(show.FeedURL))
 	}
@@ -44,7 +60,8 @@ func renderShowHeader(b *strings.Builder, show Show, count int) {
 }
 
 func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
-	b.WriteString("<div class=\"episode-card\">\n")
+	audioSrc := episodeAudioSrc(ep.Filename, baseURL, folder)
+	fmt.Fprintf(b, "<div class=\"episode-card\" data-src=\"%s\" data-title=\"%s\">\n", html.EscapeString(audioSrc), html.EscapeString(ep.Title))
 	fmt.Fprintf(b, "<div class=\"episode-title\">%s</div>\n", html.EscapeString(ep.Title))
 
 	var metaParts []string
@@ -58,15 +75,17 @@ func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
 		metaParts = append(metaParts, formatBytes(ep.SizeBytes))
 	}
 	if len(metaParts) > 0 {
-		fmt.Fprintf(b, "<div class=\"episode-meta\">%s</div>\n", html.EscapeString(strings.Join(metaParts, " &bull; ")))
+		fmt.Fprintf(b, "<div class=\"episode-meta\">%s</div>\n", html.EscapeString(strings.Join(metaParts, " • ")))
 	}
 
 	if ep.Description != "" {
 		fmt.Fprintf(b, "<div class=\"episode-desc\">%s</div>\n", html.EscapeString(ep.Description))
 	}
 
-	audioSrc := episodeAudioSrc(ep.Filename, baseURL, folder)
-	fmt.Fprintf(b, "<audio controls preload=\"none\" src=\"%s\"></audio>\n", html.EscapeString(audioSrc))
+	b.WriteString("<div class=\"ep-actions\">\n<button type=\"button\" class=\"btn ep-play\">Play</button>\n")
+	fmt.Fprintf(b, "<a class=\"btn\" href=\"%s\" download>Download</a>\n", html.EscapeString(audioSrc))
+	b.WriteString("<button type=\"button\" class=\"btn ep-offline\">Save offline</button>\n</div>\n")
+	fmt.Fprintf(b, "<noscript><audio controls preload=\"none\" src=\"%s\"></audio></noscript>\n", html.EscapeString(audioSrc))
 
 	if ep.ReportHref != "" {
 		fmt.Fprintf(b, "<div style=\"margin-top:6px;\"><a href=\"%s\" class=\"btn\" target=\"_blank\">Ad Removal Report</a></div>\n", ep.ReportHref)

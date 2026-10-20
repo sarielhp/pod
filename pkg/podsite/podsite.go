@@ -15,6 +15,9 @@ import _ "embed"
 //go:embed assets/site.css
 var siteCSS string
 
+//go:embed assets/player.js
+var playerJS string
+
 // Show is one podcast, as the site needs to render it.
 //
 // CoverFile is the base name of a cover image sitting in the show's own

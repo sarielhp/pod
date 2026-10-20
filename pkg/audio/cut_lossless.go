@@ -159,7 +159,7 @@ func appendFile(dst io.Writer, src string) error {
 }
 
 func cutStreamCopy(absInput string, keepSegments [][2]float64, absOutput, workDir string) bool {
-	ext := filepath.Ext(absInput)
+	ext := filepath.Ext(strings.TrimSuffix(absInput, ".precut"))
 	if ext == "" {
 		ext = ".mp3"
 	}

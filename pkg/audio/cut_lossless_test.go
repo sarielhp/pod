@@ -83,6 +83,19 @@ func TestCutStreamCopyIsLossless(t *testing.T) {
 	assertLosslessCut(t, out)
 }
 
+func TestCutStreamCopyAcceptsPrecutInput(t *testing.T) {
+	src := writeToneMP3(t, 30)
+	precut := src + ".precut"
+	if err := os.Rename(src, precut); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "cut.mp3")
+	if !cutStreamCopy(precut, testKeep, out, scratchDir(t)) {
+		t.Fatal("stream copy cut of a .precut input failed")
+	}
+	assertLosslessCut(t, out)
+}
+
 func TestCutMp3spltIsLossless(t *testing.T) {
 	if !hasMp3splt() {
 		t.Skip("mp3splt not installed")

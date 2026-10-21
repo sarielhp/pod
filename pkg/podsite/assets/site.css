@@ -33,7 +33,10 @@ body {
 header { margin-bottom: 24px; }
 .header-flex { display: flex; gap: 20px; align-items: center; }
 .cover-img { width: 120px; height: 120px; border-radius: 8px; object-fit: cover; background: var(--card-bg); border: 1px solid var(--border); }
-.header-info h1 { margin: 0 0 8px 0; font-size: 1.6rem; }
+.header-info { flex: 1; min-width: 0; }
+.header-title-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 8px; }
+.header-title-row h1 { margin: 0; font-size: 1.6rem; }
+.header-hostname { color: var(--text-muted); font-size: 0.9rem; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 .header-info p { margin: 4px 0; color: var(--text-muted); font-size: 0.95rem; }
 .btn {
   display: inline-block;

@@ -23,6 +23,14 @@ func siteBaseURL(baseURL string) string {
 	return baseURL
 }
 
+func currentHostname() string {
+	h, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return h
+}
+
 func siteShow(sub Subscription, podDir string) podsite.Show {
 	folder := sub.Folder
 	if folder == "" {
@@ -39,6 +47,7 @@ func siteShow(sub Subscription, podDir string) podsite.Show {
 		ImageURL:  sub.ImageURL,
 		CoverFile: coverFile,
 		CoverSrc:  findCoverRelativePath(podDir, sub.ImageURL),
+		Hostname:  currentHostname(),
 	}
 }
 
@@ -174,7 +183,10 @@ func generateCatalogWebpageHTML(podcastsDir string, subs []Subscription) ([]byte
 		entries = append(entries, catalogEntry(podcastsDir, sub))
 	}
 	_, err := os.Stat(filepath.Join(podcastsDir, "antennapod.opml"))
-	return podsite.RenderCatalog(entries, podsite.CatalogOptions{HasOPML: err == nil})
+	return podsite.RenderCatalog(entries, podsite.CatalogOptions{
+		HasOPML:  err == nil,
+		Hostname: currentHostname(),
+	})
 }
 
 func catalogEntry(podcastsDir string, sub Subscription) podsite.CatalogEntry {

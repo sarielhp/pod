@@ -97,20 +97,26 @@
     bar.hidden = false;
     document.body.classList.add("has-player");
     releaseObjectURL();
-    return tx("readonly", function (s) { return s.get(url); })
-      .catch(function () { return null; })
-      .then(function (blob) {
-        if (current !== card) return;
-        if (blob) objectURL = URL.createObjectURL(blob);
-        audio.src = objectURL || url;
-        var saved = parseFloat(load("pod:pos:" + url));
-        audio.playbackRate = speeds[speedIndex];
-        if (saved > 0) audio.addEventListener("loadedmetadata", function once() {
-          audio.removeEventListener("loadedmetadata", once);
-          audio.currentTime = saved;
+    audio.playbackRate = speeds[speedIndex];
+    var saved = parseFloat(load("pod:pos:" + url));
+    if (saved > 0) audio.addEventListener("loadedmetadata", function once() {
+      audio.removeEventListener("loadedmetadata", once);
+      audio.currentTime = saved;
+    });
+    setMediaSession(card);
+
+    var btn = card.querySelector(".ep-offline");
+    if (btn && btn.dataset.saved) {
+      return tx("readonly", function (s) { return s.get(url); })
+        .catch(function () { return null; })
+        .then(function (blob) {
+          if (current !== card) return;
+          if (blob) objectURL = URL.createObjectURL(blob);
+          audio.src = objectURL || url;
         });
-        setMediaSession(card);
-      });
+    }
+    audio.src = url;
+    return Promise.resolve();
   }
 
   function setMediaSession(card) {
@@ -123,12 +129,22 @@
     });
   }
 
+  function playAudio() {
+    var p = audio.play();
+    if (p && p.catch) {
+      p.catch(function (err) {
+        console.error("Audio playback error:", err);
+        setPlayIcons();
+      });
+    }
+  }
+
   function togglePlay(card) {
     if (card !== current) {
-      select(card).then(function () { audio.play(); });
+      select(card).then(function () { playAudio(); });
       return;
     }
-    if (audio.paused) audio.play(); else audio.pause();
+    if (audio.paused) playAudio(); else audio.pause();
   }
 
   function skip(delta) {
@@ -137,6 +153,10 @@
 
   audio.addEventListener("play", setPlayIcons);
   audio.addEventListener("pause", setPlayIcons);
+  audio.addEventListener("error", function () {
+    console.error("Audio error:", audio.error ? audio.error.message || audio.error.code : "unknown");
+    setPlayIcons();
+  });
   audio.addEventListener("loadedmetadata", function () { ui.seek.max = Math.floor(audio.duration); ui.dur.textContent = clock(audio.duration); });
   audio.addEventListener("timeupdate", function () {
     ui.seek.value = Math.floor(audio.currentTime);

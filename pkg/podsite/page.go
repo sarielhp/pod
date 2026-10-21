@@ -22,7 +22,7 @@ func RenderShowPage(show Show, episodes []Episode, baseURL string) ([]byte, erro
 	renderShowHeader(&b, show, len(episodes))
 	b.WriteString("<main>\n")
 	for _, ep := range episodes {
-		renderEpisodeCard(&b, ep, baseURL, show.Folder)
+		renderEpisodeCard(&b, ep, show.Folder)
 	}
 	b.WriteString("</main>\n</div>\n")
 	b.WriteString(playerBar)
@@ -48,7 +48,12 @@ func renderShowHeader(b *strings.Builder, show Show, count int) {
 		fmt.Fprintf(b, "<img src=\"%s\" alt=\"Cover\" class=\"cover-img\">\n", html.EscapeString(show.CoverSrc))
 	}
 	b.WriteString("<div class=\"header-info\">\n")
+	b.WriteString("<div class=\"header-title-row\">\n")
 	fmt.Fprintf(b, "<h1>%s</h1>\n", html.EscapeString(show.Title))
+	if show.Hostname != "" {
+		fmt.Fprintf(b, "<span class=\"header-hostname\">%s</span>\n", html.EscapeString(show.Hostname))
+	}
+	b.WriteString("</div>\n")
 	fmt.Fprintf(b, "<p>%d downloaded episode(s)</p>\n", count)
 	b.WriteString("<a href=\"feed.xml\" class=\"btn\">RSS Feed</a>\n")
 	b.WriteString("<a href=\"feed.xml\" class=\"btn\" id=\"subscribe-app\">Subscribe in AntennaPod</a>\n")
@@ -59,8 +64,8 @@ func renderShowHeader(b *strings.Builder, show Show, count int) {
 	b.WriteString("</div></div></header>\n")
 }
 
-func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
-	audioSrc := episodeAudioSrc(ep, baseURL, folder)
+func renderEpisodeCard(b *strings.Builder, ep Episode, folder string) {
+	audioSrc := episodeAudioSrc(ep, folder)
 	fmt.Fprintf(b, "<div class=\"episode-card\" data-src=\"%s\" data-title=\"%s\">\n", html.EscapeString(audioSrc), html.EscapeString(ep.Title))
 	titleHTML := html.EscapeString(ep.Title)
 	if ep.IsArchived {
@@ -98,19 +103,14 @@ func renderEpisodeCard(b *strings.Builder, ep Episode, baseURL, folder string) {
 	b.WriteString("</div>\n")
 }
 
-func episodeAudioSrc(ep Episode, baseURL, folder string) string {
+func episodeAudioSrc(ep Episode, folder string) string {
+	if ep.IsArchived {
+		return fmt.Sprintf("../archive/%s/%s", url.PathEscape(folder), url.PathEscape(ep.Filename))
+	}
 	if ep.RemoteURL != "" {
 		return ep.RemoteURL
 	}
-	escapedFile := url.PathEscape(ep.Filename)
-	if baseURL == "" {
-		return escapedFile
-	}
-	base := strings.TrimRight(baseURL, "/")
-	if folder == "" {
-		return fmt.Sprintf("%s/%s", base, escapedFile)
-	}
-	return fmt.Sprintf("%s/%s/%s", base, url.PathEscape(folder), escapedFile)
+	return url.PathEscape(ep.Filename)
 }
 
 // RenderCatalog produces the library index page listing every show.
@@ -120,7 +120,11 @@ func RenderCatalog(entries []CatalogEntry, opts CatalogOptions) ([]byte, error) 
 	b.WriteString("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
 	b.WriteString("<title>Podcast Library</title>\n")
 	fmt.Fprintf(&b, "<style>%s</style>\n</head>\n<body>\n<div class=\"container\">\n", siteCSS)
-	b.WriteString("<header><h1>Podcast Library</h1>\n<p style=\"color:var(--text-muted);\">Local Ad-Free Podcasts</p>\n")
+	b.WriteString("<header>\n<div class=\"header-title-row\">\n<h1>Podcast Library</h1>\n")
+	if opts.Hostname != "" {
+		fmt.Fprintf(&b, "<span class=\"header-hostname\">%s</span>\n", html.EscapeString(opts.Hostname))
+	}
+	b.WriteString("</div>\n<p style=\"color:var(--text-muted);\">Local Ad-Free Podcasts</p>\n")
 	if opts.HasOPML {
 		b.WriteString("<a href=\"antennapod.opml\" class=\"btn\">AntennaPod OPML</a>\n")
 	}

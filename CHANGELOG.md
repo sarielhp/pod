@@ -5,6 +5,14 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.37] - 2026-10-20
+
+### Added
+- **Hostname displayed in static web player and catalog header.** The library index page and each show's web player now display the machine's hostname aligned to the right on the same line as the title.
+
+### Fixed
+- **Static web player audio playback over HTTPS and reverse proxies.** Local episode audio URLs on show pages are now relative paths rather than being prefixed with `server_base_url`. This prevents browsers from blocking playback as mixed content when accessed over HTTPS (e.g. through reverse proxies or custom domains) or failing when the configured base URL is only accessible on the local network. Also optimized player initialization so playback begins synchronously within the user gesture window.
+
 ## [0.5.36] - 2026-10-20
 
 ### Added

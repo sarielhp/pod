@@ -39,7 +39,10 @@ body {
 header { margin-bottom: 24px; }
 .header-flex { display: flex; gap: 20px; align-items: center; }
 .cover-img { width: 120px; height: 120px; border-radius: 8px; object-fit: cover; background: var(--card-bg); border: 1px solid var(--border); }
-.header-info h1 { margin: 0 0 8px 0; font-size: 1.6rem; }
+.header-info { flex: 1; min-width: 0; }
+.header-title-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 8px; }
+.header-title-row h1 { margin: 0; font-size: 1.6rem; }
+.header-hostname { color: var(--text-muted); font-size: 0.9rem; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 .header-info p { margin: 4px 0; color: var(--text-muted); font-size: 0.95rem; }
 .btn {
   display: inline-block;
@@ -99,7 +102,10 @@ body.has-player { padding-bottom: 120px; }
 <header><div class="header-flex">
 <img src="cover.jpg" alt="Cover" class="cover-img">
 <div class="header-info">
+<div class="header-title-row">
 <h1>Hardcore History &amp; Friends</h1>
+<span class="header-hostname">test-host</span>
+</div>
 <p>2 downloaded episode(s)</p>
 <a href="feed.xml" class="btn">RSS Feed</a>
 <a href="feed.xml" class="btn" id="subscribe-app">Subscribe in AntennaPod</a>
@@ -107,28 +113,28 @@ body.has-player { padding-bottom: 120px; }
 <a href="https://dancarlin.com/feed.xml" target="_blank" rel="noopener" class="btn">Original Feed</a>
 </div></div></header>
 <main>
-<div class="episode-card" data-src="http://srv:8080/podcasts/Hardcore%20History/2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3" data-title="Episode 69 - Twilight &amp; Ash">
+<div class="episode-card" data-src="2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3" data-title="Episode 69 - Twilight &amp; Ash">
 <div class="episode-title">Episode 69 - Twilight &amp; Ash</div>
 <div class="episode-meta">Sun, 13 Sep 2020 12:26:40 +0000 • 04:12:35 • 24 B</div>
 <div class="episode-desc">Ampersand &amp; &lt;tags&gt; and &#34;quotes&#34;.</div>
 <div class="ep-actions">
 <button type="button" class="btn ep-play">Play</button>
-<a class="btn" href="http://srv:8080/podcasts/Hardcore%20History/2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3" download>Download</a>
+<a class="btn" href="2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3" download>Download</a>
 <button type="button" class="btn ep-offline">Save offline</button>
 </div>
-<noscript><audio controls preload="none" src="http://srv:8080/podcasts/Hardcore%20History/2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3"></audio></noscript>
+<noscript><audio controls preload="none" src="2020-09-13%20-%20Episode%2069%20-%20Twilight%20&amp;%20Ash.mp3"></audio></noscript>
 <div style="margin-top:6px;"><a href="2020-09-13%20-%20Episode%2069%20-%20Twilight%20%26%20Ash.report.html" class="btn" target="_blank">Ad Removal Report</a></div>
 </div>
-<div class="episode-card" data-src="http://srv:8080/podcasts/Hardcore%20History/2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3" data-title="Ep 70 - ünïcôde">
+<div class="episode-card" data-src="2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3" data-title="Ep 70 - ünïcôde">
 <div class="episode-title">Ep 70 - ünïcôde</div>
 <div class="episode-meta">Sat, 02 Jan 2021 00:00:00 +0000 • 2.0 KB</div>
 <div class="episode-desc">Ep 70 - ünïcôde</div>
 <div class="ep-actions">
 <button type="button" class="btn ep-play">Play</button>
-<a class="btn" href="http://srv:8080/podcasts/Hardcore%20History/2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3" download>Download</a>
+<a class="btn" href="2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3" download>Download</a>
 <button type="button" class="btn ep-offline">Save offline</button>
 </div>
-<noscript><audio controls preload="none" src="http://srv:8080/podcasts/Hardcore%20History/2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3"></audio></noscript>
+<noscript><audio controls preload="none" src="2021-01-02%20-%20Ep%2070%20-%20%C3%BCn%C3%AFc%C3%B4de.mp3"></audio></noscript>
 </div>
 </main>
 </div>
@@ -241,20 +247,26 @@ body.has-player { padding-bottom: 120px; }
     bar.hidden = false;
     document.body.classList.add("has-player");
     releaseObjectURL();
-    return tx("readonly", function (s) { return s.get(url); })
-      .catch(function () { return null; })
-      .then(function (blob) {
-        if (current !== card) return;
-        if (blob) objectURL = URL.createObjectURL(blob);
-        audio.src = objectURL || url;
-        var saved = parseFloat(load("pod:pos:" + url));
-        audio.playbackRate = speeds[speedIndex];
-        if (saved > 0) audio.addEventListener("loadedmetadata", function once() {
-          audio.removeEventListener("loadedmetadata", once);
-          audio.currentTime = saved;
+    audio.playbackRate = speeds[speedIndex];
+    var saved = parseFloat(load("pod:pos:" + url));
+    if (saved > 0) audio.addEventListener("loadedmetadata", function once() {
+      audio.removeEventListener("loadedmetadata", once);
+      audio.currentTime = saved;
+    });
+    setMediaSession(card);
+
+    var btn = card.querySelector(".ep-offline");
+    if (btn && btn.dataset.saved) {
+      return tx("readonly", function (s) { return s.get(url); })
+        .catch(function () { return null; })
+        .then(function (blob) {
+          if (current !== card) return;
+          if (blob) objectURL = URL.createObjectURL(blob);
+          audio.src = objectURL || url;
         });
-        setMediaSession(card);
-      });
+    }
+    audio.src = url;
+    return Promise.resolve();
   }
 
   function setMediaSession(card) {
@@ -267,12 +279,22 @@ body.has-player { padding-bottom: 120px; }
     });
   }
 
+  function playAudio() {
+    var p = audio.play();
+    if (p && p.catch) {
+      p.catch(function (err) {
+        console.error("Audio playback error:", err);
+        setPlayIcons();
+      });
+    }
+  }
+
   function togglePlay(card) {
     if (card !== current) {
-      select(card).then(function () { audio.play(); });
+      select(card).then(function () { playAudio(); });
       return;
     }
-    if (audio.paused) audio.play(); else audio.pause();
+    if (audio.paused) playAudio(); else audio.pause();
   }
 
   function skip(delta) {
@@ -281,6 +303,10 @@ body.has-player { padding-bottom: 120px; }
 
   audio.addEventListener("play", setPlayIcons);
   audio.addEventListener("pause", setPlayIcons);
+  audio.addEventListener("error", function () {
+    console.error("Audio error:", audio.error ? audio.error.message || audio.error.code : "unknown");
+    setPlayIcons();
+  });
   audio.addEventListener("loadedmetadata", function () { ui.seek.max = Math.floor(audio.duration); ui.dur.textContent = clock(audio.duration); });
   audio.addEventListener("timeupdate", function () {
     ui.seek.value = Math.floor(audio.currentTime);

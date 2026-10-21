@@ -31,6 +31,7 @@ type Show struct {
 	ImageURL  string
 	CoverFile string
 	CoverSrc  string
+	Hostname  string
 }
 
 // Episode is one episode of a show. Filename is relative to the show
@@ -77,5 +78,6 @@ type CatalogEntry struct {
 // CatalogOptions carries the facts the catalog page needs that are not per
 // show. HasOPML controls whether the AntennaPod export link is rendered.
 type CatalogOptions struct {
-	HasOPML bool
+	HasOPML  bool
+	Hostname string
 }

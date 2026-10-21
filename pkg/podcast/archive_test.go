@@ -338,7 +338,7 @@ func TestPublishPodcastWithArchiveZeroSpin(t *testing.T) {
 	if !strings.Contains(htmlStr, "badge ep-archived") {
 		t.Errorf("index.html missing badge ep-archived for cold episode")
 	}
-	if !strings.Contains(htmlStr, "http://myhost:8080/archive/Test_Show/2026-01-10_cold.mp3") {
+	if !strings.Contains(htmlStr, "../archive/Test_Show/2026-01-10_cold.mp3") {
 		t.Errorf("index.html audio source missing archive URL")
 	}
 }

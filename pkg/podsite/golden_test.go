@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,7 @@ func fixture() (Show, []Episode) {
 		ImageURL:  "https://remote.example.com/art.jpg",
 		CoverFile: "cover.jpg",
 		CoverSrc:  "cover.jpg",
+		Hostname:  "test-host",
 	}
 	eps := []Episode{
 		{
@@ -108,7 +110,7 @@ func TestRenderCatalogGolden(t *testing.T) {
 		{Title: "Zeta Show", Folder: "Zeta Show", CoverSrc: "Zeta%20Show/cover.jpg", EpisodeCount: 3},
 		{Title: "alpha show", Folder: "alpha show", CoverSrc: "https://remote.example.com/art.jpg", EpisodeCount: 0},
 	}
-	data, err := RenderCatalog(entries, CatalogOptions{HasOPML: true})
+	data, err := RenderCatalog(entries, CatalogOptions{HasOPML: true, Hostname: "test-host"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,5 +132,43 @@ func TestRenderCatalogDoesNotMutateInput(t *testing.T) {
 	}
 	if entries[0].Title != "Zeta" || entries[1].Title != "alpha" {
 		t.Errorf("RenderCatalog reordered the caller's slice: %v", entries)
+	}
+}
+
+func TestRenderHostnamePresence(t *testing.T) {
+	t.Parallel()
+	entries := []CatalogEntry{{Title: "Test", Folder: "test"}}
+	htmlWithHost, err := RenderCatalog(entries, CatalogOptions{Hostname: "myhost"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(htmlWithHost), `<span class="header-hostname">myhost</span>`) {
+		t.Errorf("expected hostname in catalog HTML")
+	}
+
+	htmlNoHost, err := RenderCatalog(entries, CatalogOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(htmlNoHost), `<span class="header-hostname">`) {
+		t.Errorf("unexpected hostname span in catalog HTML")
+	}
+
+	showWithHost := Show{Title: "Show", Hostname: "myhost"}
+	showHTML, err := RenderShowPage(showWithHost, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(showHTML), `<span class="header-hostname">myhost</span>`) {
+		t.Errorf("expected hostname in show HTML")
+	}
+
+	showNoHost := Show{Title: "Show"}
+	showNoHostHTML, err := RenderShowPage(showNoHost, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(showNoHostHTML), `<span class="header-hostname">`) {
+		t.Errorf("unexpected hostname span in show HTML without hostname")
 	}
 }

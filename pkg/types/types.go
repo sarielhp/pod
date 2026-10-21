@@ -447,6 +447,7 @@ type ArchiveConfig struct {
 
 type Config struct {
 	Instructions      string          `json:"_instructions"`
+	RunHost           string          `json:"run_host,omitempty"`
 	PodcastsDir       string          `json:"podcasts_dir"`
 	ServerBaseURL     string          `json:"server_base_url,omitempty"`
 	SubscriptionsFile string          `json:"subscriptions_file,omitempty"`

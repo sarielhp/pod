@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"pod/pkg/types"
 	"pod/pkg/util"
@@ -123,6 +124,7 @@ func applyEnvOverrides(cfg *types.Config) {
 	applyBackendEnv(cfg)
 	applyWhisperEnv(cfg)
 	applyRemoteEnv(cfg)
+	applyRunHostEnv(cfg)
 	applyAPIKeyEnvOverrides(cfg)
 }
 
@@ -202,4 +204,56 @@ func SubscriptionsFilePath(cfg *types.Config) string {
 		return cfg.SubscriptionsFile
 	}
 	return filepath.Join(ConfigDir(), "podcasts.json")
+}
+
+func applyRunHostEnv(cfg *types.Config) {
+	if v := os.Getenv("POD_RUN_HOST"); v != "" {
+		cfg.RunHost = v
+	}
+}
+
+// CheckRunHost verifies that the current machine matches the configured run host.
+// It returns nil if runHost is empty or if POD_IGNORE_HOST is set to "1" or "true".
+func CheckRunHost(runHost string) error {
+	runHost = strings.TrimSpace(runHost)
+	if runHost == "" {
+		return nil
+	}
+	if ignore := os.Getenv("POD_IGNORE_HOST"); ignore == "1" || strings.EqualFold(ignore, "true") {
+		return nil
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("detect hostname: %w", err)
+	}
+	if IsHostAllowed(hostname, runHost) {
+		return nil
+	}
+	return fmt.Errorf("pod must run from %q (current host is %q)", runHost, hostname)
+}
+
+// IsHostAllowed checks if currentHost matches any comma- or space-separated target
+// host in runHost (case-insensitive, matching full or short hostname).
+func IsHostAllowed(currentHost, runHost string) bool {
+	currentHost = strings.TrimSpace(currentHost)
+	if currentHost == "" || runHost == "" {
+		return false
+	}
+	currentShort := strings.Split(currentHost, ".")[0]
+	targets := strings.FieldsFunc(runHost, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	})
+	for _, target := range targets {
+		t := strings.TrimSpace(target)
+		if t == "" {
+			continue
+		}
+		tShort := strings.Split(t, ".")[0]
+		if strings.EqualFold(currentHost, t) ||
+			strings.EqualFold(currentShort, t) ||
+			strings.EqualFold(currentShort, tShort) {
+			return true
+		}
+	}
+	return false
 }

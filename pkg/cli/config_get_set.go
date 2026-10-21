@@ -145,6 +145,8 @@ func handleConfigSet(w io.Writer, cfg *Config, key, val string) error {
 		}
 	case "default-ad-policy", "default-ad-removal", "default-ad-mode", "ad-policy", "ad-removal":
 		cfg.DefaultAdRemoval = config.NormalizeAdRemovalMode(val)
+	case "run-host", "run_host", "run-computer", "run_computer", "computer":
+		cfg.RunHost = strings.TrimSpace(val)
 	default:
 		return fmt.Errorf("unknown configuration key: '%s'", key)
 	}
@@ -222,6 +224,8 @@ func handleConfigGet(w io.Writer, cfg Config, key string) error {
 		fmt.Fprintln(w, cfg.ArchiveDir)
 	case "archive-base-url", "archive.base-url", "archive-url":
 		fmt.Fprintln(w, cfg.ArchiveBaseURL)
+	case "run-host", "run_host", "run-computer", "run_computer", "computer":
+		fmt.Fprintln(w, cfg.RunHost)
 	default:
 		return fmt.Errorf("unknown configuration key %q; 'pod config show' prints the current settings by name", key)
 	}

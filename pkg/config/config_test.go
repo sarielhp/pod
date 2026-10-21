@@ -212,3 +212,52 @@ func TestDefaultDiscoveredPodcastConfig(t *testing.T) {
 		t.Errorf("expected KeepPolicy %q, got %q", KeepPolicyAlways, custom.KeepPolicy)
 	}
 }
+
+func TestIsHostAllowed(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		current string
+		target  string
+		want    bool
+	}{
+		{"exact match", "qed", "qed", true},
+		{"case insensitive", "QED", "qed", true},
+		{"short matches FQDN target", "qed", "qed.local", true},
+		{"FQDN current matches short target", "qed.localdomain", "qed", true},
+		{"comma separated targets", "qed", "red, qed, valis", true},
+		{"space separated targets", "qed", "red qed valis", true},
+		{"mismatch", "red", "qed", false},
+		{"empty current", "", "qed", false},
+		{"empty target", "red", "", false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := IsHostAllowed(tc.current, tc.target)
+			if got != tc.want {
+				t.Errorf("IsHostAllowed(%q, %q) = %v, want %v", tc.current, tc.target, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckRunHost(t *testing.T) {
+	if err := CheckRunHost(""); err != nil {
+		t.Errorf("expected empty runHost to pass, got: %v", err)
+	}
+
+	t.Setenv("POD_IGNORE_HOST", "1")
+	if err := CheckRunHost("nonexistent-machine-xyz"); err != nil {
+		t.Errorf("expected POD_IGNORE_HOST=1 to bypass check, got: %v", err)
+	}
+
+	t.Setenv("POD_IGNORE_HOST", "")
+	err := CheckRunHost("definitely-not-this-hostname-12345")
+	if err == nil {
+		t.Error("expected CheckRunHost to fail on mismatched hostname")
+	} else if !strings.Contains(err.Error(), "pod must run from") {
+		t.Errorf("unexpected error format: %v", err)
+	}
+}

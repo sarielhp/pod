@@ -5,6 +5,11 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [0.5.38] - 2026-10-21
+
+### Added
+- **Designated host restriction via `run_host`.** `pod` can be restricted to run only on designated hosts specified by `"run_host"` in `~/.config/pod/config.json` or via `pod config set run_host <host>`. When invoked on a non-designated host, operational commands halt early before acquiring locks or processing audio with `Error: pod must run from <host> (current host is <current>)`. Can be bypassed for testing or debugging via `POD_IGNORE_HOST=1`. `pod config` commands remain accessible on all hosts.
+
 ## [0.5.37] - 2026-10-20
 
 ### Added

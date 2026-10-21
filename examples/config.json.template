@@ -1,5 +1,6 @@
 {
   "_instructions": "Configuration template for pod. Place in ~/.config/pod/config.json",
+  "run_host": "",
   "whisper_url": "http://127.0.0.1:8088/inference",
   "yamnet_url": "",
   "whisper_speed_factor": 7.0,

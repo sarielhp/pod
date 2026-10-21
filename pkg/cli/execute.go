@@ -23,7 +23,13 @@ func Execute(args []string) int {
 	}
 	_, _ = config.EnsureConfigExists()
 	appCfg := loadConfig()
-	if !cli.DryRun {
+	if action != "config" {
+		if err := config.CheckRunHost(appCfg.RunHost); err != nil {
+			util.FprintError(errFor(cli), "Error: %v\n", err)
+			return 1
+		}
+	}
+	if !cli.DryRun && action != "config" {
 		root := appCfg.PodcastsDir
 		if cli.PodcastsDir != "" {
 			root = cli.PodcastsDir

@@ -141,6 +141,7 @@ One-off `pod transcribe` remains a transcript-only command.
 - **Feed Checking**: `pod library feeds` checks upstream feeds directly with conditional HTTP GET (`ETag` / `If-Modified-Since`).
 - **Downloads**: `pod library download` downloads episodes directly over HTTP with resume support.
 - **Feeds & Web Players**: `pod gen_rss` generates standard Apple Podcasts `feed.xml` RSS and HTML5 `index.html` static web players for every show and the full catalog. Episodes that were never downloaded are published pointing at their original audio, so a local feed carries the show's whole run.
+- **Archive gaps**: Older versions of the cold-storage archive deleted an episode's mp3 instead of moving it, so some old episodes have only their sidecar files left (`.transcript.json`, `.cuts.json`, `.mp3.json`). This is expected: those episodes are no longer published, and current archiving moves the audio to the HDD archive instead.
 - **Mobile Sync**: Works with standard podcast clients (e.g. AntennaPod) over Tailscale/Caddy without proprietary server apps.
 
 ### Legacy Server Import (Optional)

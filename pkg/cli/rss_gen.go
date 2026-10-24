@@ -15,10 +15,11 @@ import (
 //
 // The hash is normally written when the cut is produced and the feed is
 // regenerated from it; naming the episode is for the case where the audio
-// changed after publication and a client is still holding the old file. The
-// recomputed digest is republished as the enclosure's `?v=` token, which is the
-// change a podcast client acts on, and its show is republished immediately so
-// the client can pick it up without waiting for the next publish.
+// changed after publication. The recomputed digest is republished as the
+// enclosure's `?v=` token and its show is republished immediately. The token
+// marks which audio a URL refers to; it does not make a client that already
+// holds the episode download it again — AntennaPod keeps its file until the
+// download is deleted on the device.
 func handleRSSGen(cfg Config, cli CLIOptions) error {
 	if len(cli.Args) == 0 {
 		return republishAllFeeds(cfg, cli)

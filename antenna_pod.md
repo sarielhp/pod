@@ -107,14 +107,23 @@ up new shows.
 #### Re-downloading an episode that was re-cut
 
 When an episode's audio is replaced (for example after ad removal), the GUID,
-title and `pubDate` stay the same, so AntennaPod takes a downloaded episode at
-face value and keeps the old file. To make it re-download, the enclosure URL
-gains a cache-busting token: `.../episode.mp3?v=<hash>`, where `<hash>` is a
-short digest of the audio bytes. Caddy ignores the query string and serves the
-same file, so no extra file or server change is involved. The token changes
-only when the audio does — a re-cut episode gets a new one, an untouched
-episode does not — so AntennaPod re-fetches exactly the episodes whose audio
-moved, while the original publication date is preserved.
+title and `pubDate` stay the same. AntennaPod identifies an episode by its
+GUID, so on refresh it records any new enclosure URL but keeps the file it
+already downloaded; nothing on the server side makes it fetch the episode
+again. The server always serves the current audio, so the fix is on the phone:
+
+1. Open the podcast and pull down to refresh.
+2. Open the episode, tap **Delete** to remove the downloaded file, then tap
+   **Download**. For several episodes, long-press one to multi-select, delete,
+   then select them again and download.
+
+Deleting the download keeps the episode's played state and position.
+
+Enclosure URLs carry a version token, `.../episode.mp3?v=<hash>`, where
+`<hash>` is a short digest of the audio bytes. Caddy ignores the query string
+and serves the same file. The token changes exactly when the audio does, so a
+URL always names the audio it serves and a URL-keyed cache cannot return stale
+bytes — but it does **not** by itself make AntennaPod re-download an episode.
 
 The hash is recorded when the cleaned audio is written. Pre-existing episodes
 gain it the next time their show is published, or on demand:
@@ -123,6 +132,10 @@ gain it the next time their show is published, or on demand:
 pod rss_gen e219c9   # recompute one episode's hash and republish its show
 pod rss_gen          # republish every show (hashes fill in on the read path)
 ```
+
+To check what the server is serving, compare the episode's length in
+AntennaPod with the cleaned file's (`ffprobe` on the `.mp3`, not the
+`.mp3.precut` original).
 
 ### Troubleshooting: "cannot find the server"
 

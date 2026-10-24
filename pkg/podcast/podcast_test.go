@@ -166,6 +166,28 @@ func TestDownloadPolicy(t *testing.T) {
 	}
 }
 
+func TestLatestPolicyTakesEpisodesTiedAtNewestTime(t *testing.T) {
+	t.Parallel()
+	older := time.Date(2026, 10, 22, 4, 0, 0, 0, time.UTC).UnixMilli()
+	newest := time.Date(2026, 10, 24, 4, 0, 0, 0, time.UTC).UnixMilli()
+	catalog := []backend.FeedEpisode{
+		{Title: "Older", PublishedAt: older, EnclosureURL: "https://example.com/1.mp3"},
+		{Title: "Trailer", PublishedAt: newest, EnclosureURL: "https://example.com/2.mp3"},
+		{Title: "Episode", PublishedAt: newest, EnclosureURL: "https://example.com/3.mp3"},
+	}
+
+	eps, _ := selectLatestEpisode(catalog, func(backend.FeedEpisode) bool { return false }, false)
+	if len(eps) != 2 {
+		t.Fatalf("expected both episodes tied at the newest time, got %+v", eps)
+	}
+
+	trailerHeld := func(ep backend.FeedEpisode) bool { return ep.Title == "Trailer" }
+	eps, _ = selectLatestEpisode(catalog, trailerHeld, false)
+	if len(eps) != 1 || eps[0].Title != "Episode" {
+		t.Fatalf("expected the unheld tied episode once its twin is downloaded, got %+v", eps)
+	}
+}
+
 func TestOrphanPodcasts(t *testing.T) {
 	t.Parallel()
 	podcasts := []backend.Podcast{

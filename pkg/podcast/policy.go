@@ -116,18 +116,39 @@ func hasDownloadableEnclosure(ep backend.FeedEpisode) bool {
 	return (ep.Enclosure != nil && ep.Enclosure.URL != "") || ep.EnclosureURL != ""
 }
 
+// selectLatestEpisode picks the newest (or, with oldest, the earliest)
+// unheld episode. Episodes published at the same instant — a trailer and a
+// full episode released together — are equally latest and are all taken:
+// picking one would leave the other unfetched for good, because the next run
+// finds its pick already held. Undated episodes are never treated as tied,
+// since catalogue order is then the only sign of which is latest.
 func selectLatestEpisode(sortedCatalog []backend.FeedEpisode, isDownloaded func(ep backend.FeedEpisode) bool, oldest bool) ([]backend.FeedEpisode, []string) {
 	if len(sortedCatalog) == 0 {
 		return nil, nil
 	}
-	latestEp := sortedCatalog[len(sortedCatalog)-1]
+	edgeEp := sortedCatalog[len(sortedCatalog)-1]
 	if oldest {
-		latestEp = sortedCatalog[0]
+		edgeEp = sortedCatalog[0]
 	}
-	if hasDownloadableEnclosure(latestEp) && !isDownloaded(latestEp) {
-		return []backend.FeedEpisode{latestEp}, []string{"1 latest episode (policy: latest)"}
+	candidates := []backend.FeedEpisode{edgeEp}
+	if edge := GetPubMS(edgeEp); edge > 0 {
+		candidates = nil
+		for _, ep := range sortedCatalog {
+			if GetPubMS(ep) == edge {
+				candidates = append(candidates, ep)
+			}
+		}
 	}
-	return nil, nil
+	var toDownload []backend.FeedEpisode
+	for _, ep := range candidates {
+		if hasDownloadableEnclosure(ep) && !isDownloaded(ep) {
+			toDownload = append(toDownload, ep)
+		}
+	}
+	if len(toDownload) == 0 {
+		return nil, nil
+	}
+	return toDownload, []string{fmt.Sprintf("%d latest episode(s) (policy: latest)", len(toDownload))}
 }
 
 func selectLatestKEpisodes(sortedCatalog []backend.FeedEpisode, isDownloaded func(ep backend.FeedEpisode) bool, k int, oldest bool) ([]backend.FeedEpisode, []string) {

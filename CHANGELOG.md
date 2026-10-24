@@ -8,8 +8,11 @@ were written; they are not in version order.
 ## [Unreleased]
 
 ### Added
-- **Content-hash cache-busting on feed enclosures.** Each cleaned episode now records a short digest of its audio bytes in its sidecar (`cleaned.content_hash`), published as a `?v=<hash>` token on its enclosure URL. Podcast clients such as AntennaPod keep the old file when an episode is re-cut, because the GUID, title and `pubDate` are unchanged and the enclosure URL is the only field they act on; the token changes exactly when the audio does, so a replaced episode re-downloads. The GUID and original publication date are preserved. Pre-existing episodes gain the hash on the publish read path, or immediately via the new command below.
-- **`pod rss_gen [episode_id]`.** Republishes feeds, and with an episode id first recomputes that episode's content hash before republishing its show — for forcing a client to re-download an episode whose audio changed after release. Publishing now routes through the archive-aware path, so archived episodes keep their enclosure URLs.
+- **Content-hash version token on feed enclosures.** Each cleaned episode now records a short digest of its audio bytes in its sidecar (`cleaned.content_hash`), published as a `?v=<hash>` token on its enclosure URL. The token changes exactly when the audio does, so the URL names the exact audio it serves and URL-keyed caches cannot return stale bytes. It does **not** make AntennaPod re-download an episode it already holds: AntennaPod identifies episodes by GUID and keeps its downloaded file when only the enclosure URL changes. To get a re-cut episode onto the phone, delete its download in AntennaPod and download it again (see `antenna_pod.md`). The GUID and original publication date are preserved. Pre-existing episodes gain the hash on the publish read path, or immediately via the new command below.
+- **`pod rss_gen [episode_id]`.** Republishes feeds, and with an episode id first recomputes that episode's content hash before republishing its show — for an episode whose audio changed after release. Publishing now routes through the archive-aware path, so archived episodes keep their enclosure URLs.
+
+### Fixed
+- **`pod fetch` and the `latest` download policy no longer skip an episode published at the same instant as another.** When a show released two episodes with an identical `pubDate` (typically a trailer alongside a full episode), only one was downloaded, chosen arbitrarily; every later run then found its pick already held, so the other was never fetched. All episodes tied at the newest time are now downloaded. Run `pod fetch <show> -n 2` to pick up any episode missed this way.
 
 ## [0.5.38] - 2026-10-21
 

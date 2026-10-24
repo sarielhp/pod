@@ -48,11 +48,10 @@ type Episode struct {
 	ReportHref  string
 
 	// ContentHash is a short digest of the episode's audio bytes, appended to
-	// the enclosure URL as a cache-busting token. A client that has already
-	// downloaded an episode re-fetches it only when something it compares
-	// changes, and the enclosure URL is the field it acts on; the digest
-	// changes exactly when the audio does. Empty means the audio has not been
-	// hashed and the URL is published as before.
+	// the enclosure URL as a version token; the digest changes exactly when
+	// the audio does. It keeps URL-keyed caches honest but does not make a
+	// client re-download an episode it already holds. Empty means the audio
+	// has not been hashed and the URL is published as before.
 	ContentHash string
 
 	// PublishedAt is the publication time in milliseconds, used to order the

@@ -80,6 +80,9 @@ func HandleRecut(mainMP3File, sourceAudioFile, precutFile, outputFile, baseName 
 		if fi, err := os.Stat(outputFile); err == nil {
 			st.Cleaned.SizeBytes = fi.Size()
 		}
+		if h, err := episode.ContentHash(outputFile); err == nil {
+			st.Cleaned.ContentHash = h
+		}
 	})
 
 	r.Infof("Success! Recut ad-free episode saved to: %s (duration: %s, trimmed: %s)",

@@ -26,6 +26,7 @@ type ArchivedEpisode struct {
 	PublishedAt int64   `json:"published_at"`
 	DurationSec float64 `json:"duration_sec,omitempty"`
 	SizeBytes   int64   `json:"size_bytes,omitempty"`
+	ContentHash string  `json:"content_hash,omitempty"`
 	Description string  `json:"description,omitempty"`
 	ReportHref  string  `json:"report_href,omitempty"`
 	ArchivedAt  string  `json:"archived_at,omitempty"`
@@ -135,12 +136,14 @@ func ExtractArchivedEpisodeMeta(path, podDir string) ArchivedEpisode {
 	if id := episode.LoadIdentity(path); id != nil {
 		guid = id.GUID
 	}
+	contentHash := ""
 	if st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(path)); st != nil {
 		if st.Cleaned.DurationSec > 0 {
 			durSec = st.Cleaned.DurationSec
 		} else if st.Original.DurationSec > 0 {
 			durSec = st.Original.DurationSec
 		}
+		contentHash = ensureContentHash(path, st)
 	}
 
 	pubDateStr := ""
@@ -156,6 +159,7 @@ func ExtractArchivedEpisodeMeta(path, podDir string) ArchivedEpisode {
 		PublishedAt: pubMs,
 		DurationSec: durSec,
 		SizeBytes:   sizeBytes,
+		ContentHash: contentHash,
 		Description: title,
 		ReportHref:  episodeReportHref(podDir, relName),
 		ArchivedAt:  time.Now().UTC().Format(time.RFC3339),

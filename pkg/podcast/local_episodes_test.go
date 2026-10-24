@@ -1,6 +1,7 @@
 package podcast
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"os"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 	"testing"
 
 	"pod/pkg/backend"
+	"pod/pkg/episode"
+	"pod/pkg/types"
 )
 
 func TestGeneratePodcastFeedXML(t *testing.T) {
@@ -93,6 +96,71 @@ func TestGeneratePodcastFeedXML(t *testing.T) {
 	}
 	if item.GUID != "guid-ep-69" {
 		t.Errorf("expected GUID guid-ep-69, got %s", item.GUID)
+	}
+}
+
+func TestCollectLocalEpisodesLazyFillsContentHash(t *testing.T) {
+	t.Parallel()
+
+	podDir := t.TempDir()
+	audio := filepath.Join(podDir, "2026-01-01_abcdef0123.mp3")
+	if err := os.WriteFile(audio, []byte("ad-free episode audio"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// A sidecar written before hashing existed: cleaned audio recorded, no hash.
+	st := types.EpisodeStatusFile{
+		ID:        "e00001",
+		MediaFile: filepath.Base(audio),
+		Status:    types.StateDone,
+		Cleaned:   types.EpisodeAudioMeta{Filename: filepath.Base(audio), DurationSec: 123},
+	}
+	data, _ := json.Marshal(st)
+	if err := os.WriteFile(audio+".json", data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	want, err := episode.ContentHash(audio)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	list := CollectLocalEpisodes(podDir, nil)
+	if len(list) != 1 {
+		t.Fatalf("expected 1 episode, got %d", len(list))
+	}
+	if list[0].ContentHash != want {
+		t.Errorf("in-memory hash = %q, want %q", list[0].ContentHash, want)
+	}
+
+	// The hash must have been persisted, so a second read is a no-op rather
+	// than re-hashing on every publish.
+	reloaded, err := episode.LoadEpisodeStatus(audio + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Cleaned.ContentHash != want {
+		t.Errorf("persisted hash = %q, want %q", reloaded.Cleaned.ContentHash, want)
+	}
+}
+
+func TestCollectLocalEpisodesKeepsExistingHash(t *testing.T) {
+	t.Parallel()
+
+	podDir := t.TempDir()
+	audio := filepath.Join(podDir, "ep.mp3")
+	if err := os.WriteFile(audio, []byte("audio"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	st := types.EpisodeStatusFile{
+		MediaFile: filepath.Base(audio),
+		Cleaned:   types.EpisodeAudioMeta{Filename: filepath.Base(audio), ContentHash: "deadbeefdeadbeef"},
+	}
+	data, _ := json.Marshal(st)
+	_ = os.WriteFile(audio+".json", data, 0644)
+
+	list := CollectLocalEpisodes(podDir, nil)
+	if len(list) != 1 || list[0].ContentHash != "deadbeefdeadbeef" {
+		t.Fatalf("recorded hash should be preserved, got %+v", list)
 	}
 }
 

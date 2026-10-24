@@ -47,6 +47,14 @@ type Episode struct {
 	SizeBytes   int64
 	ReportHref  string
 
+	// ContentHash is a short digest of the episode's audio bytes, appended to
+	// the enclosure URL as a cache-busting token. A client that has already
+	// downloaded an episode re-fetches it only when something it compares
+	// changes, and the enclosure URL is the field it acts on; the digest
+	// changes exactly when the audio does. Empty means the audio has not been
+	// hashed and the URL is published as before.
+	ContentHash string
+
 	// PublishedAt is the publication time in milliseconds, used to order the
 	// feed. PubDate carries the same instant formatted for RSS, but ordering
 	// on that string sorts "Wed, 29 Apr" above "Wed, 16 Sep" — the month is

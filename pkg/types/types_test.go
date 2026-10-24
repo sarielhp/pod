@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -68,6 +69,43 @@ func TestConfigFlags(t *testing.T) {
 	cfg.SpeculativeTranscription = &f
 	if cfg.IsSpeculativeTranscriptionEnabled() {
 		t.Error("expected SpeculativeTranscription to be false when explicitly disabled")
+	}
+}
+
+func TestEpisodeAudioMetaContentHashRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	st := EpisodeStatusFile{
+		MediaFile: "ep.mp3",
+		Cleaned:   EpisodeAudioMeta{Filename: "ep.mp3", ContentHash: "0123456789abcdef"},
+	}
+	data, err := json.Marshal(st)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+	var parsed EpisodeStatusFile
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if parsed.Cleaned.ContentHash != "0123456789abcdef" {
+		t.Errorf("content_hash = %q, want 0123456789abcdef", parsed.Cleaned.ContentHash)
+	}
+
+	// A record written before hashing existed omits the field and must still
+	// parse, and an empty hash must not be serialised into new records.
+	var legacy EpisodeStatusFile
+	if err := json.Unmarshal([]byte(`{"media_file":"ep.mp3","cleaned":{"filename":"ep.mp3"}}`), &legacy); err != nil {
+		t.Fatalf("Unmarshal legacy failed: %v", err)
+	}
+	if legacy.Cleaned.ContentHash != "" {
+		t.Errorf("legacy content_hash = %q, want empty", legacy.Cleaned.ContentHash)
+	}
+	empty, err := json.Marshal(EpisodeStatusFile{MediaFile: "ep.mp3"})
+	if err != nil {
+		t.Fatalf("Marshal empty failed: %v", err)
+	}
+	if strings.Contains(string(empty), "content_hash") {
+		t.Errorf("empty content_hash should be omitted: %s", empty)
 	}
 }
 

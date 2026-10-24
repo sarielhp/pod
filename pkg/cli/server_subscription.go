@@ -90,6 +90,42 @@ func buildGenRSSCommand(opts *CLIOptions, action *string) clihelp.Command {
 	}
 }
 
+// buildRSSGenCommand republishes feeds, optionally forcing a content hash for
+// one episode first.
+//
+// `gen_rss` regenerates the site and, with a count, downloads and cleans new
+// episodes; `rss_gen` is the repair tool for an episode whose audio changed
+// after it was published. A podcast client that has already downloaded an
+// episode re-fetches it only when the enclosure URL changes, so an episode
+// re-cut after release keeps serving the old, ad-laden file until its URL
+// moves. Naming the episode recomputes its audio digest — which is published
+// as the `?v=` token on its enclosure — and republishes the show.
+func buildRSSGenCommand(opts *CLIOptions, action *string) clihelp.Command {
+	return clihelp.Command{
+		Name:        "rss_gen",
+		Hidden:      true,
+		Description: "Republish feeds, optionally forcing one episode's enclosure hash",
+		UsageLine:   "pod rss_gen [episode_id]",
+		Parameters: []clihelp.Param{
+			{Name: "[episode_id]", Description: "Episode id, file or title; its hash is recomputed and its show republished"},
+		},
+		Args: clihelp.RangeArgs(0, 1),
+		Options: []clihelp.Option{
+			clihelp.Bool(&opts.Quiet, "-q, --quiet", false, "Suppress progress outputs"),
+			clihelp.Bool(&opts.Verbose, "-v, --verbose", false, "Show detailed output"),
+		},
+		Examples: []clihelp.Example{
+			{Line: "pod rss_gen", Description: "Republish every show's feed.xml and index.html"},
+			{Line: "pod rss_gen e219c9", Description: "Recompute one episode's hash and republish its show, so clients re-download it"},
+		},
+		Run: func(ctx *clihelp.Context) error {
+			*action = "rss_gen"
+			opts.Args = ctx.Args
+			return nil
+		},
+	}
+}
+
 func buildServerImportSubcommand(opts *CLIOptions, action *string) clihelp.Command {
 	return clihelp.Command{
 		Name:        "import",

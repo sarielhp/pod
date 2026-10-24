@@ -77,6 +77,41 @@ func TestRenderFeedGolden(t *testing.T) {
 	golden(t, "feed_nobase.xml", data)
 }
 
+func TestRenderFeedContentHashToken(t *testing.T) {
+	t.Parallel()
+
+	show, eps := fixture()
+	eps[0].ContentHash = "0123456789abcdef"
+	eps[1].RemoteURL = "https://upstream.example.com/audio.mp3?token=abc"
+	eps[1].ContentHash = "fedcba9876543210"
+
+	data, err := RenderFeed(show, eps, "http://srv:8080/podcasts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+
+	if !strings.Contains(got, "Twilight%20&amp;%20Ash.mp3?v=0123456789abcdef") {
+		t.Errorf("local episode enclosure missing ?v= token:\n%s", got)
+	}
+	if !strings.Contains(got, "audio.mp3?token=abc&amp;v=fedcba9876543210") {
+		t.Errorf("remote episode enclosure should join the token with &: \n%s", got)
+	}
+}
+
+func TestRenderFeedOmitsTokenWhenUnhashed(t *testing.T) {
+	t.Parallel()
+
+	show, eps := fixture()
+	data, err := RenderFeed(show, eps, "http://srv:8080/podcasts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "?v=") {
+		t.Errorf("feed should carry no token when no episode is hashed:\n%s", data)
+	}
+}
+
 func TestRenderFeedRemoteImageFallback(t *testing.T) {
 	t.Parallel()
 	show, eps := fixture()

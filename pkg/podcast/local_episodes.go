@@ -11,6 +11,7 @@ import (
 
 	"pod/pkg/backend"
 	"pod/pkg/episode"
+	"pod/pkg/types"
 	"pod/pkg/util"
 )
 
@@ -19,6 +20,7 @@ type LocalEpisodeMeta struct {
 	GUID        string
 	PubDate     string
 	Description string
+	ContentHash string
 }
 
 func CollectLocalEpisodes(podDir string, feedEpisodes []backend.FeedEpisode) []LocalEpisodeMeta {
@@ -137,14 +139,16 @@ func buildEpisodeMeta(path, podDir string, fi os.FileInfo, feedMap map[string]ba
 			pubMs = fi.ModTime().UnixMilli()
 		}
 	}
-	if durSec <= 0 {
-		if st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(path)); st != nil {
+	contentHash := ""
+	if st, _ := episode.LoadEpisodeStatus(episode.StatusPathFor(path)); st != nil {
+		if durSec <= 0 {
 			if st.Cleaned.DurationSec > 0 {
 				durSec = st.Cleaned.DurationSec
 			} else if st.Original.DurationSec > 0 {
 				durSec = st.Original.DurationSec
 			}
 		}
+		contentHash = ensureContentHash(path, st)
 	}
 	pubDateStr = time.UnixMilli(pubMs).UTC().Format(time.RFC1123Z)
 	if desc == "" {
@@ -163,7 +167,33 @@ func buildEpisodeMeta(path, podDir string, fi os.FileInfo, feedMap map[string]ba
 		GUID:        guid,
 		PubDate:     pubDateStr,
 		Description: desc,
+		ContentHash: contentHash,
 	}
+}
+
+// ensureContentHash returns the cleaned audio's content hash, computing and
+// persisting it when the sidecar predates hash recording.
+//
+// The hash is normally written when the cut is produced; sidecars written
+// before that feature carry none. Rather than leave those episodes without a
+// cache-busting token forever, the first publish that reads the sidecar fills
+// it in. A record with no cleaned audio is left alone: there is nothing to
+// hash yet, and the cut will set it when it runs.
+func ensureContentHash(path string, st *types.EpisodeStatusFile) string {
+	if st.Cleaned.ContentHash != "" {
+		return st.Cleaned.ContentHash
+	}
+	if st.Cleaned.DurationSec <= 0 && st.Cleaned.Filename == "" {
+		return ""
+	}
+	h, err := episode.ContentHash(path)
+	if err != nil || h == "" {
+		return ""
+	}
+	_ = episode.UpdateEpisodeStatus(path, func(s *types.EpisodeStatusFile) {
+		s.Cleaned.ContentHash = h
+	})
+	return h
 }
 
 func findLocalCover(podDir string) string {

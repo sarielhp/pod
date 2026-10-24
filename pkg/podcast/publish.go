@@ -63,6 +63,7 @@ func siteEpisodes(podDir string, episodes []LocalEpisodeMeta) []podsite.Episode 
 			Description: ep.Description,
 			DurationSec: ep.DurationSec,
 			SizeBytes:   ep.SizeBytes,
+			ContentHash: ep.ContentHash,
 			ReportHref:  episodeReportHref(podDir, ep.Filename),
 		})
 	}
@@ -232,6 +233,7 @@ func loadArchivedSiteEpisodes(podDir, folder, baseURL, archiveBaseURL string) []
 			Description: ep.Description,
 			DurationSec: ep.DurationSec,
 			SizeBytes:   ep.SizeBytes,
+			ContentHash: ep.ContentHash,
 			ReportHref:  ep.ReportHref,
 			RemoteURL:   remoteURL,
 			IsArchived:  true,

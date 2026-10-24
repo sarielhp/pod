@@ -686,6 +686,9 @@ func updateEpisodeStatusAfterCut(mainMP3File, precutFile, outputFile string, adS
 		if fi, err := os.Stat(outputFile); err == nil {
 			st.Cleaned.SizeBytes = fi.Size()
 		}
+		if h, err := episode.ContentHash(outputFile); err == nil {
+			st.Cleaned.ContentHash = h
+		}
 		st.Ads = make([]types.EpisodeAdCut, 0, len(adSegments))
 		for _, ad := range adSegments {
 			st.Ads = append(st.Ads, types.EpisodeAdCut(ad))

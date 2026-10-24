@@ -5,6 +5,12 @@ All notable changes to pod will be documented in this file.
 Entries below 0.3.0 predate this file being maintained and are kept as they
 were written; they are not in version order.
 
+## [Unreleased]
+
+### Added
+- **Content-hash cache-busting on feed enclosures.** Each cleaned episode now records a short digest of its audio bytes in its sidecar (`cleaned.content_hash`), published as a `?v=<hash>` token on its enclosure URL. Podcast clients such as AntennaPod keep the old file when an episode is re-cut, because the GUID, title and `pubDate` are unchanged and the enclosure URL is the only field they act on; the token changes exactly when the audio does, so a replaced episode re-downloads. The GUID and original publication date are preserved. Pre-existing episodes gain the hash on the publish read path, or immediately via the new command below.
+- **`pod rss_gen [episode_id]`.** Republishes feeds, and with an episode id first recomputes that episode's content hash before republishing its show — for forcing a client to re-download an episode whose audio changed after release. Publishing now routes through the archive-aware path, so archived episodes keep their enclosure URLs.
+
 ## [0.5.38] - 2026-10-21
 
 ### Added

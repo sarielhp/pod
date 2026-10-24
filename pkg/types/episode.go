@@ -23,6 +23,7 @@ type EpisodeAudioMeta struct {
 	DurationSec   float64 `json:"duration_sec,omitempty"`
 	SizeBytes     int64   `json:"size_bytes,omitempty"`
 	AdDurationSec float64 `json:"ad_duration_sec,omitempty"`
+	ContentHash   string  `json:"content_hash,omitempty"`
 }
 
 type EpisodeAdCut struct {

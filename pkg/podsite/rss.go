@@ -131,6 +131,13 @@ func feedItem(ep Episode, baseURL, escapedFolder, coverURL string) rssItemXML {
 			encURL = fmt.Sprintf("%s/%s/%s", baseURL, escapedFolder, escapeRelPath(ep.Filename))
 		}
 	}
+	if ep.ContentHash != "" {
+		sep := "?"
+		if strings.Contains(encURL, "?") {
+			sep = "&"
+		}
+		encURL += sep + "v=" + ep.ContentHash
+	}
 	item := rssItemXML{
 		Title:       ep.Title,
 		Description: rssCData{Value: ep.Description},

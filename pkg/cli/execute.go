@@ -89,6 +89,8 @@ func dispatch(action string, config *Config, cli CLIOptions) error {
 		return runTranscribeCommand(*config, cli)
 	case "gen_rss":
 		return handleGenRSS(*config, cli)
+	case "rss_gen":
+		return handleRSSGen(*config, cli)
 	case "detect":
 		return runDetectCommand(*config, cli)
 	case "repeats":

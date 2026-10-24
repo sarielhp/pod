@@ -104,6 +104,26 @@ up new shows.
   `/podcasts/archive/<show>/<file>`; Caddy serves that path from the HDD mount.
 - AntennaPod checks `feed.xml` on its standard refresh schedule or when pulled down manually.
 
+#### Re-downloading an episode that was re-cut
+
+When an episode's audio is replaced (for example after ad removal), the GUID,
+title and `pubDate` stay the same, so AntennaPod takes a downloaded episode at
+face value and keeps the old file. To make it re-download, the enclosure URL
+gains a cache-busting token: `.../episode.mp3?v=<hash>`, where `<hash>` is a
+short digest of the audio bytes. Caddy ignores the query string and serves the
+same file, so no extra file or server change is involved. The token changes
+only when the audio does — a re-cut episode gets a new one, an untouched
+episode does not — so AntennaPod re-fetches exactly the episodes whose audio
+moved, while the original publication date is preserved.
+
+The hash is recorded when the cleaned audio is written. Pre-existing episodes
+gain it the next time their show is published, or on demand:
+
+```bash
+pod rss_gen e219c9   # recompute one episode's hash and republish its show
+pod rss_gen          # republish every show (hashes fill in on the read path)
+```
+
 ### Troubleshooting: "cannot find the server"
 
 The show page uses relative audio links, so it plays over whichever origin
